@@ -1,88 +1,106 @@
+// pages/index.js nebo components/OrderForm.js
+
 import { useState } from "react";
 
-export default function Home() {
+export default function OrderForm() {
   const [formData, setFormData] = useState({
-    jmeno: "",
-    prijmeni: "",
-    telefon: "",
-    email: "milan.bouzek@icloud.com", // předvyplněný e-mail
-    pocetVajec: 0,
-    dalsiPoznamky: "",
+    name: "",
+    email: "",
+    address: "",
+    phone: "",
+    eggsCount: 0,
+    message: "",
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Objednávka vajec</h1>
-      <form
-        action="https://formspree.io/f/xjkoqoao"
-        method="POST"
-        className="flex flex-col gap-4"
-      >
+    <form
+      action="https://formspree.io/f/xjkoqoao"
+      method="POST"
+      className="max-w-lg mx-auto p-4 bg-white shadow-md rounded"
+    >
+      <h2 className="text-2xl font-bold mb-4">Objednávka vajec</h2>
+
+      <label className="block mb-2">
+        Jméno:
         <input
           type="text"
-          name="jmeno"
-          placeholder="Jméno"
-          value={formData.jmeno}
+          name="name"
+          value={formData.name}
           onChange={handleChange}
           required
-          className="border p-2 rounded"
+          className="w-full border p-2 rounded mt-1"
         />
-        <input
-          type="text"
-          name="prijmeni"
-          placeholder="Příjmení"
-          value={formData.prijmeni}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded"
-        />
-        <input
-          type="tel"
-          name="telefon"
-          placeholder="Telefon"
-          value={formData.telefon}
-          onChange={handleChange}
-          required
-          className="border p-2 rounded"
-        />
+      </label>
+
+      <label className="block mb-2">
+        E-mail:
         <input
           type="email"
           name="email"
-          placeholder="E-mail"
           value={formData.email}
           onChange={handleChange}
           required
-          className="border p-2 rounded"
+          className="w-full border p-2 rounded mt-1"
         />
+      </label>
+
+      <label className="block mb-2">
+        Adresa:
+        <input
+          type="text"
+          name="address"
+          value={formData.address}
+          onChange={handleChange}
+          required
+          className="w-full border p-2 rounded mt-1"
+        />
+      </label>
+
+      <label className="block mb-2">
+        Telefon:
+        <input
+          type="tel"
+          name="phone"
+          value={formData.phone}
+          onChange={handleChange}
+          className="w-full border p-2 rounded mt-1"
+        />
+      </label>
+
+      <label className="block mb-2">
+        Počet vajec:
         <input
           type="number"
-          name="pocetVajec"
-          placeholder="Počet vajec"
-          value={formData.pocetVajec}
+          name="eggsCount"
+          value={formData.eggsCount}
           onChange={handleChange}
-          min="0"
+          min="1"
           required
-          className="border p-2 rounded"
+          className="w-full border p-2 rounded mt-1"
         />
+      </label>
+
+      <label className="block mb-4">
+        Poznámka:
         <textarea
-          name="dalsiPoznamky"
-          placeholder="Další poznámky"
-          value={formData.dalsiPoznamky}
+          name="message"
+          value={formData.message}
           onChange={handleChange}
-          className="border p-2 rounded"
+          className="w-full border p-2 rounded mt-1"
         />
-        <button
-          type="submit"
-          className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
-        >
-          Odeslat objednávku
-        </button>
-      </form>
-    </div>
+      </label>
+
+      <button
+        type="submit"
+        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+      >
+        Odeslat objednávku
+      </button>
+    </form>
   );
 }
