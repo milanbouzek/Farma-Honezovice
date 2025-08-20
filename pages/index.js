@@ -1,62 +1,88 @@
-import Head from "next/head";
+import { useState } from "react";
 
 export default function Home() {
+  const [formData, setFormData] = useState({
+    jmeno: "",
+    prijmeni: "",
+    telefon: "",
+    email: "milan.bouzek@icloud.com", // předvyplněný e-mail
+    pocetVajec: 0,
+    dalsiPoznamky: "",
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
   return (
-    <>
-      <Head>
-        <title>Objednávka vajec - Farma Honezovice</title>
-        <meta name="description" content="Objednejte čerstvá domácí vejce přímo z farmy" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-10">
-        <div className="w-full max-w-md bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
-          <h1 className="text-3xl font-bold mb-6 text-center">Objednávka vajec</h1>
-
-          <form
-            action="https://formspree.io/f/xjkoqoao"
-            method="POST"
-            className="flex flex-col gap-4"
-          >
-            {/* Počet vajec */}
-            <div>
-              <label htmlFor="quantity" className="block text-gray-700 font-bold mb-2">
-                Počet vajec
-              </label>
-              <input
-                type="number"
-                name="quantity"
-                id="quantity"
-                min="1"
-                placeholder="Zadejte počet"
-                required
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              />
-            </div>
-
-            {/* Poznámky */}
-            <div>
-              <label htmlFor="notes" className="block text-gray-700 font-bold mb-2">
-                Poznámky / specifikace
-              </label>
-              <textarea
-                name="notes"
-                id="notes"
-                placeholder="Např. velikost vajec, datum odběru..."
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              ></textarea>
-            </div>
-
-            {/* Odeslat */}
-            <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            >
-              Odeslat objednávku
-            </button>
-          </form>
-        </div>
-      </main>
-    </>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Objednávka vajec</h1>
+      <form
+        action="https://formspree.io/f/xjkoqoao"
+        method="POST"
+        className="flex flex-col gap-4"
+      >
+        <input
+          type="text"
+          name="jmeno"
+          placeholder="Jméno"
+          value={formData.jmeno}
+          onChange={handleChange}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="text"
+          name="prijmeni"
+          placeholder="Příjmení"
+          value={formData.prijmeni}
+          onChange={handleChange}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="tel"
+          name="telefon"
+          placeholder="Telefon"
+          value={formData.telefon}
+          onChange={handleChange}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="email"
+          name="email"
+          placeholder="E-mail"
+          value={formData.email}
+          onChange={handleChange}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="number"
+          name="pocetVajec"
+          placeholder="Počet vajec"
+          value={formData.pocetVajec}
+          onChange={handleChange}
+          min="0"
+          required
+          className="border p-2 rounded"
+        />
+        <textarea
+          name="dalsiPoznamky"
+          placeholder="Další poznámky"
+          value={formData.dalsiPoznamky}
+          onChange={handleChange}
+          className="border p-2 rounded"
+        />
+        <button
+          type="submit"
+          className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
+        >
+          Odeslat objednávku
+        </button>
+      </form>
+    </div>
   );
 }
