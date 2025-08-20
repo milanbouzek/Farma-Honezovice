@@ -1,54 +1,84 @@
+// pages/index.js
+import { useState } from "react";
+
 export default function Home() {
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (e) => {
+    setSubmitted(true);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-yellow-50 px-4">
-      <div className="max-w-lg w-full bg-white shadow-xl rounded-2xl p-8">
-        <h1 className="text-3xl font-bold text-center text-yellow-700 mb-6">
-          Objednávka domácích vajec 🥚
-        </h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold mb-6">Objednávkový formulář</h1>
+
+      {!submitted ? (
         <form
-          action="mailto:milan.bouzek@icloud.com"
+          className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4 w-full max-w-md"
+          action="https://formspree.io/f/xjkoqoao"
           method="POST"
-          encType="text/plain"
-          className="space-y-4"
+          onSubmit={handleSubmit}
         >
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Jméno a příjmení</label>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Jméno
+            </label>
             <input
               type="text"
-              name="jmeno"
+              name="name"
               required
-              className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">E-mail</label>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              E-mail
+            </label>
             <input
               type="email"
               name="email"
               required
-              className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Počet vajec (ks)</label>
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Počet kusů
+            </label>
             <input
               type="number"
-              name="pocet"
+              name="quantity"
               required
-              className="mt-1 block w-full rounded-xl border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+              min="1"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
             />
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Poznámka
+            </label>
+            <textarea
+              name="note"
+              rows="3"
+              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            ></textarea>
           </div>
 
           <button
             type="submit"
-            className="w-full bg-yellow-600 text-white py-3 px-4 rounded-xl shadow hover:bg-yellow-700 transition"
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
           >
             Odeslat objednávku
           </button>
         </form>
-      </div>
+      ) : (
+        <div className="bg-green-100 text-green-800 p-4 rounded shadow-md">
+          Děkujeme! Vaše objednávka byla odeslána.
+        </div>
+      )}
     </div>
-  )
+  );
 }
