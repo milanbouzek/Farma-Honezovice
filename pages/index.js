@@ -1,106 +1,85 @@
-// pages/index.js nebo components/OrderForm.js
+// pages/index.js
+import Head from "next/head";
 
-import { useState } from "react";
-
-export default function OrderForm() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    address: "",
-    phone: "",
-    eggsCount: 0,
-    message: "",
-  });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
+export default function Home() {
   return (
-    <form
-      action="https://formspree.io/f/xjkoqoao"
-      method="POST"
-      className="max-w-lg mx-auto p-4 bg-white shadow-md rounded"
-    >
-      <h2 className="text-2xl font-bold mb-4">Objednávka vajec</h2>
-
-      <label className="block mb-2">
-        Jméno:
-        <input
-          type="text"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded mt-1"
+    <>
+      <Head>
+        <title>Objednávka domácích vajec</title>
+        <meta
+          name="description"
+          content="Jednoduchá objednávka domácích vajec přes webový formulář"
         />
-      </label>
+      </Head>
 
-      <label className="block mb-2">
-        E-mail:
-        <input
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded mt-1"
-        />
-      </label>
+      <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white shadow-md rounded px-8 py-6">
+          <h1 className="text-2xl font-bold mb-6 text-center">
+            Objednávka vajec
+          </h1>
+          <form
+            action="https://forms.office.com/e/PNiPQRv5Ci"
+            method="get"
+            target="_blank"
+            className="space-y-4"
+          >
+            <div>
+              <label className="block text-gray-700 mb-1">Jméno a příjmení</label>
+              <input
+                type="text"
+                name="jmeno"
+                required
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-      <label className="block mb-2">
-        Adresa:
-        <input
-          type="text"
-          name="address"
-          value={formData.address}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded mt-1"
-        />
-      </label>
+            <div>
+              <label className="block text-gray-700 mb-1">E-mail</label>
+              <input
+                type="email"
+                name="email"
+                required
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-      <label className="block mb-2">
-        Telefon:
-        <input
-          type="tel"
-          name="phone"
-          value={formData.phone}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mt-1"
-        />
-      </label>
+            <div>
+              <label className="block text-gray-700 mb-1">Telefon</label>
+              <input
+                type="tel"
+                name="telefon"
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-      <label className="block mb-2">
-        Počet vajec:
-        <input
-          type="number"
-          name="eggsCount"
-          value={formData.eggsCount}
-          onChange={handleChange}
-          min="1"
-          required
-          className="w-full border p-2 rounded mt-1"
-        />
-      </label>
+            <div>
+              <label className="block text-gray-700 mb-1">Počet vajec</label>
+              <input
+                type="number"
+                name="pocet"
+                min="1"
+                required
+                className="w-full border p-2 rounded"
+              />
+            </div>
 
-      <label className="block mb-4">
-        Poznámka:
-        <textarea
-          name="message"
-          value={formData.message}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mt-1"
-        />
-      </label>
+            <div>
+              <label className="block text-gray-700 mb-1">Poznámky</label>
+              <textarea
+                name="poznamka"
+                className="w-full border p-2 rounded"
+              ></textarea>
+            </div>
 
-      <button
-        type="submit"
-        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-      >
-        Odeslat objednávku
-      </button>
-    </form>
+            <button
+              type="submit"
+              className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition"
+            >
+              Odeslat objednávku
+            </button>
+          </form>
+        </div>
+      </main>
+    </>
   );
 }
