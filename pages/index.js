@@ -1,85 +1,49 @@
-// pages/index.js
-import Head from "next/head";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <>
-      <Head>
-        <title>Objednávka domácích vajec</title>
-        <meta
-          name="description"
-          content="Jednoduchá objednávka domácích vajec přes webový formulář"
-        />
-      </Head>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-yellow-50 p-6">
+      <div className="max-w-2xl bg-white p-8 rounded-2xl shadow-lg text-center space-y-6">
+        <h1 className="text-3xl font-bold text-green-700">Vejce z malochovu</h1>
+        
+        <p className="text-gray-700 leading-relaxed">
+          Čerstvá nebalená vejce mohou být prodána nejpozději <strong>21 dnů po snášce</strong>.
+          Datum minimální trvanlivosti je <strong>28 dnů po snášce</strong>.
+        </p>
+        
+        <p className="text-gray-700 leading-relaxed">
+          Uchovávejte při nekolísavé teplotě <strong>+5 až +18 °C</strong>.
+        </p>
 
-      <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white shadow-md rounded px-8 py-6">
-          <h1 className="text-2xl font-bold mb-6 text-center">
-            Objednávka vajec
-          </h1>
-          <form
-            action="https://forms.office.com/e/PNiPQRv5Ci"
-            method="get"
-            target="_blank"
-            className="space-y-4"
-          >
-            <div>
-              <label className="block text-gray-700 mb-1">Jméno a příjmení</label>
-              <input
-                type="text"
-                name="jmeno"
-                required
-                className="w-full border p-2 rounded"
-              />
-            </div>
+        <p className="text-gray-700 leading-relaxed">
+          Vejce jsou určena k <strong>prodeji přímo konečnému spotřebiteli</strong>.
+          Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
+        </p>
 
-            <div>
-              <label className="block text-gray-700 mb-1">E-mail</label>
-              <input
-                type="email"
-                name="email"
-                required
-                className="w-full border p-2 rounded"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 mb-1">Telefon</label>
-              <input
-                type="tel"
-                name="telefon"
-                className="w-full border p-2 rounded"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 mb-1">Počet vajec</label>
-              <input
-                type="number"
-                name="pocet"
-                min="1"
-                required
-                className="w-full border p-2 rounded"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-700 mb-1">Poznámky</label>
-              <textarea
-                name="poznamka"
-                className="w-full border p-2 rounded"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition"
-            >
-              Odeslat objednávku
-            </button>
-          </form>
+        {/* Fotka vajec */}
+        <div className="my-6">
+          <Image
+            src="/vajicka.jpg"
+            alt="Vajíčka z malochovu"
+            width={600}
+            height={400}
+            className="rounded-xl shadow-md mx-auto"
+          />
         </div>
-      </main>
-    </>
+
+        {/* Informace o velikostech */}
+        <div className="bg-green-50 p-4 rounded-lg text-gray-700 text-sm leading-relaxed">
+          <p><strong>Standardní vejce</strong>: převážně velikosti M (průměr 59 g)</p>
+          <p><strong>Zelená vejce</strong>: velikost S (průměr 52 g)</p>
+        </div>
+
+        <Link href="/objednavka">
+          <button className="mt-6 bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition">
+            Objednat vajíčka
+          </button>
+        </Link>
+      </div>
+    </div>
   );
 }
