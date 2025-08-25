@@ -38,6 +38,13 @@ export default function Objednavka() {
           </div>
 
           <button
-            type="submit"
+                       type="submit"
             className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
           >
+            Odeslat objednávku
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
