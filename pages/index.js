@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Egg } from "lucide-react"; // ikona vajíčka
 
 export default function Home() {
   return (
@@ -42,13 +43,12 @@ export default function Home() {
           href="https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-6 inline-block bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition"
+          className="mt-6 inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition"
         >
+          <Egg className="w-5 h-5" />
           Objednat vajíčka
         </a>
       </div>
     </div>
   );
 }
-
-
