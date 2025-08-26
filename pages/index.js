@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Egg } from "lucide-react"; // ikona vajíčka
+import { Egg } from "lucide-react";
 
 export default function Home() {
   return (
@@ -38,17 +38,28 @@ export default function Home() {
           <p><strong>Zelená vejce</strong>: velikost S (průměr 52 g)</p>
         </div>
 
-        {/* Tlačítko na MS Forms */}
+        {/* Tlačítko na MS Forms s animací */}
         <a
           href="https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-6 inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition"
+          className="mt-6 inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 transition transform animate-bounce-slow"
         >
           <Egg className="w-5 h-5" />
           Objednat vajíčka
         </a>
       </div>
+
+      {/* Tailwind keyframes pro jemné houpání */}
+      <style jsx>{`
+        @keyframes bounce-slow {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        .animate-bounce-slow {
+          animation: bounce-slow 1.2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
