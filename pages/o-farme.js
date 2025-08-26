@@ -46,23 +46,23 @@ export default function OFarme() {
       </ul>
 
       {/* Fotky farmy – miniatury užší a vyšší */}
-      <div className="grid grid-cols-3 gap-1 mt-6">
-        {images.map((img, i) => (
-          <div
-            key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-40 aspect-[3/4]"
-            onClick={() => setLightboxIndex(i)}
-          >
-            <Image
-              src={img.src}
-              alt={img.alt}
-              layout="fill"
-              objectFit="cover"
-              className="transform hover:scale-105 transition duration-300"
-            />
-          </div>
-        ))}
-      </div>
+    <div className="flex gap-2 mt-6 justify-center">
+  {images.map((img, i) => (
+    <div
+      key={i}
+      className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-1/2 h-40"
+      onClick={() => setLightboxIndex(i)}
+    >
+      <Image
+        src={img.src}
+        alt={img.alt}
+        layout="fill"
+        objectFit="cover"
+        className="transform hover:scale-105 transition duration-300"
+      />
+    </div>
+  ))}
+</div>
 
       {/* Lightbox overlay s animací */}
       {lightboxIndex >= 0 && (
