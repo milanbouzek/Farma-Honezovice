@@ -7,8 +7,8 @@ export default function OFarme() {
 
   const images = [
     { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
-    { src: "/slepice2.JPEG", alt: "Slepice na farmě" },
-    { src: "/kurnik2.JPEG", alt: "Zateplený kurník" },
+    { src: "/slepice2.jpeg", alt: "Slepice na farmě" }, // malé písmeno
+    { src: "/kurnik2.jpeg", alt: "Zateplený kurník" },
   ];
 
   const prevImage = (e) => {
@@ -27,7 +27,7 @@ export default function OFarme() {
       <p className="text-gray-700 leading-relaxed mb-4">
         Naše farma v Honezovicích je domovem <strong>13 slepic</strong>, které
         chováme v prostorném a <strong>zatepleném kurníku</strong> s venkovním
-        výběhem. Slepice mají dostatek pohybu a přirozený denní rytmus.
+        výběhem.
       </p>
 
       <h2 className="text-2xl font-semibold text-green-700 mb-2">Plemena slepic</h2>
@@ -45,19 +45,19 @@ export default function OFarme() {
         <li>Dominant Darkgreen</li>
       </ul>
 
-      {/* Fotky farmy */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+      {/* Fotky farmy – miniatury */}
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-4 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md"
+            className="cursor-pointer overflow-hidden rounded-xl shadow-md w-40 h-32 relative"
             onClick={() => setLightboxIndex(i)}
           >
             <Image
               src={img.src}
               alt={img.alt}
-              width={300}
-              height={200}
+              layout="fill"
+              objectFit="cover"
               className="transform hover:scale-105 transition duration-300"
             />
           </div>
