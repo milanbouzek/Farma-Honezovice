@@ -45,12 +45,12 @@ export default function OFarme() {
         <li>Dominant Darkgreen</li>
       </ul>
 
-      {/* Fotky farmy – miniatury těsně u sebe */}
-      <div className="grid grid-cols-3 gap-0 mt-6">
+      {/* Fotky farmy – miniatury */}
+      <div className="grid grid-cols-3 gap-1 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-32"
+            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full aspect-[4/3]"
             onClick={() => setLightboxIndex(i)}
           >
             <Image
@@ -64,7 +64,7 @@ export default function OFarme() {
         ))}
       </div>
 
-      {/* Lightbox overlay */}
+      {/* Lightbox overlay s animací */}
       {lightboxIndex >= 0 && (
         <div
           className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
@@ -85,7 +85,7 @@ export default function OFarme() {
           <img
             src={images[lightboxIndex].src}
             alt={images[lightboxIndex].alt}
-            className="max-h-[80vh] max-w-[90vw] rounded shadow-lg"
+            className="max-h-[80vh] max-w-[90vw] rounded shadow-lg transform scale-90 opacity-0 animate-lightbox"
             onClick={(e) => e.stopPropagation()}
           />
           <button
@@ -106,6 +106,16 @@ export default function OFarme() {
         controls
         className="w-full max-w-3xl mx-auto rounded-xl shadow-md"
       />
+
+      <style jsx>{`
+        @keyframes lightbox-anim {
+          0% { transform: scale(0.8); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-lightbox {
+          animation: lightbox-anim 0.3s ease-out forwards;
+        }
+      `}</style>
     </Layout>
   );
 }
