@@ -1,17 +1,23 @@
 import Layout from "../components/Layout";
 import Image from "next/image";
 import { useState } from "react";
-import Lightbox from "yet-another-react-lightbox";
-import "yet-another-react-lightbox/styles.css";
 
 export default function OFarme() {
-  const [index, setIndex] = useState(-1);
+  const [lightboxIndex, setLightboxIndex] = useState(-1);
 
   const images = [
     { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
     { src: "/slepice2.JPEG", alt: "Slepice na farmě" },
     { src: "/kurnik2.JPEG", alt: "Zateplený kurník" },
   ];
+
+  const prevImage = () => {
+    setLightboxIndex((lightboxIndex + images.length - 1) % images.length);
+  };
+
+  const nextImage = () => {
+    setLightboxIndex((lightboxIndex + 1) % images.length);
+  };
 
   return (
     <Layout>
@@ -37,13 +43,13 @@ export default function OFarme() {
         <li>Dominant Darkgreen</li>
       </ul>
 
-      {/* Fotky s Lightboxem */}
+      {/* Fotky farmy */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
             className="cursor-pointer overflow-hidden rounded-xl shadow-md"
-            onClick={() => setIndex(i)}
+            onClick={() => setLightboxIndex(i)}
           >
             <Image
               src={img.src}
@@ -56,23 +62,38 @@ export default function OFarme() {
         ))}
       </div>
 
-      <Lightbox
-        open={index >= 0}
-        close={() => setIndex(-1)}
-        slides={images.map(img => ({ src: img.src }))}
-        index={index}
-        plugins={[]}
-      />
+      {/* Lightbox overlay */}
+      {lightboxIndex >= 0 && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+          onClick={() => setLightboxIndex(-1)}
+        >
+          <button
+            className="absolute top-5 right-5 text-white text-3xl font-bold"
+            onClick={() => setLightboxIndex(-1)}
+          >
+            ×
+          </button>
+          <button
+            className="absolute left-5 text-white text-3xl font-bold"
+            onClick={(e) => { e.stopPropagation(); prevImage(); }}
+          >
+            ‹
+          </button>
+          <img
+            src={images[lightboxIndex].src}
+            alt={images[lightboxIndex].alt}
+            className="max-h-[80vh] max-w-[90vw] rounded shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            className="absolute right-5 text-white text-3xl font-bold"
+            onClick={(e) => { e.stopPropagation(); nextImage(); }}
+          >
+            ›
+          </button>
+        </div>
+      )}
 
       {/* Video */}
-      <h2 className="text-2xl font-semibold text-green-700 mt-10 mb-4">
-        Videoprohlídka kurníku
-      </h2>
-      <video
-        src="/prohlidka-kurniku.mp4"
-        controls
-        className="w-full max-w-3xl mx-auto rounded-xl shadow-md"
-      />
-    </Layout>
-  );
-}
+      <h2 clas
