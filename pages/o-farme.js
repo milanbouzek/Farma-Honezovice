@@ -46,13 +46,12 @@ export default function OFarme() {
       </ul>
 
       {/* Fotky farmy – miniatury těsně u sebe */}
-      <div className="flex flex-wrap -m-1 mt-6">
+      <div className="grid grid-cols-3 gap-0 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md m-1 flex-1 min-w-[100px] relative"
+            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-32"
             onClick={() => setLightboxIndex(i)}
-            style={{ flexBasis: 'calc(33.333% - 2px)' }}
           >
             <Image
               src={img.src}
