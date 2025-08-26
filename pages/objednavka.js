@@ -1,49 +1,23 @@
+import Sidebar from "../components/Sidebar";
+
 export default function Objednavka() {
   return (
-    <div className="min-h-screen bg-yellow-50 flex items-center justify-center p-6">
-      <div className="max-w-2xl bg-white shadow-xl rounded-2xl p-8 w-full">
-        <h1 className="text-2xl font-bold mb-6 text-center">Objednávka vajec</h1>
+    <div className="flex">
+      <Sidebar />
 
-        <form className="space-y-4">
-          <div>
-            <label className="block text-gray-700">Jméno a příjmení</label>
-            <input
-              type="text"
-              name="jmeno"
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700">E-mail</label>
-            <input
-              type="email"
-              name="email"
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-700">Počet vajec</label>
-            <input
-              type="number"
-              name="pocet"
-              min="1"
-              max="60"
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-          </div>
-
+      <div className="flex-1 bg-yellow-50 p-8 flex flex-col items-center">
+        <div className="max-w-2xl bg-white p-8 rounded-2xl shadow-lg text-center space-y-6">
+          <h1 className="text-3xl font-bold text-green-700">Objednávka vajec</h1>
+          <p className="text-gray-700">
+            Klikněte na tlačítko níže a vyplňte objednávku. Po odeslání se vaše objednávka propíše do systému.
+          </p>
           <button
-                       type="submit"
-            className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+            onClick={() => window.open("https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u", "_blank", "width=800,height=700")}
+            className="mt-6 bg-green-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-green-700 hover:animate-bounce transition"
           >
-            Odeslat objednávku
+            Vyplnit objednávku
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
