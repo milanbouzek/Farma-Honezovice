@@ -46,7 +46,7 @@ export default function OFarme() {
       </ul>
 
       {/* Fotky farmy – miniatury */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-1 mt-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-0 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
