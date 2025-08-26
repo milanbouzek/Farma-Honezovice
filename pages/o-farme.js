@@ -5,12 +5,11 @@ import { useState } from "react";
 export default function OFarme() {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
 
- const images = [
-  { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
-  { src: "/slepice2.jpg", alt: "Slepice na farmě" },
-  { src: "/kurnik2.jpg", alt: "Zateplený kurník" },
-];
-
+  const images = [
+    { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
+    { src: "/slepice2.jpg", alt: "Slepice na farmě" },
+    { src: "/kurnik2.jpg", alt: "Zateplený kurník" },
+  ];
 
   const prevImage = (e) => {
     e.stopPropagation();
@@ -28,7 +27,7 @@ export default function OFarme() {
       <p className="text-gray-700 leading-relaxed mb-4">
         Naše farma v Honezovicích je domovem <strong>13 slepic</strong>, které
         chováme v prostorném a <strong>zatepleném kurníku</strong> s venkovním
-        výběhem.
+        výběhem. Slepice mají dostatek pohybu a přirozený denní rytmus.
       </p>
 
       <h2 className="text-2xl font-semibold text-green-700 mb-2">Plemena slepic</h2>
@@ -47,7 +46,7 @@ export default function OFarme() {
       </ul>
 
       {/* Fotky farmy – miniatury */}
-      <div className="grid grid-cols-3 md:grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
