@@ -40,14 +40,14 @@ export default function OFarme() {
           className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
         />
         <Image
-          src="/slepice.jpeg"
+          src="/slepice2.JPEG"
           alt="Slepice na farmě"
           width={400}
           height={300}
           className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
         />
         <Image
-          src="/kurnik.jpeg"
+          src="/kurnik2.JPEG"
           alt="Zateplený kurník"
           width={400}
           height={300}
