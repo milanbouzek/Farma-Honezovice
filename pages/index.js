@@ -30,30 +30,9 @@ export default function Home() {
         🥚 Objednat vajíčka
       </motion.a>
 
-      {/* Fotky farmy */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Image
-          src="/vajicka.jpg"
-          alt="Čerstvá vejce"
-          width={400}
-          height={300}
-          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
-        />
-        <Image
-          src="/slepice.jpg"
-          alt="Slepice na farmě"
-          width={400}
-          height={300}
-          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
-        />
-        <Image
-          src="/kurnik.jpg"
-          alt="Zateplený kurník"
-          width={400}
-          height={300}
-          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
-        />
+     
       </div>
     </Layout>
   );
 }
+
