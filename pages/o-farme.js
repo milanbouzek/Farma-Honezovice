@@ -5,11 +5,11 @@ import { useState } from "react";
 export default function OFarme() {
   const [lightboxIndex, setLightboxIndex] = useState(-1);
 
-  const images = [
-    { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
-    { src: "/slepice2.jpg", alt: "Slepice na farmě" },
-    { src: "/kurnik2.jpg", alt: "Zateplený kurník" },
-  ];
+ const images = [
+  { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
+  { src: "/slepice.jpg", alt: "Slepice na farmě" },
+  { src: "/kurnik.jpg", alt: "Zateplený kurník" },
+];
 
   const prevImage = (e) => {
     e.stopPropagation();
