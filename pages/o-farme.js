@@ -54,6 +54,16 @@ export default function OFarme() {
           className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
         />
       </div>
+
+      {/* Video */}
+      <h2 className="text-2xl font-semibold text-green-700 mt-10 mb-4">
+        Videoprohlídka kurníku
+      </h2>
+      <video
+        src="/prohlidka-kurniku.mp4"
+        controls
+        className="w-full max-w-3xl mx-auto rounded-xl shadow-md"
+      />
     </Layout>
   );
 }
