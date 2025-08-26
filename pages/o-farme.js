@@ -45,12 +45,12 @@ export default function OFarme() {
         <li>Dominant Darkgreen</li>
       </ul>
 
-      {/* Fotky farmy – menší miniatury */}
+      {/* Fotky farmy – miniatury užší a vyšší */}
       <div className="grid grid-cols-3 gap-1 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-20"
+            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-40 aspect-[3/4]"
             onClick={() => setLightboxIndex(i)}
           >
             <Image
@@ -103,11 +103,10 @@ export default function OFarme() {
       </h2>
       <div className="w-full max-w-3xl mx-auto rounded-xl shadow-md overflow-hidden">
         <video
-          src="/prohlidka-kurniku.mp4"
           controls
           className="w-full h-auto"
-          type="video/mp4"
         >
+          <source src="/prohlidka-kurniku.mp4" type="video/mp4" />
           Váš prohlížeč nepodporuje přehrávání videa.
         </video>
       </div>
