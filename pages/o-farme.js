@@ -11,11 +11,13 @@ export default function OFarme() {
     { src: "/kurnik2.JPEG", alt: "Zateplený kurník" },
   ];
 
-  const prevImage = () => {
+  const prevImage = (e) => {
+    e.stopPropagation();
     setLightboxIndex((lightboxIndex + images.length - 1) % images.length);
   };
 
-  const nextImage = () => {
+  const nextImage = (e) => {
+    e.stopPropagation();
     setLightboxIndex((lightboxIndex + 1) % images.length);
   };
 
@@ -25,7 +27,7 @@ export default function OFarme() {
       <p className="text-gray-700 leading-relaxed mb-4">
         Naše farma v Honezovicích je domovem <strong>13 slepic</strong>, které
         chováme v prostorném a <strong>zatepleném kurníku</strong> s venkovním
-        výběhem.
+        výběhem. Slepice mají dostatek pohybu a přirozený denní rytmus.
       </p>
 
       <h2 className="text-2xl font-semibold text-green-700 mb-2">Plemena slepic</h2>
@@ -76,7 +78,7 @@ export default function OFarme() {
           </button>
           <button
             className="absolute left-5 text-white text-3xl font-bold"
-            onClick={(e) => { e.stopPropagation(); prevImage(); }}
+            onClick={prevImage}
           >
             ‹
           </button>
@@ -88,7 +90,7 @@ export default function OFarme() {
           />
           <button
             className="absolute right-5 text-white text-3xl font-bold"
-            onClick={(e) => { e.stopPropagation(); nextImage(); }}
+            onClick={nextImage}
           >
             ›
           </button>
@@ -96,4 +98,14 @@ export default function OFarme() {
       )}
 
       {/* Video */}
-      <h2 clas
+      <h2 className="text-2xl font-semibold text-green-700 mt-10 mb-4">
+        Videoprohlídka kurníku
+      </h2>
+      <video
+        src="/prohlidka-kurniku.mp4"
+        controls
+        className="w-full max-w-3xl mx-auto rounded-xl shadow-md"
+      />
+    </Layout>
+  );
+}
