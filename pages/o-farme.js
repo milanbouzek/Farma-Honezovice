@@ -1,4 +1,5 @@
 import Layout from "../components/Layout";
+import Image from "next/image";
 
 export default function OFarme() {
   return (
@@ -13,17 +14,46 @@ export default function OFarme() {
         Krmíme je kvalitními granulemi, čerstvou trávou a doplňkově pšenicí,
         aby byla vejce bohatá na živiny a měla výbornou chuť.
       </p>
-      <p className="text-gray-700 leading-relaxed">
-        Chováme pestrou škálu plemen:
-        <br />
-        <em>
-          Dominant Červený D853, Dominant Leghorn Černobílý D601, Dominant
-          Leghorn D229, 2× Dominant Modrý D107, Dominant Žíhaný D959, 2×
-          Dominant Vlaška koroptví D300, Dominant Černý D109, Dominant
-          Greenshell, Dominant Blueshell, Dominant Darkshell a Dominant
-          Darkgreen.
-        </em>
-      </p>
+
+      <h2 className="text-2xl font-semibold text-green-700 mb-2">Plemena slepic</h2>
+      <ul className="list-disc list-inside text-gray-700 mb-6">
+        <li>Dominant Červený D853</li>
+        <li>Dominant Leghorn Černobílý D601</li>
+        <li>Dominant Leghorn D229</li>
+        <li>Dominant Modrý D107 (2x)</li>
+        <li>Dominant Žíhaný D959</li>
+        <li>Dominant Vlaška koroptví D300 (2x)</li>
+        <li>Dominant Černý D109</li>
+        <li>Dominant Greenshell</li>
+        <li>Dominant Blueshell</li>
+        <li>Dominant Darkshell</li>
+        <li>Dominant Darkgreen</li>
+      </ul>
+
+      {/* Fotky farmy */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <Image
+          src="/vajicka.jpg"
+          alt="Čerstvá vejce"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+        <Image
+          src="/slepice.jpeg"
+          alt="Slepice na farmě"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+        <Image
+          src="/kurnik.jpeg"
+          alt="Zateplený kurník"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+      </div>
     </Layout>
   );
 }
