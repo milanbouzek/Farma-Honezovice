@@ -1,4 +1,5 @@
 import Layout from "../components/Layout";
+import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -16,25 +17,43 @@ export default function Home() {
         Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
       </p>
 
-      {/* Animované tlačítko */}
+      {/* Animované tlačítko na objednávku */}
       <motion.a
         href="https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-block bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500"
+        className="inline-block bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500 mb-8"
         whileHover={{ scale: 1.1, rotate: 2 }}
-        animate={{
-          scale: [1, 1.05, 1],
-          rotate: [0, -2, 2, 0],
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          repeatType: "mirror",
-        }}
+        animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 2, 0] }}
+        transition={{ duration: 2, repeat: Infinity, repeatType: "mirror" }}
       >
         🥚 Objednat vajíčka
       </motion.a>
+
+      {/* Fotky farmy */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Image
+          src="/vajicka.jpg"
+          alt="Čerstvá vejce"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+        <Image
+          src="/slepice.jpg"
+          alt="Slepice na farmě"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+        <Image
+          src="/kurnik.jpg"
+          alt="Zateplený kurník"
+          width={400}
+          height={300}
+          className="rounded-xl shadow-md hover:scale-105 transform transition duration-300"
+        />
+      </div>
     </Layout>
   );
 }
