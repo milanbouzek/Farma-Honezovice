@@ -45,12 +45,12 @@ export default function OFarme() {
         <li>Dominant Darkgreen</li>
       </ul>
 
-      {/* Fotky farmy – miniatury */}
+      {/* Fotky farmy – menší miniatury */}
       <div className="grid grid-cols-3 gap-1 mt-6">
         {images.map((img, i) => (
           <div
             key={i}
-            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full aspect-[4/3]"
+            className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-full h-20"
             onClick={() => setLightboxIndex(i)}
           >
             <Image
@@ -101,11 +101,16 @@ export default function OFarme() {
       <h2 className="text-2xl font-semibold text-green-700 mt-10 mb-4">
         Videoprohlídka kurníku
       </h2>
-      <video
-        src="/prohlidka-kurniku.mp4"
-        controls
-        className="w-full max-w-3xl mx-auto rounded-xl shadow-md"
-      />
+      <div className="w-full max-w-3xl mx-auto rounded-xl shadow-md overflow-hidden">
+        <video
+          src="/prohlidka-kurniku.mp4"
+          controls
+          className="w-full h-auto"
+          type="video/mp4"
+        >
+          Váš prohlížeč nepodporuje přehrávání videa.
+        </video>
+      </div>
 
       <style jsx>{`
         @keyframes lightbox-anim {
