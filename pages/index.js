@@ -6,9 +6,11 @@ export default function Home() {
   const [eggs, setEggs] = useState(0);
 
   useEffect(() => {
+    // Fetch aktuální počet vajec, pokud máš zdroj (např. SQL Server)
     fetch("/api/inventory")
       .then(res => res.json())
-      .then(data => setEggs(data.eggs));
+      .then(data => setEggs(data.eggs))
+      .catch(() => setEggs(0)); // fallback, pokud API není k dispozici
   }, []);
 
   return (
@@ -32,7 +34,9 @@ export default function Home() {
       </p>
 
       <motion.a
-        href="/objednavka"
+        href="https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u"
+        target="_blank"
+        rel="noopener noreferrer"
         className="inline-block bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500 mb-8"
         whileHover={{ scale: 1.1, rotate: 2 }}
         animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 2, 0] }}
