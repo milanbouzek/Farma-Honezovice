@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function Layout({ children }) {
   return (
-    <div className="flex min-h-screen bg-green-50"> {/* jednotné světle zelené pozadí */}
+    <div className="flex min-h-screen bg-green-50"> {/* světle zelené pozadí pro celou stránku */}
       
-      {/* Levé menu */}
+      {/* Levé menu – stejné pro všechny stránky */}
       <aside className="w-64 bg-green-700 text-white p-6 space-y-4">
         <h2 className="text-2xl font-bold mb-6">Farma Honezovice</h2>
         <nav className="space-y-2">
@@ -21,7 +21,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Obsah stránky */}
-      <main className="flex-1 p-8">{children}</main> {/* odstraněno bg-yellow-50 */}
+      <main className="flex-1 p-8">{children}</main>
     </div>
   );
 }
