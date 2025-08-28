@@ -1,125 +1,73 @@
-import Layout from "../components/Layout";
-import Image from "next/image";
 import { useState } from "react";
 
 export default function OFarme() {
-  const [lightboxIndex, setLightboxIndex] = useState(-1);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   const images = [
-    { src: "/vajicka.jpg", alt: "Čerstvá vejce" },
-    { src: "/slepice.jpg", alt: "Slepice na farmě" },
-    { src: "/kurnik.jpg", alt: "Zateplený kurník" },
+    { src: "/slepice.jpg", alt: "Slepice" },
+    { src: "/kurnik.jpg", alt: "Kurník" },
+    { src: "/vajicka.jpg", alt: "Vajíčka" },
   ];
 
-  const prevImage = (e) => {
-    e.stopPropagation();
-    setLightboxIndex((lightboxIndex + images.length - 1) % images.length);
-  };
-
-  const nextImage = (e) => {
-    e.stopPropagation();
-    setLightboxIndex((lightboxIndex + 1) % images.length);
-  };
-
   return (
-    <Layout>
-      <h1 className="text-3xl font-bold text-green-700 mb-4">O naší farmě</h1>
-      <p className="text-gray-700 leading-relaxed mb-4">
-        Naše farma v Honezovicích je domovem <strong>13 slepic</strong>, které
-        chováme v prostorném a <strong>zatepleném kurníku</strong> s venkovním
-        výběhem. Slepice mají dostatek pohybu a přirozený denní rytmus.
+    <div className="p-8 max-w-4xl mx-auto">
+      <h1 className="text-4xl font-bold mb-6 text-green-700">O naší farmě</h1>
+      <p className="mb-4">
+        Naše farma je domovem <strong>13 slepic</strong>, které žijí v
+        zatepleném kurníku s prostorným venkovním výběhem. Krmíme je
+        kvalitními granulemi, čerstvou trávou a doplňkově pšenicí, aby byla
+        jejich vejce co nejchutnější a nejzdravější.
       </p>
 
-      <h2 className="text-2xl font-semibold text-green-700 mb-2">Plemena slepic</h2>
-      <ul className="list-disc list-inside text-gray-700 mb-6">
-        <li>Dominant Červený D853</li>
+      <h2 className="text-2xl font-bold mt-6 mb-4 text-green-700">Naše slepice</h2>
+      <ul className="list-disc list-inside space-y-1 mb-6">
+        <li>DOMINANT ČERVENÝ D853</li>
         <li>Dominant Leghorn Černobílý D601</li>
         <li>Dominant Leghorn D229</li>
-        <li>Dominant Modrý D107 (2x)</li>
+        <li>2× Dominant Modrý D107</li>
         <li>Dominant Žíhaný D959</li>
-        <li>Dominant Vlaška koroptví D300 (2x)</li>
+        <li>2× Dominant Vlaška koroptví D300</li>
         <li>Dominant Černý D109</li>
-        <li>Dominant Greenshell</li>
-        <li>Dominant Blueshell</li>
-        <li>Dominant Darkshell</li>
-        <li>Dominant Darkgreen</li>
+        <li>DOMINANT GREENSHELL</li>
+        <li>DOMINANT BLUESHELL</li>
+        <li>DOMINANT DARKSHELL</li>
+        <li>DOMINANT DARKGREEN</li>
       </ul>
 
-      {/* Fotky farmy – miniatury užší a vyšší */}
-    <div className="flex gap-2 mt-6 justify-center">
-  {images.map((img, i) => (
-    <div
-      key={i}
-      className="cursor-pointer overflow-hidden rounded-xl shadow-md relative w-1/2 h-40"
-      onClick={() => setLightboxIndex(i)}
-    >
-      <Image
-        src={img.src}
-        alt={img.alt}
-        layout="fill"
-        objectFit="cover"
-        className="transform hover:scale-105 transition duration-300"
-      />
-    </div>
-  ))}
-</div>
+      {/* Galerie fotek */}
+      <h2 className="text-2xl font-bold mt-6 mb-4 text-green-700">Fotogalerie</h2>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {images.map((img, index) => (
+          <img
+            key={index}
+            src={img.src}
+            alt={img.alt}
+            className="w-32 h-32 object-cover rounded-lg shadow cursor-pointer mx-auto"
+            onClick={() => setLightboxImage(img.src)}
+          />
+        ))}
+      </div>
 
-      {/* Lightbox overlay s animací */}
-      {lightboxIndex >= 0 && (
+      {/* Lightbox */}
+      {lightboxImage && (
         <div
           className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
-          onClick={() => setLightboxIndex(-1)}
+          onClick={() => setLightboxImage(null)}
         >
-          <button
-            className="absolute top-5 right-5 text-white text-3xl font-bold"
-            onClick={() => setLightboxIndex(-1)}
-          >
-            ×
-          </button>
-          <button
-            className="absolute left-5 text-white text-3xl font-bold"
-            onClick={prevImage}
-          >
-            ‹
-          </button>
           <img
-            src={images[lightboxIndex].src}
-            alt={images[lightboxIndex].alt}
-            className="max-h-[80vh] max-w-[90vw] rounded shadow-lg transform scale-90 opacity-0 animate-lightbox"
-            onClick={(e) => e.stopPropagation()}
+            src={lightboxImage}
+            alt="Zvětšený náhled"
+            className="max-h-full max-w-full rounded-lg shadow-lg"
           />
-          <button
-            className="absolute right-5 text-white text-3xl font-bold"
-            onClick={nextImage}
-          >
-            ›
-          </button>
         </div>
       )}
 
       {/* Video */}
-      <h2 className="text-2xl font-semibold text-green-700 mt-10 mb-4">
-        Videoprohlídka kurníku
-      </h2>
-      <div className="w-full max-w-3xl mx-auto rounded-xl shadow-md overflow-hidden">
-        <video
-          controls
-          className="w-full h-auto"
-        >
-          <source src="/prohlidka-kurniku.mp4" type="video/mp4" />
-          Váš prohlížeč nepodporuje přehrávání videa.
-        </video>
-      </div>
-
-      <style jsx>{`
-        @keyframes lightbox-anim {
-          0% { transform: scale(0.8); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-lightbox {
-          animation: lightbox-anim 0.3s ease-out forwards;
-        }
-      `}</style>
-    </Layout>
+      <h2 className="text-2xl font-bold mt-8 mb-4 text-green-700">Videoprohlídka kurníku</h2>
+      <video controls className="mx-auto rounded-lg shadow-lg">
+        <source src="/prohlidka-kurniku.mp4" type="video/mp4" />
+        Váš prohlížeč nepodporuje přehrávání videa.
+      </video>
+    </div>
   );
 }
