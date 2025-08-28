@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 export default function Home() {
   return (
     <Layout>
-      <div className="min-h-screen bg-green-50 p-8"> {/* stejné pozadí jako O farmě */}
+      <div className="min-h-screen bg-green-50 p-8"> {/* celé světle zelené pozadí */}
         <h1 className="text-3xl font-bold text-green-700 mb-4">
           Vejce z malochovu
         </h1>
