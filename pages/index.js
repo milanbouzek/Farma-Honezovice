@@ -6,11 +6,10 @@ export default function Home() {
   const [eggs, setEggs] = useState(0);
 
   useEffect(() => {
-    // Fetch aktuální počet vajec, pokud máš zdroj (např. SQL Server)
     fetch("/api/inventory")
       .then(res => res.json())
-      .then(data => setEggs(data.eggs))
-      .catch(() => setEggs(0)); // fallback, pokud API není k dispozici
+      .then(data => setEggs(data.availableEggs))
+      .catch(() => setEggs(0)); // fallback, pokud JSON není dostupný
   }, []);
 
   return (
