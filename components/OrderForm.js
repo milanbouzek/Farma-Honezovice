@@ -7,15 +7,13 @@ export default function OrderForm() {
   const [remaining, setRemaining] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec při načtení stránky
   useEffect(() => {
     async function fetchStock() {
       try {
         const res = await fetch("/api/stock");
         const data = await res.json();
-        setRemaining(data.quantity ?? 0); // fallback na 0
-      } catch (err) {
-        console.error("Chyba při načítání zásob:", err);
+        setRemaining(data.quantity);
+      } catch {
         setRemaining(0);
       }
     }
@@ -46,8 +44,7 @@ export default function OrderForm() {
       } else {
         alert(`Chyba: ${data.error}`);
       }
-    } catch (err) {
-      console.error("Chyba při odesílání objednávky:", err);
+    } catch {
       alert("Chyba při odesílání objednávky.");
     } finally {
       setLoading(false);
@@ -55,29 +52,44 @@ export default function OrderForm() {
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
+    <div className="mt-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 max-w-sm">
         <input
+          type="text"
           placeholder="Jméno"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          className="border p-2 rounded"
+          required
         />
         <input
+          type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className="border p-2 rounded"
+          required
         />
         <input
           type="number"
           min="1"
+          placeholder="Počet vajec"
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
+          className="border p-2 rounded"
+          required
         />
-        <button type="submit" disabled={loading}>
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500"
+        >
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
-      {remaining !== null && <p>Zbývá vajec: {remaining}</p>}
+      {remaining !== null && (
+        <p className="mt-2 text-gray-700">Zbývá vajec: {remaining}</p>
+      )}
     </div>
   );
 }
