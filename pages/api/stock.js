@@ -1,7 +1,6 @@
 // pages/api/stock.js
 import { supabase } from '../../lib/supabaseClient';
 
-
 export default async function handler(req, res) {
   const { data: stock, error } = await supabase
     .from('eggs_stock')
