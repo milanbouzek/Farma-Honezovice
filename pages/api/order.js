@@ -1,46 +1,23 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
-import nodemailer from "nodemailer";
+import Twilio from "twilio";
 
-// NodeMailer transporter pro iCloud
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST, // smtp.mail.me.com
-  port: 587,
-  secure: false, // TLS přes port 587
-  auth: {
-    user: process.env.SMTP_USER, // tvůj iCloud email
-    pass: process.env.SMTP_PASS, // app-specific password
-  },
-});
+// Twilio klient
+const twilioClient = new Twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
-// Funkce pro odeslání upozornění emailem
-async function sendOrderEmail(name, email, quantity) {
-  await transporter.sendMail({
-    from: `"Domácí vejce" <${process.env.SMTP_USER}>`,
-    to: process.env.SMTP_USER, // sem přijde upozornění
-    subject: "Nová objednávka vajec",
-    text: `Objednávka od ${name} (${email}): ${quantity} vajec.`,
+// Funkce pro odeslání WhatsApp zprávy
+async function sendWhatsAppNotification(name, email, quantity) {
+  const message = `Nová objednávka: ${quantity} vajec od ${name} (${email})`;
+  await twilioClient.messages.create({
+    from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`, // Twilio sandbox number
+    to: `whatsapp:${process.env.MY_WHATSAPP_NUMBER}`,       // Tvé číslo
+    body: message,
   });
 }
 
-// --- TESTOVACÍ FUNKCE SMTP ---
-async function testSMTPConnection() {
-  try {
-    const success = await transporter.verify();
-    console.log("SMTP připojení OK:", success);
-  } catch (err) {
-    console.error("SMTP připojení selhalo:", err);
-  }
-}
-
 export default async function handler(req, res) {
-  // --- Vypíše hodnoty environment variables pro debug ---
-  console.log("SMTP_HOST:", process.env.SMTP_HOST);
-  console.log("SMTP_USER:", process.env.SMTP_USER);
-  console.log("SMTP_PASS:", process.env.SMTP_PASS ? "********" : undefined);
-
-  // --- Test připojení k SMTP ---
-  await testSMTPConnection();
-
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -82,8 +59,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // 4) Odeslání upozornění emailem
-    await sendOrderEmail(name, email, quantity);
+    // 4) Odeslání WhatsApp upozornění
+    await sendWhatsAppNotification(name, email, quantity);
 
     return res.status(200).json({ success: true, remaining: newQuantity });
   } catch (err) {
