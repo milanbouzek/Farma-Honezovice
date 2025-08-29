@@ -1,35 +1,49 @@
-import { supabase } from '../../lib/supabaseClient';
-
+import { supabaseServer } from "../../lib/supabaseServerClient";
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    const { name, email, quantity } = req.body;
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert([{ name, email, quantity }])
-      .select();
+  const { name, email, quantity } = req.body;
 
-    if (orderError) return res.status(400).json({ error: orderError.message });
+  if (!name || !email || !quantity || quantity < 1) {
+    return res.status(400).json({ success: false, error: "Neplatná data." });
+  }
 
-    const { data: stock, error: stockError } = await supabase
-      .from('eggs_stock')
-      .select('id, quantity')
+  try {
+    // 1) Zjistit aktuální počet vajec
+    const { data: stockData, error: stockError } = await supabaseServer
+      .from("eggs_stock")
+      .select("quantity")
       .single();
 
-    if (stockError) return res.status(400).json({ error: stockError.message });
+    if (stockError) throw stockError;
 
-    const newQuantity = stock.quantity - quantity;
+    if (!stockData || stockData.quantity < quantity) {
+      return res.status(400).json({ success: false, error: "Nedostatek vajec." });
+    }
 
-    const { error: updateError } = await supabase
-      .from('eggs_stock')
+    const newQuantity = stockData.quantity - quantity;
+
+    // 2) Zapsat objednávku
+    const { error: insertError } = await supabaseServer
+      .from("orders")
+      .insert([{ name, email, quantity }]);
+
+    if (insertError) throw insertError;
+
+    // 3) Aktualizovat zásobu
+    const { error: updateError } = await supabaseServer
+      .from("eggs_stock")
       .update({ quantity: newQuantity })
-      .eq('id', stock.id);
+      .eq("id", 1); // musíš mít id=1 u zásoby
 
-    if (updateError) return res.status(400).json({ error: updateError.message });
+    if (updateError) throw updateError;
 
-    res.status(200).json({ success: true, order, remaining: newQuantity });
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
+    return res.status(200).json({ success: true, remaining: newQuantity });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, error: "Server error" });
   }
 }
