@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: 587,
-  secure: false, // TLS nepoužívá port 587
+  secure: false, // TLS
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
