@@ -4,13 +4,56 @@ import { useState, useEffect } from "react";
 
 export default function Home() {
   const [eggs, setEggs] = useState(0);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(false);
 
+  // Načtení aktuálního stavu vajec při načtení stránky
   useEffect(() => {
-    fetch("/api/inventory")
-      .then(res => res.json())
-      .then(data => setEggs(data.availableEggs))
-      .catch(() => setEggs(0)); // fallback, pokud JSON není dostupný
+    async function fetchEggs() {
+      try {
+        const res = await fetch("/api/stock");
+        const data = await res.json();
+        setEggs(data.quantity);
+      } catch {
+        setEggs(0); // fallback, pokud JSON není dostupný
+      }
+    }
+    fetchEggs();
   }, []);
+
+  // Odeslání objednávky
+  const handleOrder = async (e) => {
+    e.preventDefault();
+    if (!name || !email || quantity < 1) {
+      alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, quantity: Number(quantity) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Objednávka přijata! Zbývá vajec: ${data.remaining}`);
+        setEggs(data.remaining);
+        setQuantity(1);
+        setName("");
+        setEmail("");
+      } else {
+        alert(`Chyba: ${data.error}`);
+      }
+    } catch (err) {
+      alert("Chyba při odesílání objednávky.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Layout>
@@ -31,18 +74,3 @@ export default function Home() {
       <p className="mb-6 text-lg text-gray-700">
         🥚 Aktuálně k dispozici: <strong>{eggs}</strong> vajec
       </p>
-
-      <motion.a
-        href="https://forms.office.com/Pages/ResponsePage.aspx?id=4CjHEwy790yOEFsycnnW2SR3troeGgtNqAxWTGDgi7RUREtDQ0dHUUNFMUlMRzZQWENHWUswUFlYUi4u"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500 mb-8"
-        whileHover={{ scale: 1.1, rotate: 2 }}
-        animate={{ scale: [1, 1.05, 1], rotate: [0, -2, 2, 0] }}
-        transition={{ duration: 2, repeat: Infinity, repeatType: "mirror" }}
-      >
-        🥚 Objednat vajíčka
-      </motion.a>
-    </Layout>
-  );
-}
