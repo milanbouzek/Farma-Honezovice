@@ -22,7 +22,25 @@ async function sendOrderEmail(name, email, quantity) {
   });
 }
 
+// --- TESTOVACÍ FUNKCE SMTP ---
+async function testSMTPConnection() {
+  try {
+    const success = await transporter.verify();
+    console.log("SMTP připojení OK:", success);
+  } catch (err) {
+    console.error("SMTP připojení selhalo:", err);
+  }
+}
+
 export default async function handler(req, res) {
+  // --- Vypíše hodnoty environment variables pro debug ---
+  console.log("SMTP_HOST:", process.env.SMTP_HOST);
+  console.log("SMTP_USER:", process.env.SMTP_USER);
+  console.log("SMTP_PASS:", process.env.SMTP_PASS ? "********" : undefined);
+
+  // --- Test připojení k SMTP ---
+  await testSMTPConnection();
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
