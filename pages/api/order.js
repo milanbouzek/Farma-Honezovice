@@ -1,12 +1,10 @@
 // pages/api/order.js
 import { supabase } from '../../lib/supabaseClient';
 
-
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { name, email, quantity } = req.body;
 
-    // Uložení objednávky do tabulky "orders"
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([{ name, email, quantity }])
@@ -14,7 +12,6 @@ export default async function handler(req, res) {
 
     if (orderError) return res.status(400).json({ error: orderError.message });
 
-    // Odečtení počtu vajec ze skladové tabulky "eggs_stock"
     const { data: stock, error: stockError } = await supabase
       .from('eggs_stock')
       .select('id, quantity')
