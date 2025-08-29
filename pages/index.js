@@ -1,12 +1,13 @@
 import Layout from "../components/Layout";
-import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import OrderForm from "../components/OrderForm";
 
 export default function Home() {
   const [eggs, setEggs] = useState(0);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec při načtení stránky
   useEffect(() => {
     async function fetchEggs() {
       try {
@@ -20,12 +21,40 @@ export default function Home() {
     fetchEggs();
   }, []);
 
+  const handleOrder = async (e) => {
+    e.preventDefault();
+    if (!name || !email || quantity < 1) {
+      alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, quantity: Number(quantity) }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Objednávka přijata! Zbývá vajec: ${data.remaining}`);
+        setEggs(data.remaining);
+        setQuantity(1);
+        setName("");
+        setEmail("");
+      } else {
+        alert(`Chyba: ${data.error}`);
+      }
+    } catch {
+      alert("Chyba při odesílání objednávky.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Layout>
-      <h1 className="text-3xl font-bold text-green-700 mb-4">
-        Vejce z malochovu
-      </h1>
-
+      <h1 className="text-3xl font-bold text-green-700 mb-4">Vejce z malochovu</h1>
       <p className="text-gray-700 leading-relaxed mb-4">
         Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
         Nabízíme čerstvá vajíčka od slepic chovaných v přirozených podmínkách.
@@ -40,24 +69,40 @@ export default function Home() {
         🥚 Aktuálně k dispozici: <strong>{eggs}</strong> vajec
       </p>
 
-      {/* Tlačítko scroll na formulář */}
-      <motion.button
-        type="button"
-        onClick={() =>
-          document
-            .getElementById("order-form")
-            .scrollIntoView({ behavior: "smooth" })
-        }
-        className="bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500 mb-8"
-        whileHover={{ scale: 1.05 }}
-      >
-        🥚 Objednat vajíčka
-      </motion.button>
-
-      {/* Objednávkový formulář */}
-      <div id="order-form">
-        <OrderForm />
-      </div>
+      <form onSubmit={handleOrder} className="mb-8 flex flex-col gap-2 max-w-sm">
+        <input
+          type="text"
+          placeholder="Jméno"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="number"
+          min="1"
+          placeholder="Počet vajec"
+          value={quantity}
+          onChange={(e) => setQuantity(e.target.value)}
+          className="border p-2 rounded"
+          required
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500"
+        >
+          {loading ? "Odesílám..." : "🥚 Objednat vajíčka"}
+        </button>
+      </form>
     </Layout>
   );
 }
