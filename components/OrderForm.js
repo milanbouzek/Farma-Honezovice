@@ -13,8 +13,9 @@ export default function OrderForm() {
       try {
         const res = await fetch("/api/stock");
         const data = await res.json();
-        setRemaining(data.quantity);
-      } catch {
+        setRemaining(data.quantity ?? 0); // fallback na 0
+      } catch (err) {
+        console.error("Chyba při načítání zásob:", err);
         setRemaining(0);
       }
     }
@@ -45,7 +46,8 @@ export default function OrderForm() {
       } else {
         alert(`Chyba: ${data.error}`);
       }
-    } catch {
+    } catch (err) {
+      console.error("Chyba při odesílání objednávky:", err);
       alert("Chyba při odesílání objednávky.");
     } finally {
       setLoading(false);
