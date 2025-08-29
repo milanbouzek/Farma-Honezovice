@@ -9,6 +9,7 @@ export default function Home() {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  // Načtení aktuálního stavu vajec při načtení stránky
   useEffect(() => {
     async function fetchEggs() {
       try {
@@ -22,6 +23,7 @@ export default function Home() {
     fetchEggs();
   }, []);
 
+  // Odeslání objednávky
   const handleOrder = async (e) => {
     e.preventDefault();
     if (!name || !email || quantity < 1) {
@@ -55,7 +57,9 @@ export default function Home() {
 
   return (
     <Layout>
-      <h1 className="text-3xl font-bold text-green-700 mb-4">Vejce z malochovu</h1>
+      <h1 className="text-3xl font-bold text-green-700 mb-4">
+        Vejce z malochovu
+      </h1>
 
       <p className="text-gray-700 leading-relaxed mb-4">
         Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
