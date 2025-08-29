@@ -1,17 +1,18 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import nodemailer from "nodemailer";
 
-// NodeMailer transporter
+// NodeMailer transporter pro iCloud
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
+  host: process.env.SMTP_HOST, // smtp.mail.me.com
   port: 587,
-  secure: false, // TLS
+  secure: false, // TLS přes port 587
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: process.env.SMTP_USER, // tvůj iCloud email
+    pass: process.env.SMTP_PASS, // app-specific password
   },
 });
 
+// Funkce pro odeslání upozornění emailem
 async function sendOrderEmail(name, email, quantity) {
   await transporter.sendMail({
     from: `"Domácí vejce" <${process.env.SMTP_USER}>`,
@@ -63,7 +64,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // 4) Odeslání emailu s upozorněním
+    // 4) Odeslání upozornění emailem
     await sendOrderEmail(name, email, quantity);
 
     return res.status(200).json({ success: true, remaining: newQuantity });
