@@ -1,5 +1,6 @@
 // pages/api/order.js
-import { supabase } from './supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
+
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
