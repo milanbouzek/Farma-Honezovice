@@ -1,20 +1,19 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import Twilio from "twilio";
 
-// Twilio klient
-const twilioClient = new Twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
+const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-// Funkce pro odeslání WhatsApp zprávy
-async function sendWhatsAppNotification(name, email, quantity) {
-  const message = `Nová objednávka: ${quantity} vajec od ${name} (${email})`;
-  await twilioClient.messages.create({
-    from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`, // Twilio sandbox number
-    to: `whatsapp:${process.env.MY_WHATSAPP_NUMBER}`,       // Tvé číslo
-    body: message,
-  });
+async function sendWhatsApp(to, name, email, quantity) {
+  try {
+    const message = await client.messages.create({
+      from: process.env.TWILIO_WHATSAPP_NUMBER, // sandbox number
+      to: `whatsapp:${to}`, // tvé autorizované číslo
+      body: `Nová objednávka vajec od ${name} (${email}): ${quantity} ks.`,
+    });
+    console.log("WhatsApp message SID:", message.sid);
+  } catch (err) {
+    console.error("Twilio WhatsApp error:", err);
+  }
 }
 
 export default async function handler(req, res) {
@@ -59,8 +58,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // 4) Odeslání WhatsApp upozornění
-    await sendWhatsAppNotification(name, email, quantity);
+    // 4) Odeslání upozornění přes WhatsApp
+    await sendWhatsApp("+420720150734", name, email, quantity);
 
     return res.status(200).json({ success: true, remaining: newQuantity });
   } catch (err) {
