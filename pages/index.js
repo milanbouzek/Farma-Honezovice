@@ -39,6 +39,9 @@ export default function Home() {
       <div className="mb-6 text-lg text-gray-700">
         <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
         <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
+        <p className="mt-2 text-red-600 font-semibold">
+          Minimální objednávka je 10 ks a vždy pouze v násobcích 10 (součet obou druhů).
+        </p>
       </div>
 
       <button
