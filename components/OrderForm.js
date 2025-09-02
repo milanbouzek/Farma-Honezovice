@@ -1,116 +1,199 @@
 import { useState, useEffect } from "react";
 
 export default function OrderForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [pickupLocation, setPickupLocation] = useState("");
-  const [remaining, setRemaining] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+    pickupLocation: "",
+    pickupDate: "",
+  });
+
+  const [remaining, setRemaining] = useState({ standard: 0, lowChol: 0 });
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     async function fetchStock() {
       try {
         const res = await fetch("/api/stock");
         const data = await res.json();
-        setRemaining(data.quantity);
+        setRemaining({
+          standard: data.standardQuantity,
+          lowChol: data.lowCholQuantity,
+        });
       } catch {
-        setRemaining(0);
+        setRemaining({ standard: 0, lowChol: 0 });
       }
     }
     fetchStock();
   }, []);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !email || quantity < 1 || !pickupLocation) {
-      alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
+
+    if (
+      (!formData.standardQuantity && !formData.lowCholQuantity) ||
+      !formData.name ||
+      !formData.email ||
+      !formData.pickupLocation ||
+      !formData.pickupDate
+    ) {
+      alert("Vyplňte všechna povinná pole a zadejte počet vajec.");
       return;
     }
 
     setLoading(true);
+    setStatus("Odesílám...");
+
     try {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name, 
-          email, 
-          quantity: Number(quantity),
-          pickupLocation 
-        }),
+        body: JSON.stringify(formData),
       });
+
       const data = await res.json();
       if (data.success) {
-        alert(`Objednávka přijata! Zbývá vajec: ${data.remaining}`);
-        setRemaining(data.remaining);
-        setName("");
-        setEmail("");
-        setQuantity(1);
-        setPickupLocation("");
+        setStatus("Objednávka byla úspěšně odeslána.");
+        setRemaining({
+          standard: data.remaining.standard,
+          lowChol: data.remaining.lowChol,
+        });
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          standardQuantity: 0,
+          lowCholQuantity: 0,
+          pickupLocation: "",
+          pickupDate: "",
+        });
       } else {
-        alert(`Chyba: ${data.error}`);
+        setStatus("Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
     } catch {
-      alert("Chyba při odesílání objednávky.");
+      setStatus("Chyba při odesílání objednávky.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="mt-4">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2 max-w-sm">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
+    >
+      <div>
+        <label className="block text-gray-700 mb-1">Jméno *</label>
         <input
           type="text"
-          placeholder="Jméno"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="border p-2 rounded"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
           required
+          className="w-full border rounded-xl p-2"
         />
+      </div>
+
+      <div>
+        <label className="block text-gray-700 mb-1">Email *</label>
         <input
           type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 rounded"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
           required
+          className="w-full border rounded-xl p-2"
         />
+      </div>
+
+      <div>
+        <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
+        <input
+          type="text"
+          name="phone"
+          value={formData.phone}
+          onChange={handleChange}
+          className="w-full border rounded-xl p-2"
+        />
+      </div>
+
+      <div>
+        <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
         <input
           type="number"
-          min="1"
-          placeholder="Počet vajec"
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-          className="border p-2 rounded"
-          required
+          name="standardQuantity"
+          value={formData.standardQuantity}
+          onChange={handleChange}
+          min="0"
+          className="w-full border rounded-xl p-2"
         />
+        <p className="text-gray-500 text-sm">
+          Aktuálně k dispozici: {remaining.standard} ks
+        </p>
+      </div>
 
+      <div>
+        <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem *</label>
+        <input
+          type="number"
+          name="lowCholQuantity"
+          value={formData.lowCholQuantity}
+          onChange={handleChange}
+          min="0"
+          className="w-full border rounded-xl p-2"
+        />
+        <p className="text-gray-500 text-sm">
+          Aktuálně k dispozici: {remaining.lowChol} ks
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
         <select
-          value={pickupLocation}
-          onChange={(e) => setPickupLocation(e.target.value)}
-          className="border p-2 rounded"
+          name="pickupLocation"
+          value={formData.pickupLocation}
+          onChange={handleChange}
           required
+          className="w-full border rounded-xl p-2"
         >
-          <option value="">-- Vyberte místo vyzvednutí --</option>
+          <option value="">-- Vyberte místo --</option>
           <option value="Dematic Ostrov u Stříbra 65">
             Dematic Ostrov u Stříbra 65
           </option>
           <option value="Honezovice">Honezovice</option>
         </select>
+      </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-yellow-400 text-gray-900 font-bold px-8 py-4 rounded-full shadow-lg hover:bg-yellow-500"
-        >
-          {loading ? "Odesílám..." : "Odeslat objednávku"}
-        </button>
-      </form>
-      {remaining !== null && (
-        <p className="mt-2 text-gray-700">Zbývá vajec: {remaining}</p>
-      )}
-    </div>
+      <div>
+        <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
+        <input
+          type="date"
+          name="pickupDate"
+          value={formData.pickupDate}
+          onChange={handleChange}
+          required
+          className="w-full border rounded-xl p-2"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
+      >
+        {loading ? "Odesílám..." : "Odeslat objednávku"}
+      </button>
+
+      {status && <p className="mt-4 text-gray-700">{status}</p>}
+    </form>
   );
 }
