@@ -8,7 +8,7 @@ async function sendWhatsApp(to, name, email, quantity, pickupLocation) {
     const message = await client.messages.create({
       from: process.env.TWILIO_WHATSAPP_NUMBER, // sandbox number
       to: `whatsapp:${to}`, // tvé autorizované číslo
-      body: `🥚 Nová objednávka vajec\n\n👤 ${name} (${email})\n📦 ${quantity} ks\n📍 Místo vyzvednutí: ${pickupLocation}`,
+      body: `🥚 Nová objednávka vajec\n👤 ${name} (${email})\n📦 ${quantity} ks\n📍 Místo vyzvednutí: ${pickupLocation}`,
     });
     console.log("WhatsApp message SID:", message.sid);
   } catch (err) {
