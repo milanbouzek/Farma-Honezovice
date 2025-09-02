@@ -28,7 +28,7 @@ export default function Home() {
       
       <p className="text-gray-700 leading-relaxed mb-4">
         Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
-        Nabízíme čerstvá vajíčka od slepic chovaných v přirozených podmínkách.
+        Nabízíme čerstvá vejce od slepic chovaných v přirozených podmínkách.
       </p>
 
       <p className="text-gray-700 leading-relaxed mb-6">
@@ -36,21 +36,19 @@ export default function Home() {
         Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
       </p>
 
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">Aktuálně dostupné množství</h2>
-      <div className="mb-4 text-lg text-gray-700">
-        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
-        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
-      </div>
+      {/* Stav zásob */}
+      <h2 className="font-bold text-lg mb-2">Aktuální dostupné množství</h2>
+      <p className="mb-2 text-gray-700">
+        🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
+      </p>
+      <p className="mb-2 text-gray-700">
+        🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
+      </p>
 
-      <div className="mb-6 text-gray-700">
-        <p>
-          <strong>Minimální objednávka:</strong> 10 vajec a vždy po násobcích 10 ks (součet standardních a vajec se sníženým cholesterolem).
-        </p>
-        <p className="mt-1">
-          Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. 
-          Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
-        </p>
-      </div>
+      {/* Minimální objednávka */}
+      <p className="mb-4 text-gray-700">
+        <strong>Minimální objednávka:</strong> 10 ks, vždy po násobcích 10.
+      </p>
 
       <button
         onClick={() => router.push("/objednavka")}
