@@ -4,6 +4,7 @@ export default function OrderForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [pickupLocation, setPickupLocation] = useState("");
   const [remaining, setRemaining] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,7 +23,7 @@ export default function OrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !email || quantity < 1) {
+    if (!name || !email || quantity < 1 || !pickupLocation) {
       alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
       return;
     }
@@ -32,7 +33,12 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, quantity: Number(quantity) }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          quantity: Number(quantity),
+          pickupLocation 
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -41,6 +47,7 @@ export default function OrderForm() {
         setName("");
         setEmail("");
         setQuantity(1);
+        setPickupLocation("");
       } else {
         alert(`Chyba: ${data.error}`);
       }
@@ -79,6 +86,20 @@ export default function OrderForm() {
           className="border p-2 rounded"
           required
         />
+
+        <select
+          value={pickupLocation}
+          onChange={(e) => setPickupLocation(e.target.value)}
+          className="border p-2 rounded"
+          required
+        >
+          <option value="">-- Vyberte místo vyzvednutí --</option>
+          <option value="Dematic Ostrov u Stříbra 65">
+            Dematic Ostrov u Stříbra 65
+          </option>
+          <option value="Honezovice">Honezovice</option>
+        </select>
+
         <button
           type="submit"
           disabled={loading}
