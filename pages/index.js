@@ -6,7 +6,9 @@ export default function Home() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [pickupLocation, setPickupLocation] = useState(""); // nové pole
+  const [pickupLocation, setPickupLocation] = useState(""); // povinné
+  const [pickupDate, setPickupDate] = useState(""); // povinné
+  const [phone, setPhone] = useState(""); // volitelné
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -24,8 +26,8 @@ export default function Home() {
 
   const handleOrder = async (e) => {
     e.preventDefault();
-    if (!name || !email || quantity < 1 || !pickupLocation) {
-      alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
+    if (!name || !email || quantity < 1 || !pickupLocation || !pickupDate) {
+      alert("Vyplňte všechna povinná pole a zadejte počet vajec větší než 0.");
       return;
     }
 
@@ -34,7 +36,14 @@ export default function Home() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, quantity: Number(quantity), pickup_location: pickupLocation }),
+        body: JSON.stringify({ 
+          name, 
+          email, 
+          quantity: Number(quantity), 
+          pickup_location: pickupLocation, 
+          pickup_date: pickupDate, 
+          phone 
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -44,6 +53,8 @@ export default function Home() {
         setName("");
         setEmail("");
         setPickupLocation("");
+        setPickupDate("");
+        setPhone("");
       } else {
         alert(`Chyba: ${data.error}`);
       }
@@ -97,7 +108,20 @@ export default function Home() {
           <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
           <option value="Honezovice">Honezovice</option>
         </select>
-
+        <input
+          type="date"
+          value={pickupDate}
+          onChange={(e) => setPickupDate(e.target.value)}
+          className="border p-2 rounded"
+          required
+        />
+        <input
+          type="tel"
+          placeholder="Telefonní číslo (volitelné)"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          className="border p-2 rounded"
+        />
         <button
           type="submit"
           disabled={loading}
