@@ -15,6 +15,7 @@ export default function OrderForm() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Načtení aktuálního stavu vajec při načtení formuláře
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -40,16 +41,17 @@ export default function OrderForm() {
     e.preventDefault();
 
     const total = Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
-    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
-      alert("Vyplňte všechna povinná pole.");
-      return;
-    }
-    if (total < 10) {
-      alert("Minimální objednávka je 10 vajec.");
-      return;
-    }
-    if (total % 10 !== 0) {
-      alert("Objednávky musí být po násobcích 10 vajec.");
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.pickupLocation ||
+      !formData.pickupDate ||
+      total < 10 ||
+      total % 10 !== 0
+    ) {
+      alert(
+        "Vyplňte všechna povinná pole a objednejte minimálně 10 vajec po násobcích 10 ks (součet standardních a vajec se sníženým cholesterolem)."
+      );
       return;
     }
 
@@ -67,8 +69,8 @@ export default function OrderForm() {
       if (data.success) {
         setStatus("Objednávka byla úspěšně odeslána.");
         setStock({
-          standardQuantity: data.remainingStandard,
-          lowCholQuantity: data.remainingLowChol,
+          standardQuantity: data.remaining_standard,
+          lowCholQuantity: data.remaining_low_chol,
         });
         setFormData({
           name: "",
@@ -91,15 +93,19 @@ export default function OrderForm() {
 
   return (
     <div>
-      <p className="mb-4 text-lg text-gray-700">
-        🥚 Aktuálně k dispozici: <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks),{" "}
-        <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
-      </p>
+      <div>
+        <p className="mb-4 text-lg text-gray-700">
+          🥚 Aktuálně k dispozici: <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks), <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
+        </p>
 
-      <p className="mb-6 text-gray-700 font-semibold">
-        Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
-        vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
-      </p>
+        <p className="mb-4 text-gray-700">
+          <strong>Minimální objednávka:</strong> 10 vajec a vždy po násobcích 10 ks (součet standardních a vajec se sníženým cholesterolem).
+        </p>
+
+        <p className="mb-4 text-gray-700">
+          Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
@@ -145,6 +151,7 @@ export default function OrderForm() {
             value={formData.standardQuantity}
             onChange={handleChange}
             min="0"
+            required
             className="w-full border rounded-xl p-2"
           />
         </div>
@@ -157,6 +164,7 @@ export default function OrderForm() {
             value={formData.lowCholQuantity}
             onChange={handleChange}
             min="0"
+            required
             className="w-full border rounded-xl p-2"
           />
         </div>
