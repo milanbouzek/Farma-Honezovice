@@ -1,22 +1,26 @@
-import pool from "../../lib/db";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseServer = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
   try {
-    const result = await pool.query("SELECT standard_quantity, low_cholesterol_quantity FROM eggs_stock ORDER BY id DESC LIMIT 1");
+    const { data, error } = await supabaseServer
+      .from("eggs_stock")
+      .select("standard_quantity, low_chol_quantity")
+      .limit(1)
+      .maybeSingle();
 
-    if (result.rows.length === 0) {
-      return res.status(200).json({
-        success: true,
-        stock: { standard_quantity: 0, low_cholesterol_quantity: 0 },
-      });
-    }
+    if (error) throw error;
 
     res.status(200).json({
-      success: true,
-      stock: result.rows[0],
+      standardQuantity: data?.standard_quantity || 0,
+      lowCholQuantity: data?.low_chol_quantity || 0,
     });
-  } catch (error) {
-    console.error("Chyba při načítání zásob:", error);
-    res.status(500).json({ success: false, error: "Nepodařilo se načíst zásoby" });
+  } catch (err) {
+    console.error("Stock API error:", err);
+    res.status(500).json({ standardQuantity: 0, lowCholQuantity: 0 });
   }
 }
