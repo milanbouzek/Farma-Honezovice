@@ -28,7 +28,7 @@ export default function Home() {
       
       <p className="text-gray-700 leading-relaxed mb-4">
         Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
-        Nabízíme čerstvá vajíčka od slepic chovaných v přirozených podmínkách.
+        Nabízíme čerstvá vejce od slepic chovaných v přirozených podmínkách.
       </p>
 
       <p className="text-gray-700 leading-relaxed mb-6">
@@ -41,10 +41,15 @@ export default function Home() {
         <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
-      <p className="mb-6 text-gray-700 font-semibold">
-        Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
-        vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
-      </p>
+      <div className="mb-6 text-gray-700">
+        <p>
+          <strong>Minimální objednávka:</strong> 10 vajec a vždy po násobcích 10 ks (součet standardních a vajec se sníženým cholesterolem).
+        </p>
+        <p>
+          Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. 
+          Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
+        </p>
+      </div>
 
       <button
         onClick={() => router.push("/objednavka")}
