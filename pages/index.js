@@ -1,39 +1,44 @@
-import pool from "../../lib/db";
-import sendWhatsAppMessage from "../../lib/whatsapp";
+import Layout from "../components/Layout";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, error: "Method not allowed" });
-  }
+export default function Home() {
+  const [stock, setStock] = useState({ standard: 0, lowChol: 0 });
+  const router = useRouter();
 
-  const { name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
+  useEffect(() => {
+    async function fetchStock() {
+      try {
+        const res = await fetch("/api/stock");
+        const data = await res.json();
+        setStock({ standard: data.standard, lowChol: data.lowChol });
+      } catch {
+        setStock({ standard: 0, lowChol: 0 });
+      }
+    }
+    fetchStock();
+  }, []);
 
-  if (!name || !email || !standardQuantity || !lowCholQuantity || !pickupLocation || !pickupDate) {
-    return res.status(400).json({ success: false, error: "Chybí povinná pole" });
-  }
+  return (
+    <Layout>
+      <h1 className="text-3xl font-bold text-green-700 mb-4">Vejce z malochovu</h1>
+      <p className="text-gray-700 mb-4">
+        Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
+        Nabízíme čerstvá vajíčka od slepic chovaných v přirozených podmínkách.
+      </p>
 
-  try {
-    await pool.query(
-      `INSERT INTO orders 
-        (name, email, phone, standard_quantity, low_cholesterol_quantity, pickup_location, pickup_date) 
-       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate]
-    );
+      <p className="text-gray-700 mb-6">
+        🥚 Aktuálně k dispozici:
+        <strong> {stock.standard}</strong> standardních vajec,
+        <strong> {stock.lowChol}</strong> vajec se sníženým cholesterolem
+      </p>
 
-    const msg = `📦 Nová objednávka:
-👤 ${name}
-📧 ${email}
-📞 ${phone || "neuvedeno"}
-🥚 Standard: ${standardQuantity}
-🥚 Low Chol: ${lowCholQuantity}
-📍 Místo: ${pickupLocation}
-📅 Datum: ${pickupDate}`;
-
-    await sendWhatsAppMessage(msg);
-
-    res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("Chyba při ukládání objednávky:", error);
-    res.status(500).json({ success: false, error: "Nepodařilo se uložit objednávku" });
-  }
+      <button
+        onClick={() => router.push("/objednavka")}
+        className="bg-yellow-400 text-gray-900 font-semibold px-6 py-3 rounded-xl shadow-md hover:bg-yellow-500 hover:scale-105 transform transition duration-300"
+      >
+        Přejít k objednávce
+      </button>
+    </Layout>
+  );
 }
