@@ -25,7 +25,7 @@ export default function OrderForm() {
           standardQuantity: data.standardQuantity || 0,
           lowCholQuantity: data.lowCholQuantity || 0,
         });
-      } catch (err) {
+      } catch {
         setStock({ standardQuantity: 0, lowCholQuantity: 0 });
       }
     }
@@ -34,16 +34,13 @@ export default function OrderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const totalQuantity = Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
+    const totalQuantity =
+      Number(formData.standardQuantity || 0) + Number(formData.lowCholQuantity || 0);
 
     if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
       alert("Vyplňte všechna povinná pole.");
@@ -51,7 +48,7 @@ export default function OrderForm() {
     }
 
     if (totalQuantity < 10 || totalQuantity % 10 !== 0) {
-      alert("Objednávka musí být minimálně 10 ks a vždy po násobcích 10 ks (součet standardních a low-cholesterol vajec).");
+      alert("Objednávka musí být minimálně 10 ks a vždy po násobcích 10.");
       return;
     }
 
@@ -93,27 +90,23 @@ export default function OrderForm() {
 
   return (
     <div>
-      {/* Uzávěrka objednávek */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-800 mb-1">Uzávěrka objednávek</h2>
-        <p className="text-gray-700">
-          Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den.
-          Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
-        </p>
-      </div>
+      <h2 className="text-xl font-semibold mb-2">Aktuální dostupné množství vajec</h2>
+      <p className="mb-2 text-lg text-gray-700">
+        🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
+      </p>
+      <p className="mb-4 text-lg text-gray-700">
+        🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
+      </p>
+      <p className="mb-4 text-gray-700">
+        Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
+        vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
+      </p>
+      <p className="mb-4 text-gray-700">
+        Minimální objednávka je 10 ks a musí být vždy po násobcích 10 (součet standardních a vajec
+        se sníženým cholesterolem).
+      </p>
 
-      {/* Stav zásob */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-gray-800 mb-1">Aktuální dostupné množství</h2>
-        <p className="text-gray-700 mb-1">
-          🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
-        </p>
-        <p className="text-gray-700">
-          🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
-      </div>
-
-      {/* Formulář */}
+      <h2 className="text-xl font-semibold mb-2">Objednávka</h2>
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
           <label className="block text-gray-700 mb-1">Jméno *</label>
@@ -158,6 +151,7 @@ export default function OrderForm() {
             value={formData.standardQuantity}
             onChange={handleChange}
             min="0"
+            required
             className="w-full border rounded-xl p-2"
           />
         </div>
@@ -170,6 +164,7 @@ export default function OrderForm() {
             value={formData.lowCholQuantity}
             onChange={handleChange}
             min="0"
+            required
             className="w-full border rounded-xl p-2"
           />
         </div>
@@ -204,4 +199,13 @@ export default function OrderForm() {
         <button
           type="submit"
           disabled={loading}
-          className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow
+          className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
+        >
+          {loading ? "Odesílám..." : "Odeslat objednávku"}
+        </button>
+      </form>
+
+      {status && <p className="mt-4 text-gray-700">{status}</p>}
+    </div>
+  );
+}
