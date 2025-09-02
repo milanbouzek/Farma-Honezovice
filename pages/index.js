@@ -36,13 +36,15 @@ export default function Home() {
         Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
       </p>
 
-      <div className="mb-6 text-lg text-gray-700">
+      <div className="mb-4 text-lg text-gray-700">
         <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
         <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
-        <p className="mt-2 text-red-600 font-semibold">
-          Minimální objednávka je 10 ks a vždy pouze v násobcích 10 (součet obou druhů).
-        </p>
       </div>
+
+      <p className="mb-6 text-gray-700 font-semibold">
+        Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
+        vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
+      </p>
 
       <button
         onClick={() => router.push("/objednavka")}
