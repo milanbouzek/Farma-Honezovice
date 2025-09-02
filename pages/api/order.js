@@ -3,68 +3,100 @@ import Twilio from "twilio";
 
 const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-async function sendWhatsApp(to, name, email, standardQty, lowCholQty) {
+async function sendWhatsApp(to, name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
   try {
     const message = await client.messages.create({
       from: process.env.TWILIO_WHATSAPP_NUMBER,
       to: `whatsapp:${to}`,
-      body: `Nová objednávka: ${name} (${email})\nStandard: ${standardQty} ks\nLowChol: ${lowCholQty} ks`,
+      body: `Nová objednávka vajec od ${name} (${email}${phone ? ", tel: " + phone : ""}):
+- Standardní: ${standardQty} ks
+- Low-cholesterol: ${lowCholQty} ks
+- Místo vyzvednutí: ${pickupLocation}
+- Datum vyzvednutí: ${pickupDate}`
     });
-    console.log("WhatsApp SID:", message.sid);
+    console.log("WhatsApp message SID:", message.sid);
   } catch (err) {
     console.error("Twilio WhatsApp error:", err);
   }
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
-  const { name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    standardQuantity,
+    lowCholQuantity,
+    pickupLocation,
+    pickupDate
+  } = req.body;
 
-  if (!name || !email || !pickupLocation || !pickupDate || (standardQuantity + lowCholQuantity < 1)) {
+  if (!name || !email || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
     return res.status(400).json({ success: false, error: "Neplatná data." });
   }
 
   try {
-    const { data: stock, error: stockError } = await supabaseServer
+    // Načtení aktuálního počtu vajec
+    const { data: stockData, error: stockError } = await supabaseServer
       .from("eggs_stock")
-      .select("*")
-      .single();
+      .select("standard_quantity, low_chol_quantity")
+      .limit(1)
+      .maybeSingle();
 
     if (stockError) throw stockError;
 
-    if (stock.standard_quantity < standardQuantity || stock.low_chol_quantity < lowCholQuantity) {
+    if (!stockData || stockData.standard_quantity < standardQuantity || stockData.low_chol_quantity < lowCholQuantity) {
       return res.status(400).json({ success: false, error: "Nedostatek vajec." });
     }
 
-    const newStandard = stock.standard_quantity - standardQuantity;
-    const newLowChol = stock.low_chol_quantity - lowCholQuantity;
+    const newStandard = stockData.standard_quantity - standardQuantity;
+    const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
 
-    // Vložení objednávky
-    const { error: insertError } = await supabaseServer.from("orders").insert([{
-      customer_name: name,
-      email,
-      phone,
-      standard_quantity: standardQuantity,
-      low_chol_quantity: lowCholQuantity,
-      pickup_location: pickupLocation,
-      pickup_date: pickupDate,
-    }]);
+    // Uložení objednávky
+    const { error: insertError } = await supabaseServer
+      .from("orders")
+      .insert([{
+        customer_name: name,
+        email,
+        phone,
+        standard_quantity: standardQuantity,
+        low_chol_quantity: lowCholQuantity,
+        pickup_location: pickupLocation,
+        pickup_date: pickupDate
+      }]);
+
     if (insertError) throw insertError;
 
-    // Aktualizace stavu vajec
+    // Aktualizace zásoby
     const { error: updateError } = await supabaseServer
       .from("eggs_stock")
-      .update({ standard_quantity: newStandard, low_chol_quantity: newLowChol })
-      .eq("id", stock.id);
+      .update({
+        standard_quantity: newStandard,
+        low_chol_quantity: newLowChol
+      })
+      .eq("id", 1);
+
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace
-    await sendWhatsApp("+420720150734", name, email, standardQuantity, lowCholQuantity);
+    // Odeslání upozornění přes WhatsApp
+    await sendWhatsApp(
+      "+420720150734",
+      name,
+      email,
+      standardQuantity,
+      lowCholQuantity,
+      pickupLocation,
+      pickupDate,
+      phone
+    );
 
-    res.status(200).json({ success: true, remaining: { standard: newStandard, lowChol: newLowChol } });
+    return res.status(200).json({ success: true, remaining: { standard: newStandard, lowChol: newLowChol } });
   } catch (err) {
     console.error("Order API error:", err);
-    res.status(500).json({ success: false, error: err.message || "Server error" });
+    return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 }
