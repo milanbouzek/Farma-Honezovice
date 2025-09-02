@@ -12,10 +12,9 @@ export default function OrderForm() {
   });
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -25,7 +24,7 @@ export default function OrderForm() {
           standardQuantity: data.standardQuantity || 0,
           lowCholQuantity: data.lowCholQuantity || 0,
         });
-      } catch (err) {
+      } catch {
         setStock({ standardQuantity: 0, lowCholQuantity: 0 });
       }
     }
@@ -40,20 +39,11 @@ export default function OrderForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalOrder =
-      Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
-
-    // Validace
-    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
-      alert("Vyplňte všechna povinná pole.");
-      return;
-    }
-    if (totalOrder < 10) {
-      alert("Celková objednávka musí být minimálně 10 ks.");
-      return;
-    }
-    if (totalOrder % 10 !== 0) {
-      alert("Objednávka musí být vždy po násobcích 10 ks.");
+    const totalEggs = Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
+    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate || totalEggs < 10 || totalEggs % 10 !== 0) {
+      alert(
+        "Vyplňte všechna povinná pole a zadejte objednávku v minimálním množství 10 ks, vždy po násobcích 10."
+      );
       return;
     }
 
@@ -95,20 +85,30 @@ export default function OrderForm() {
 
   return (
     <div>
-      <p className="mb-2 font-bold">Aktuální dostupné množství:</p>
-      <p className="mb-2 text-lg text-gray-700">
-        🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)<br />
+      {/* Stav zásob */}
+      <h2 className="font-bold text-lg mb-2">Aktuální dostupné množství</h2>
+      <p className="mb-2 text-gray-700">
+        🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
+      </p>
+      <p className="mb-2 text-gray-700">
         🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
       </p>
-      <p className="mb-4 font-bold">Minimální objednávka: 10 ks, vždy po násobcích 10 ks (součet standardních a low cholesterol vajec).</p>
-      <p className="mb-4 font-bold">Uzávěrka objednávek:</p>
-      <p className="mb-6 text-gray-700">
+
+      {/* Minimální objednávka */}
+      <p className="mb-4 text-gray-700">
+        <strong>Minimální objednávka:</strong> 10 ks, vždy po násobcích 10.
+      </p>
+
+      {/* Uzávěrka objednávek */}
+      <h2 className="font-bold text-lg mb-2">Uzávěrka objednávek</h2>
+      <p className="mb-4 text-gray-700">
         Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
       </p>
 
+      {/* Formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Jméno *</label>
+          <label className="block text-gray-700 mb-1">Jméno *</label>
           <input
             type="text"
             name="name"
@@ -120,7 +120,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Email *</label>
+          <label className="block text-gray-700 mb-1">Email *</label>
           <input
             type="email"
             name="email"
@@ -132,7 +132,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Telefon (nepovinné)</label>
+          <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
           <input
             type="text"
             name="phone"
@@ -143,7 +143,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Počet standardních vajec *</label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
           <input
             type="number"
             name="standardQuantity"
@@ -155,7 +155,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Počet vajec se sníženým cholesterolem *</label>
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem *</label>
           <input
             type="number"
             name="lowCholQuantity"
@@ -167,7 +167,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Místo vyzvednutí *</label>
+          <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
           <select
             name="pickupLocation"
             value={formData.pickupLocation}
@@ -182,7 +182,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1 font-bold">Datum vyzvednutí *</label>
+          <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
           <input
             type="date"
             name="pickupDate"
