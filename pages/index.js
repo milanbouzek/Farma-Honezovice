@@ -1,40 +1,39 @@
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import pool from "../../lib/db";
+import sendWhatsAppMessage from "../../lib/whatsapp";
 
-export default function Home() {
-  const [stock, setStock] = useState({ standard_quantity: 0, low_cholesterol_quantity: 0 });
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
 
-  useEffect(() => {
-    async function fetchStock() {
-      const res = await fetch("/api/stock");
-      const data = await res.json();
-      if (data.success) {
-        setStock(data.stock);
-      }
-    }
-    fetchStock();
-  }, []);
+  const { name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
 
-  return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-green-700 mb-6">Nabídka vajec</h1>
-      <div className="bg-white shadow-lg rounded-2xl p-6 mb-6">
-        <p className="text-lg text-gray-700 mb-2">
-          <strong>Standardní vejce:</strong> {stock.standard_quantity} ks skladem
-        </p>
-        <p className="text-lg text-gray-700 mb-4">Cena: 5 Kč / ks</p>
+  if (!name || !email || !standardQuantity || !lowCholQuantity || !pickupLocation || !pickupDate) {
+    return res.status(400).json({ success: false, error: "Chybí povinná pole" });
+  }
 
-        <p className="text-lg text-gray-700 mb-2">
-          <strong>Vejce se sníženým cholesterolem:</strong> {stock.low_cholesterol_quantity} ks skladem
-        </p>
-        <p className="text-lg text-gray-700 mb-4">Cena: 6 Kč / ks</p>
-      </div>
+  try {
+    await pool.query(
+      `INSERT INTO orders 
+        (name, email, phone, standard_quantity, low_cholesterol_quantity, pickup_location, pickup_date) 
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate]
+    );
 
-      <Link href="/order">
-        <button className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition">
-          Přejít k objednávce
-        </button>
-      </Link>
-    </div>
-  );
+    const msg = `📦 Nová objednávka:
+👤 ${name}
+📧 ${email}
+📞 ${phone || "neuvedeno"}
+🥚 Standard: ${standardQuantity}
+🥚 Low Chol: ${lowCholQuantity}
+📍 Místo: ${pickupLocation}
+📅 Datum: ${pickupDate}`;
+
+    await sendWhatsAppMessage(msg);
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Chyba při ukládání objednávky:", error);
+    res.status(500).json({ success: false, error: "Nepodařilo se uložit objednávku" });
+  }
 }
