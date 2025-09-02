@@ -5,8 +5,8 @@ export default function OrderForm() {
     name: "",
     email: "",
     phone: "",
-    standardQuantity: 0,
-    lowCholQuantity: 0,
+    standardQuantity: "",
+    lowCholQuantity: "",
     pickupLocation: "",
     pickupDate: "",
   });
@@ -36,17 +36,19 @@ export default function OrderForm() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "standardQuantity" || name === "lowCholQuantity" ? parseInt(value || 0) : value,
+      [name]: value, // necháváme jako string, dokud nepotřebujeme číslo
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalEggs = (formData.standardQuantity || 0) + (formData.lowCholQuantity || 0);
+    const standard = parseInt(formData.standardQuantity || 0);
+    const lowChol = parseInt(formData.lowCholQuantity || 0);
+    const totalEggs = standard + lowChol;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      alert("Minimální objednávka je 10 ks a musí být v násobcích 10.");
+      alert("Minimální objednávka je 10 ks a vždy v násobcích 10 (součet obou druhů).");
       return;
     }
 
@@ -62,8 +64,13 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          standardQuantity: standard,
+          lowCholQuantity: lowChol,
+        }),
       });
+
       const data = await res.json();
 
       if (data.success) {
@@ -76,8 +83,8 @@ export default function OrderForm() {
           name: "",
           email: "",
           phone: "",
-          standardQuantity: 0,
-          lowCholQuantity: 0,
+          standardQuantity: "",
+          lowCholQuantity: "",
           pickupLocation: "",
           pickupDate: "",
         });
@@ -93,12 +100,12 @@ export default function OrderForm() {
 
   return (
     <div>
-      <p className="mb-2 text-lg text-gray-700">
-        🥚 Aktuálně k dispozici:{" "}
-        <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks),{" "}
+      <p className="mb-4 text-lg text-gray-700">
+        🥚 Aktuálně k dispozici: <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks),{" "}
         <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
       </p>
-      <p className="text-red-600 font-semibold mb-4">
+
+      <p className="mb-6 text-md text-red-600 font-semibold">
         Minimální objednávka je 10 ks a vždy v násobcích 10 (součet obou druhů).
       </p>
 
@@ -142,29 +149,25 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <input
             type="number"
             name="standardQuantity"
             value={formData.standardQuantity}
             onChange={handleChange}
             min="0"
-            step="10"
             className="w-full border rounded-xl p-2"
           />
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet vajec se sníženým cholesterolem *
-          </label>
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <input
             type="number"
             name="lowCholQuantity"
             value={formData.lowCholQuantity}
             onChange={handleChange}
             min="0"
-            step="10"
             className="w-full border rounded-xl p-2"
           />
         </div>
@@ -179,9 +182,7 @@ export default function OrderForm() {
             className="w-full border rounded-xl p-2"
           >
             <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">
-              Dematic Ostrov u Stříbra 65
-            </option>
+            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
