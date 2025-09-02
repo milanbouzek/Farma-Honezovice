@@ -1,117 +1,152 @@
-import { supabaseServer } from "../../lib/supabaseServerClient";
-import Twilio from "twilio";
+import { useState } from "react";
+import Layout from "../components/Layout";
 
-const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+export default function Order() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+    pickupLocation: "",
+    pickupDate: "",
+  });
 
-async function sendWhatsApp(to, data) {
-  try {
-    const message = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER,
-      to: `whatsapp:${to}`,
-      body: `Nová objednávka vajec od ${data.name} (${data.email}, ${data.phone || "bez telefonu"}):
-- Standardní vejce: ${data.standardQuantity} ks
-- Nízký cholesterol: ${data.lowCholQuantity} ks
-📍 Místo vyzvednutí: ${data.pickupLocation}
-📅 Datum vyzvednutí: ${data.pickupDate}`,
+  const [status, setStatus] = useState(null);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setStatus("Odesílám...");
+
+    const res = await fetch("/api/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
     });
-    console.log("WhatsApp message SID:", message.sid);
-  } catch (err) {
-    console.error("Twilio WhatsApp error:", err);
-  }
-}
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const {
-    name,
-    email,
-    phone,
-    standardQuantity,
-    lowCholQuantity,
-    pickupLocation,
-    pickupDate,
-  } = req.body;
-
-  if (
-    !name ||
-    !email ||
-    !pickupLocation ||
-    !pickupDate ||
-    (standardQuantity < 1 && lowCholQuantity < 1)
-  ) {
-    return res.status(400).json({ success: false, error: "Neplatná data." });
-  }
-
-  try {
-    // 1) Načtení aktuálního stavu zásob
-    const { data: stockData, error: stockError } = await supabaseServer
-      .from("eggs_stock")
-      .select("standard_quantity, low_cholesterol_quantity")
-      .limit(1)
-      .maybeSingle();
-
-    if (stockError) throw stockError;
-
-    if (
-      !stockData ||
-      stockData.standard_quantity < standardQuantity ||
-      stockData.low_cholesterol_quantity < lowCholQuantity
-    ) {
-      return res.status(400).json({ success: false, error: "Nedostatek vajec." });
+    const data = await res.json();
+    if (data.success) {
+      setStatus("Objednávka byla úspěšně odeslána.");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        standardQuantity: 0,
+        lowCholQuantity: 0,
+        pickupLocation: "",
+        pickupDate: "",
+      });
+    } else {
+      setStatus("Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
     }
+  };
 
-    const newStandard = stockData.standard_quantity - standardQuantity;
-    const newLowChol = stockData.low_cholesterol_quantity - lowCholQuantity;
+  return (
+    <Layout>
+      <h1 className="text-3xl font-bold text-green-700 mb-6">Objednávka vajec</h1>
+      <p className="mb-6 text-gray-700">
+        Vyplňte formulář níže a objednejte si čerstvá vejce.
+      </p>
 
-    // 2) Uložení objednávky
-    const { error: insertError } = await supabaseServer.from("orders").insert([
-      {
-        customer_name: name,
-        email,
-        phone,
-        standard_quantity: standardQuantity,
-        low_cholesterol_quantity: lowCholQuantity,
-        pickup_location: pickupLocation,
-        pickup_date: pickupDate,
-      },
-    ]);
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
+      >
+        <div>
+          <label className="block text-gray-700 mb-1">Jméno *</label>
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="w-full border rounded-xl p-2"
+          />
+        </div>
 
-    if (insertError) throw insertError;
+        <div>
+          <label className="block text-gray-700 mb-1">Email *</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full border rounded-xl p-2"
+          />
+        </div>
 
-    // 3) Aktualizace zásob
-    const { error: updateError } = await supabaseServer
-      .from("eggs_stock")
-      .update({
-        standard_quantity: newStandard,
-        low_cholesterol_quantity: newLowChol,
-      })
-      .eq("id", 1);
+        <div>
+          <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
+          <input
+            type="text"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full border rounded-xl p-2"
+          />
+        </div>
 
-    if (updateError) throw updateError;
+        <div>
+          <label className="block text-gray-700 mb-1">
+            Počet standardních vajec *
+          </label>
+          <input
+            type="number"
+            name="standardQuantity"
+            value={formData.standardQuantity}
+            onChange={handleChange}
+            min="0"
+            required
+            className="w-full border rounded-xl p-2"
+          />
+        </div>
 
-    // 4) Odeslání upozornění přes WhatsApp
-    await sendWhatsApp("+420720150734", {
-      name,
-      email,
-      phone,
-      standardQuantity,
-      lowCholQuantity,
-      pickupLocation,
-      pickupDate,
-    });
+        <div>
+          <label className="block text-gray-700 mb-1">
+            Počet vajec se sníženým cholesterolem *
+          </label>
+          <input
+            type="number"
+            name="lowCholQuantity"
+            value={formData.lowCholQuantity}
+            onChange={handleChange}
+            min="0"
+            required
+            className="w-full border rounded-xl p-2"
+          />
+        </div>
 
-    return res.status(200).json({
-      success: true,
-      remaining: {
-        standard: newStandard,
-        lowCholesterol: newLowChol,
-      },
-    });
-  } catch (err) {
-    console.error("Order API error:", err);
-    return res.status(500).json({ success: false, error: err.message || "Server error" });
-  }
-}
+        <div>
+          <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
+          <select
+            name="pickupLocation"
+            value={formData.pickupLocation}
+            onChange={handleChange}
+            required
+            className="w-full border rounded-xl p-2"
+          >
+            <option value="">-- Vyberte místo --</option>
+            <option value="Dematic Ostrov u Stříbra 65">
+              Dematic Ostrov u Stříbra 65
+            </option>
+            <option value="Honezovice">Honezovice</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
+          <input
+            type="date"
+            name="pickupDate"
+            value={formData.pickupDate}
+            onChange={handleChange}
+            required
