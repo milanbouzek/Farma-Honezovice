@@ -11,10 +11,7 @@ export default function OrderForm() {
     pickupDate: "",
   });
 
-  const [stock, setStock] = useState({
-    standardQuantity: 0,
-    lowCholQuantity: 0,
-  });
+  const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,31 +34,24 @@ export default function OrderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "standardQuantity" || name === "lowCholQuantity" ? parseInt(value || 0) : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalQuantity =
-      Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
+    const totalEggs = (formData.standardQuantity || 0) + (formData.lowCholQuantity || 0);
 
-    // ✅ validace minimálního počtu vajec
-    if (totalQuantity < 10 || totalQuantity % 10 !== 0) {
-      alert("Minimální objednávka je 10 vajec a musí být po násobcích 10.");
+    if (totalEggs < 10 || totalEggs % 10 !== 0) {
+      alert("Minimální objednávka je 10 ks a musí být v násobcích 10.");
       return;
     }
 
-    if (
-      (!formData.standardQuantity && !formData.lowCholQuantity) ||
-      !formData.name ||
-      !formData.email ||
-      !formData.pickupLocation ||
-      !formData.pickupDate
-    ) {
-      alert(
-        "Vyplňte všechna povinná pole a zadejte alespoň jedno množství vajec."
-      );
+    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
+      alert("Vyplňte všechna povinná pole.");
       return;
     }
 
@@ -92,10 +82,7 @@ export default function OrderForm() {
           pickupDate: "",
         });
       } else {
-        setStatus(
-          "Chyba: " +
-            (data.error || "Nepodařilo se odeslat objednávku.")
-        );
+        setStatus("Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
     } catch {
       setStatus("Chyba při odesílání objednávky.");
@@ -106,11 +93,13 @@ export default function OrderForm() {
 
   return (
     <div>
-      <p className="mb-4 text-lg text-gray-700">
+      <p className="mb-2 text-lg text-gray-700">
         🥚 Aktuálně k dispozici:{" "}
         <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks),{" "}
-        <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem
-        (7 Kč/ks)
+        <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
+      </p>
+      <p className="text-red-600 font-semibold mb-4">
+        Minimální objednávka je 10 ks a vždy v násobcích 10 (součet obou druhů).
       </p>
 
       <form
@@ -153,16 +142,14 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet standardních vajec *
-          </label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
           <input
             type="number"
             name="standardQuantity"
             value={formData.standardQuantity}
             onChange={handleChange}
             min="0"
-            required
+            step="10"
             className="w-full border rounded-xl p-2"
           />
         </div>
@@ -177,7 +164,7 @@ export default function OrderForm() {
             value={formData.lowCholQuantity}
             onChange={handleChange}
             min="0"
-            required
+            step="10"
             className="w-full border rounded-xl p-2"
           />
         </div>
