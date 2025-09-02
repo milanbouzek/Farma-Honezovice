@@ -1,152 +1,39 @@
-import { useState } from "react";
-import Layout from "../components/Layout";
+import pool from "../../lib/db";
+import sendWhatsAppMessage from "../../lib/whatsapp";
 
-export default function Order() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    standardQuantity: 0,
-    lowCholQuantity: 0,
-    pickupLocation: "",
-    pickupDate: "",
-  });
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
 
-  const [status, setStatus] = useState(null);
+  const { name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  if (!name || !email || !standardQuantity || !lowCholQuantity || !pickupLocation || !pickupDate) {
+    return res.status(400).json({ success: false, error: "Chybí povinná pole" });
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setStatus("Odesílám...");
+  try {
+    await pool.query(
+      `INSERT INTO orders 
+        (name, email, phone, standard_quantity, low_cholesterol_quantity, pickup_location, pickup_date) 
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate]
+    );
 
-    const res = await fetch("/api/order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
+    const msg = `📦 Nová objednávka:
+👤 ${name}
+📧 ${email}
+📞 ${phone || "neuvedeno"}
+🥚 Standard: ${standardQuantity}
+🥚 Low Chol: ${lowCholQuantity}
+📍 Místo: ${pickupLocation}
+📅 Datum: ${pickupDate}`;
 
-    const data = await res.json();
-    if (data.success) {
-      setStatus("Objednávka byla úspěšně odeslána.");
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        standardQuantity: 0,
-        lowCholQuantity: 0,
-        pickupLocation: "",
-        pickupDate: "",
-      });
-    } else {
-      setStatus("Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
-    }
-  };
+    await sendWhatsAppMessage(msg);
 
-  return (
-    <Layout>
-      <h1 className="text-3xl font-bold text-green-700 mb-6">Objednávka vajec</h1>
-      <p className="mb-6 text-gray-700">
-        Vyplňte formulář níže a objednejte si čerstvá vejce.
-      </p>
-
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
-      >
-        <div>
-          <label className="block text-gray-700 mb-1">Jméno *</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">Email *</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
-          <input
-            type="text"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">
-            Počet standardních vajec *
-          </label>
-          <input
-            type="number"
-            name="standardQuantity"
-            value={formData.standardQuantity}
-            onChange={handleChange}
-            min="0"
-            required
-            className="w-full border rounded-xl p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">
-            Počet vajec se sníženým cholesterolem *
-          </label>
-          <input
-            type="number"
-            name="lowCholQuantity"
-            value={formData.lowCholQuantity}
-            onChange={handleChange}
-            min="0"
-            required
-            className="w-full border rounded-xl p-2"
-          />
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
-          <select
-            name="pickupLocation"
-            value={formData.pickupLocation}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          >
-            <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">
-              Dematic Ostrov u Stříbra 65
-            </option>
-            <option value="Honezovice">Honezovice</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
-          <input
-            type="date"
-            name="pickupDate"
-            value={formData.pickupDate}
-            onChange={handleChange}
-            required
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Chyba při ukládání objednávky:", error);
+    res.status(500).json({ success: false, error: "Nepodařilo se uložit objednávku" });
+  }
+}
