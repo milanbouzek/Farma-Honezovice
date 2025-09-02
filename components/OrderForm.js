@@ -5,8 +5,8 @@ export default function OrderForm() {
     name: "",
     email: "",
     phone: "",
-    standardQuantity: "",
-    lowCholQuantity: "",
+    standardQuantity: 0,
+    lowCholQuantity: 0,
     pickupLocation: "",
     pickupDate: "",
   });
@@ -15,7 +15,6 @@ export default function OrderForm() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -34,26 +33,23 @@ export default function OrderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value, // necháváme jako string, dokud nepotřebujeme číslo
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const standard = parseInt(formData.standardQuantity || 0);
-    const lowChol = parseInt(formData.lowCholQuantity || 0);
-    const totalEggs = standard + lowChol;
-
-    if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      alert("Minimální objednávka je 10 ks a vždy v násobcích 10 (součet obou druhů).");
-      return;
-    }
-
+    const total = Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
     if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
       alert("Vyplňte všechna povinná pole.");
+      return;
+    }
+    if (total < 10) {
+      alert("Minimální objednávka je 10 vajec.");
+      return;
+    }
+    if (total % 10 !== 0) {
+      alert("Objednávky musí být po násobcích 10 vajec.");
       return;
     }
 
@@ -64,27 +60,22 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          standardQuantity: standard,
-          lowCholQuantity: lowChol,
-        }),
+        body: JSON.stringify(formData),
       });
-
       const data = await res.json();
 
       if (data.success) {
         setStatus("Objednávka byla úspěšně odeslána.");
         setStock({
-          standardQuantity: data.remaining_standard,
-          lowCholQuantity: data.remaining_low_chol,
+          standardQuantity: data.remainingStandard,
+          lowCholQuantity: data.remainingLowChol,
         });
         setFormData({
           name: "",
           email: "",
           phone: "",
-          standardQuantity: "",
-          lowCholQuantity: "",
+          standardQuantity: 0,
+          lowCholQuantity: 0,
           pickupLocation: "",
           pickupDate: "",
         });
@@ -105,14 +96,12 @@ export default function OrderForm() {
         <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
       </p>
 
-      <p className="mb-6 text-md text-red-600 font-semibold">
-        Minimální objednávka je 10 ks a vždy v násobcích 10 (součet obou druhů).
+      <p className="mb-6 text-gray-700 font-semibold">
+        Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
+        vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
       </p>
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
-      >
+      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
           <label className="block text-gray-700 mb-1">Jméno *</label>
           <input
@@ -149,7 +138,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
           <input
             type="number"
             name="standardQuantity"
@@ -161,7 +150,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem *</label>
           <input
             type="number"
             name="lowCholQuantity"
