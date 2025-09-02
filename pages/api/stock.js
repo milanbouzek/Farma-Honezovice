@@ -2,19 +2,19 @@ import { supabaseServer } from "../../lib/supabaseServerClient";
 
 export default async function handler(req, res) {
   try {
-    const { data, error } = await supabaseServer
+    const { data: stock, error } = await supabaseServer
       .from("eggs_stock")
       .select("standard_quantity, low_chol_quantity")
-      .limit(1)
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
 
     res.status(200).json({
-      standard: data?.standard_quantity || 0,
-      lowChol: data?.low_chol_quantity || 0
+      standardQuantity: stock.standard_quantity || 0,
+      lowCholQuantity: stock.low_chol_quantity || 0,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message || "Server error" });
+    console.error("Stock API error:", err);
+    res.status(500).json({ standardQuantity: 0, lowCholQuantity: 0 });
   }
 }
