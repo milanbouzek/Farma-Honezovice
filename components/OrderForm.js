@@ -11,12 +11,14 @@ export default function OrderForm() {
     pickupDate: "",
   });
 
-  // Použijeme stejný stav jako na úvodní stránce
-  const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
+  const [stock, setStock] = useState({
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+  });
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec při načtení formuláře
+  // Načtení aktuálního stavu vajec
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -40,8 +42,26 @@ export default function OrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if ((!formData.standardQuantity && !formData.lowCholQuantity) || !formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
-      alert("Vyplňte všechna povinná pole a zadejte alespoň jedno množství vajec.");
+
+    const totalQuantity =
+      Number(formData.standardQuantity) + Number(formData.lowCholQuantity);
+
+    // ✅ validace minimálního počtu vajec
+    if (totalQuantity < 10 || totalQuantity % 10 !== 0) {
+      alert("Minimální objednávka je 10 vajec a musí být po násobcích 10.");
+      return;
+    }
+
+    if (
+      (!formData.standardQuantity && !formData.lowCholQuantity) ||
+      !formData.name ||
+      !formData.email ||
+      !formData.pickupLocation ||
+      !formData.pickupDate
+    ) {
+      alert(
+        "Vyplňte všechna povinná pole a zadejte alespoň jedno množství vajec."
+      );
       return;
     }
 
@@ -59,8 +79,8 @@ export default function OrderForm() {
       if (data.success) {
         setStatus("Objednávka byla úspěšně odeslána.");
         setStock({
-          standardQuantity: data.remaining_standard || stock.standardQuantity,
-          lowCholQuantity: data.remaining_low_chol || stock.lowCholQuantity,
+          standardQuantity: data.remaining_standard,
+          lowCholQuantity: data.remaining_low_chol,
         });
         setFormData({
           name: "",
@@ -72,7 +92,10 @@ export default function OrderForm() {
           pickupDate: "",
         });
       } else {
-        setStatus("Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
+        setStatus(
+          "Chyba: " +
+            (data.error || "Nepodařilo se odeslat objednávku.")
+        );
       }
     } catch {
       setStatus("Chyba při odesílání objednávky.");
@@ -84,12 +107,16 @@ export default function OrderForm() {
   return (
     <div>
       <p className="mb-4 text-lg text-gray-700">
-        🥚 Aktuálně k dispozici: 
-        <strong> {stock.standardQuantity}</strong> standardních vajec (5 Kč/ks), 
-        <strong> {stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem (7 Kč/ks)
+        🥚 Aktuálně k dispozici:{" "}
+        <strong>{stock.standardQuantity}</strong> standardních vajec (5 Kč/ks),{" "}
+        <strong>{stock.lowCholQuantity}</strong> vajec se sníženým cholesterolem
+        (7 Kč/ks)
       </p>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
+      >
         <div>
           <label className="block text-gray-700 mb-1">Jméno *</label>
           <input
@@ -126,7 +153,9 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
+          <label className="block text-gray-700 mb-1">
+            Počet standardních vajec *
+          </label>
           <input
             type="number"
             name="standardQuantity"
@@ -139,7 +168,9 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem *</label>
+          <label className="block text-gray-700 mb-1">
+            Počet vajec se sníženým cholesterolem *
+          </label>
           <input
             type="number"
             name="lowCholQuantity"
@@ -161,7 +192,9 @@ export default function OrderForm() {
             className="w-full border rounded-xl p-2"
           >
             <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
+            <option value="Dematic Ostrov u Stříbra 65">
+              Dematic Ostrov u Stříbra 65
+            </option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
