@@ -6,10 +6,9 @@ export default function Objednavka() {
     <Layout>
       <h1 className="text-3xl font-bold text-green-700 mb-4">Objednávka vajec</h1>
       <p className="text-gray-700 mb-6">
-        Vyplňte formulář níže a objednejte si čerstvá vejce. Aktuální stav vajec vidíte přímo ve formuláři.
+        Vyplňte objednávkový formulář níže. Stav zásob je aktuální a ceny jsou uvedeny u jednotlivých typů vajec.
       </p>
 
-      {/* Formulář je vykreslený rovnou, bez tlačítka */}
       <OrderForm />
     </Layout>
   );
