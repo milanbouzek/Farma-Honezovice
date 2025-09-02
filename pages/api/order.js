@@ -6,9 +6,9 @@ const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUT
 async function sendWhatsApp(to, name, email, quantity, pickupLocation) {
   try {
     const message = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER, // sandbox number
-      to: `whatsapp:${to}`, // tvé autorizované číslo
-      body: `🥚 Nová objednávka vajec\n👤 ${name} (${email})\n📦 ${quantity} ks\n📍 Místo vyzvednutí: ${pickupLocation}`,
+      from: process.env.TWILIO_WHATSAPP_NUMBER,
+      to: `whatsapp:${to}`,
+      body: `Nová objednávka vajec od ${name} (${email}): ${quantity} ks. Místo vyzvednutí: ${pickupLocation}.`,
     });
     console.log("WhatsApp message SID:", message.sid);
   } catch (err) {
@@ -21,9 +21,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { name, email, quantity, pickupLocation } = req.body;
+  const { name, email, quantity, pickup_location } = req.body;
 
-  if (!name || !email || !quantity || quantity < 1 || !pickupLocation) {
+  if (!name || !email || !quantity || quantity < 1 || !pickup_location) {
     return res.status(400).json({ success: false, error: "Neplatná data." });
   }
 
@@ -36,7 +36,6 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (stockError) throw stockError;
-
     if (!stockData || stockData.quantity < quantity) {
       return res.status(400).json({ success: false, error: "Nedostatek vajec." });
     }
@@ -46,8 +45,12 @@ export default async function handler(req, res) {
     // 2) Uložení objednávky
     const { error: insertError } = await supabaseServer
       .from("orders")
-      .insert([{ name, email, quantity, pickup_location: pickupLocation }]);
-
+      .insert([{ 
+        customer_name: name,
+        email,
+        quantity,
+        pickup_location
+      }]);
     if (insertError) throw insertError;
 
     // 3) Aktualizace zásoby
@@ -55,11 +58,10 @@ export default async function handler(req, res) {
       .from("eggs_stock")
       .update({ quantity: newQuantity })
       .eq("id", 1);
-
     if (updateError) throw updateError;
 
-    // 4) Odeslání upozornění přes WhatsApp
-    await sendWhatsApp("+420720150734", name, email, quantity, pickupLocation);
+    // 4) Odeslání WhatsApp upozornění
+    await sendWhatsApp("+420720150734", name, email, quantity, pickup_location);
 
     return res.status(200).json({ success: true, remaining: newQuantity });
   } catch (err) {
