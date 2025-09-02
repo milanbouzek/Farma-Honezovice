@@ -6,7 +6,7 @@ export default function Home() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [quantity, setQuantity] = useState(1);
-  const [pickupLocation, setPickupLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState(""); // nové pole
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function Home() {
   const handleOrder = async (e) => {
     e.preventDefault();
     if (!name || !email || quantity < 1 || !pickupLocation) {
-      alert("Vyplňte všechna pole, zadejte počet vajec větší než 0 a vyberte místo vyzvednutí.");
+      alert("Vyplňte všechna pole a zadejte počet vajec větší než 0.");
       return;
     }
 
@@ -34,11 +34,11 @@ export default function Home() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name, 
-          email, 
-          quantity: Number(quantity), 
-          pickupLocation 
+        body: JSON.stringify({
+          name,
+          email,
+          quantity: Number(quantity),
+          pickupLocation, // přidáno
         }),
       });
       const data = await res.json();
@@ -48,7 +48,7 @@ export default function Home() {
         setQuantity(1);
         setName("");
         setEmail("");
-        setPickupLocation("");
+        setPickupLocation(""); // reset
       } else {
         alert(`Chyba: ${data.error}`);
       }
@@ -102,7 +102,6 @@ export default function Home() {
           className="border p-2 rounded"
           required
         />
-
         <select
           value={pickupLocation}
           onChange={(e) => setPickupLocation(e.target.value)}
