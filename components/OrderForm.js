@@ -15,7 +15,6 @@ export default function OrderForm() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního stavu vajec při načtení formuláře
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -90,17 +89,20 @@ export default function OrderForm() {
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-2">Aktuální dostupné množství vajec</h2>
+      <h2 className="text-xl font-semibold mb-2">Aktuální dostupné množství</h2>
       <p className="mb-2 text-lg text-gray-700">
         🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
       </p>
       <p className="mb-4 text-lg text-gray-700">
         🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
       </p>
+
+      <h2 className="text-xl font-semibold mb-2">Uzávěrka objednávek</h2>
       <p className="mb-4 text-gray-700">
         Objednávky je nutné zadat do 19:00, pokud je vyzvednutí následující den. Objednávky
         vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
       </p>
+
       <p className="mb-4 text-gray-700">
         Minimální objednávka je 10 ks a musí být vždy po násobcích 10 (součet standardních a vajec
         se sníženým cholesterolem).
