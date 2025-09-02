@@ -34,12 +34,7 @@ export default function Home() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          quantity: Number(quantity),
-          pickupLocation, // přidáno
-        }),
+        body: JSON.stringify({ name, email, quantity: Number(quantity), pickup_location: pickupLocation }),
       });
       const data = await res.json();
       if (data.success) {
@@ -48,7 +43,7 @@ export default function Home() {
         setQuantity(1);
         setName("");
         setEmail("");
-        setPickupLocation(""); // reset
+        setPickupLocation("");
       } else {
         alert(`Chyba: ${data.error}`);
       }
@@ -62,16 +57,6 @@ export default function Home() {
   return (
     <Layout>
       <h1 className="text-3xl font-bold text-green-700 mb-4">Vejce z malochovu</h1>
-      <p className="text-gray-700 leading-relaxed mb-4">
-        Vítejte na stránkách naší malé rodinné farmy v Honezovicích.
-        Nabízíme čerstvá vajíčka od slepic chovaných v přirozených podmínkách.
-      </p>
-
-      <p className="text-gray-700 leading-relaxed mb-6">
-        Vejce jsou určena k <strong>prodeji přímo konečnému spotřebiteli</strong>.
-        Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
-      </p>
-
       <p className="mb-6 text-lg text-gray-700">
         🥚 Aktuálně k dispozici: <strong>{eggs}</strong> vajec
       </p>
@@ -108,7 +93,7 @@ export default function Home() {
           className="border p-2 rounded"
           required
         >
-          <option value="">-- Vyberte místo vyzvednutí --</option>
+          <option value="">Vyberte místo vyzvednutí</option>
           <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
           <option value="Honezovice">Honezovice</option>
         </select>
