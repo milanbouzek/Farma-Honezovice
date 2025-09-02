@@ -1,26 +1,19 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseServer = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import { supabaseServer } from "../../lib/supabaseServerClient";
 
 export default async function handler(req, res) {
   try {
-    const { data, error } = await supabaseServer
+    const { data: stock, error } = await supabaseServer
       .from("eggs_stock")
       .select("standard_quantity, low_chol_quantity")
-      .limit(1)
-      .maybeSingle();
+      .single();
 
     if (error) throw error;
 
     res.status(200).json({
-      standardQuantity: data?.standard_quantity || 0,
-      lowCholQuantity: data?.low_chol_quantity || 0,
+      standard: stock.standard_quantity,
+      lowChol: stock.low_chol_quantity,
     });
   } catch (err) {
-    console.error("Stock API error:", err);
-    res.status(500).json({ standardQuantity: 0, lowCholQuantity: 0 });
+    res.status(500).json({ error: err.message });
   }
 }
