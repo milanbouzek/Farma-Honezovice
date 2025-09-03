@@ -37,16 +37,22 @@ export default function Home() {
       </p>
 
       {/* Aktuální dostupné množství */}
-      <div className="mb-4 text-lg text-gray-700">
-        <h2 className="font-bold mb-1">Aktuální dostupné množství</h2>
-        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
-        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
+      <div className="mb-4 p-4 bg-gray-50 rounded-lg text-lg text-gray-700">
+        <h2 className="font-bold mb-2">Aktuální dostupné množství</h2>
+        <p>
+          🥚 Standardní vejce:{" "}
+          <strong className="text-green-700 text-xl ml-1">{stock.standardQuantity}</strong> ks (5 Kč/ks)
+        </p>
+        <p>
+          🥚 Vejce se sníženým cholesterolem:{" "}
+          <strong className="text-green-700 text-xl ml-1">{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
+        </p>
       </div>
 
       {/* Minimální objednávka */}
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
-        <p>10 ks, vždy pouze v násobcích 10 (součet standardních vajec a se sníženým obsahem cholesterolu).</p>
+        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
       </div>
 
       {/* Uzávěrka objednávek */}
@@ -58,12 +64,10 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Platba při dodání */}
+      {/* Informace o platbě */}
       <div className="mb-6 text-gray-700">
-        <h2 className="font-bold">Platba při dodání</h2>
-        <p>
-          Platba proběhne při dodání vajec – buď bezhotovostně (QR kód), nebo v hotovosti.
-        </p>
+        <h2 className="font-bold">Platba</h2>
+        <p>Platba proběhne při dodání vajec – buď bezhotovostně (QR kód) nebo v hotovosti.</p>
       </div>
 
       <button
