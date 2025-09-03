@@ -22,7 +22,7 @@ export default function OFarme() {
         zatepleném kurníku s venkovním výběhem. Slepičky mají každý den přístup
         na čerstvý vzduch a zelenou trávu, což se odráží i na kvalitě vajíček.
         Krmíme je <strong>kvalitními granulemi</strong>, doplňkově{" "}
-        <strong>pšenicí</strong> a samozřejmě nesmí chybět ani čerstvá tráva.
+        <strong>pšenicí</strong> a samozřejmě nesmí chybět ani čerstvá zeleň.
       </p>
 
       <p className="mb-4 text-lg leading-relaxed text-gray-700">
