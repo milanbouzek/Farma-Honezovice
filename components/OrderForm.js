@@ -39,16 +39,23 @@ export default function OrderForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalEggs =
-      parseInt(formData.standardQuantity || 0, 10) +
-      parseInt(formData.lowCholQuantity || 0, 10);
+    // Převod na čísla
+    const payload = {
+      ...formData,
+      standardQuantity: parseInt(formData.standardQuantity || 0, 10),
+      lowCholQuantity: parseInt(formData.lowCholQuantity || 0, 10),
+    };
+
+    const totalEggs = payload.standardQuantity + payload.lowCholQuantity;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      alert("Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec).");
+      alert(
+        "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
+      );
       return;
     }
 
-    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
+    if (!payload.name || !payload.email || !payload.pickupLocation || !payload.pickupDate) {
       alert("Vyplňte všechna povinná pole.");
       return;
     }
@@ -60,7 +67,7 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
 
