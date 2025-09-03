@@ -46,15 +46,23 @@ export default function Home() {
       {/* Minimální objednávka */}
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
-        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
+        <p>10 ks, vždy pouze v násobcích 10 (součet standardních vajec a se sníženým obsahem cholesterolu).</p>
       </div>
 
       {/* Uzávěrka objednávek */}
-      <div className="mb-6 text-gray-700">
+      <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Uzávěrka objednávek</h2>
         <p>
           Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí následující den. 
           Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
+        </p>
+      </div>
+
+      {/* Platba při dodání */}
+      <div className="mb-6 text-gray-700">
+        <h2 className="font-bold">Platba při dodání</h2>
+        <p>
+          Platba proběhne při dodání vajec – buď bezhotovostně (QR kód), nebo v hotovosti.
         </p>
       </div>
 
