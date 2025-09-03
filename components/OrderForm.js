@@ -50,7 +50,7 @@ export default function OrderForm() {
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
       alert(
-        "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
+        "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních vajec a se sníženým obsahem cholesterolu)."
       );
       return;
     }
