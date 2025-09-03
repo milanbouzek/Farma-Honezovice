@@ -14,16 +14,16 @@ export default function PodminkyProdeje() {
       <h2 className="text-xl font-semibold text-green-700 mb-2">1. Vejce z malochovu</h2>
       <ul className="list-disc pl-6 mb-4 text-gray-700">
         <li>Vejce lze prodávat přímo konečnému spotřebiteli bez speciální registrace,
-            pokud jde o malochov (maximálně 50–60 vajec týdně na jednoho spotřebitele).</li>
+            pokud jde o malochov (maximálně 60 vajec týdně na jednoho spotřebitele).</li>
         <li>Musí být dodržena základní hygiena při sběru a skladování vajec – chladné, čisté a bez poškození.</li>
-        <li>Prodej musí být doprovázen informací o datu snášky nebo datu balení.</li>
+        
       </ul>
 
       <h2 className="text-xl font-semibold text-green-700 mb-2">2. Čerstvé králičí maso</h2>
       <ul className="list-disc pl-6 mb-4 text-gray-700">
         <li>Prodej králičího masa podléhá hygienickým předpisům pro potraviny živočišného původu.</li>
         <li>Musí být dodržen chladicí řetězec (0–4 °C) při skladování a přepravě k zákazníkovi.</li>
-        <li>Prodej může probíhat pouze ze schváleného a hygienicky kontrolovaného zařízení.</li>
+        
       </ul>
 
       <h2 className="text-xl font-semibold text-green-700 mb-2">3. Doporučení pro spotřebitele</h2>
@@ -35,8 +35,7 @@ export default function PodminkyProdeje() {
 
       <p className="text-gray-700">
         Tyto informace mají informativní charakter a nenahrazují oficiální legislativní
-        dokumenty. Pro podrobnosti doporučujeme konzultaci s místním hygienickým
-        dozorem nebo příslušným úřadem státní správy.
+        dokumenty.
       </p>
     </Layout>
   );
