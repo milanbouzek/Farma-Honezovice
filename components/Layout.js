@@ -17,6 +17,9 @@ export default function Layout({ children }) {
           <Link href="/objednavka" className="block hover:bg-green-600 p-2">
             Objednávka vajec
           </Link>
+          <Link href="/novinky" className="block hover:bg-green-600 p-2">
+            Novinky
+          </Link>
           <Link href="/podminky-prodeje" className="block hover:bg-green-600 p-2">
             Podmínky prodeje
           </Link>
