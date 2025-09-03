@@ -117,6 +117,14 @@ export default function OrderForm() {
         </p>
       </div>
 
+  {/* Informace o platbě */}
+<div className="mb-4 text-gray-700">
+  <h2 className="font-bold">Platba při dodání</h2>
+  <p>
+    Platba proběhne při dodání vajec – buď bezhotovostně (QR kód), nebo v hotovosti.
+  </p>
+</div>
+  
       {/* Formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
