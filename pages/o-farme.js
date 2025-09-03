@@ -69,18 +69,6 @@ export default function OFarme() {
           />
         </div>
       )}
-
-      <h2 className="text-2xl font-semibold mb-4 text-yellow-700">
-        🎥 Videoprohlídka kurníku
-      </h2>
-      <video
-        controls
-        className="w-full max-w-3xl rounded-lg shadow-lg mx-auto"
-        src="/prohlidka-kurniku.mp4"
-        type="video/mp4"
-      >
-        Váš prohlížeč nepodporuje přehrávání videa.
-      </video>
     </Layout>
   );
 }
