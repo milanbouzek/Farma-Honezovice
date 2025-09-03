@@ -122,7 +122,7 @@ export default function OrderForm() {
       {/* Formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
-          <label className="block text-gray-700 mb-1">Jméno *</label>
+          <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input
             type="text"
             name="name"
