@@ -5,8 +5,8 @@ export default function OrderForm() {
     name: "",
     email: "",
     phone: "",
-    standardQuantity: "",
-    lowCholQuantity: "",
+    standardQuantity: 0,
+    lowCholQuantity: 0,
     pickupLocation: "",
     pickupDate: "",
   });
@@ -33,29 +33,25 @@ export default function OrderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "standardQuantity" || name === "lowCholQuantity" ? parseInt(value || 0, 10) : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Převod na čísla
-    const payload = {
-      ...formData,
-      standardQuantity: parseInt(formData.standardQuantity || 0, 10),
-      lowCholQuantity: parseInt(formData.lowCholQuantity || 0, 10),
-    };
-
-    const totalEggs = payload.standardQuantity + payload.lowCholQuantity;
+    const totalEggs = formData.standardQuantity + formData.lowCholQuantity;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
       alert(
-        "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních vajec a se sníženým obsahem cholesterolu)."
+        "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
       );
       return;
     }
 
-    if (!payload.name || !payload.email || !payload.pickupLocation || !payload.pickupDate) {
+    if (!formData.name || !formData.email || !formData.pickupLocation || !formData.pickupDate) {
       alert("Vyplňte všechna povinná pole.");
       return;
     }
@@ -67,7 +63,7 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData),
       });
       const data = await res.json();
 
@@ -78,8 +74,8 @@ export default function OrderForm() {
           name: "",
           email: "",
           phone: "",
-          standardQuantity: "",
-          lowCholQuantity: "",
+          standardQuantity: 0,
+          lowCholQuantity: 0,
           pickupLocation: "",
           pickupDate: "",
         });
@@ -97,7 +93,7 @@ export default function OrderForm() {
     <div>
       {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
-        <h2 className="font-bold mb-1">Aktuální dostupné množství</h2>
+        <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
         <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
         <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
@@ -109,7 +105,7 @@ export default function OrderForm() {
       </div>
 
       {/* Uzávěrka objednávek */}
-      <div className="mb-6 text-gray-700">
+      <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Uzávěrka objednávek</h2>
         <p>
           Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí následující den. 
@@ -117,14 +113,12 @@ export default function OrderForm() {
         </p>
       </div>
 
-  {/* Informace o platbě */}
-<div className="mb-4 text-gray-700">
-  <h2 className="font-bold">Platba při dodání</h2>
-  <p>
-    Platba proběhne při dodání vajec – buď bezhotovostně (QR kód), nebo v hotovosti.
-  </p>
-</div>
-  
+      {/* Platba */}
+      <div className="mb-6 text-gray-700">
+        <h2 className="font-bold">Platba</h2>
+        <p>Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v hotovosti.</p>
+      </div>
+
       {/* Formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
