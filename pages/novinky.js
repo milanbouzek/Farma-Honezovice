@@ -16,7 +16,7 @@ export default function Novinky() {
 
         {/* 23.8.2025 */}
         <div>
-          <h2 className="text-xl font-semibold">23.8.2025 – Nový přírůstek do minifarmy</h2>
+          <h2 className="text-xl font-semibold">23.8.2025 – Nové přírůstky do minifarmy</h2>
           <p>
             Přibyli <strong>2 králíci plemene burgundský králík</strong>. V příštím roce tedy bude nově možnost
             objednat si i čerstvé králičí maso. Veškeré informace budou upřesněny později.
@@ -25,7 +25,7 @@ export default function Novinky() {
 
         {/* 16.8.2025 – nejstarší */}
         <div>
-          <h2 className="text-xl font-semibold">16.8.2025 – Nové přírůstky</h2>
+          <h2 className="text-xl font-semibold">16.8.2025 – Nové přírůstky do minifarmy</h2>
           <p>
             Do našeho chovu jsme zařadili tři 15ti týdenní slepičky:
             <strong> Dominant BLUESHELL</strong>, <strong>Dominant DARKSHELL</strong> a <strong>Dominant DARKGREEN</strong>.
