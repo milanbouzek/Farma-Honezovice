@@ -10,7 +10,7 @@ export default function Novinky() {
           <p><strong>3.9.2025:</strong> Spuštění webu a on-line objednávek.</p>
         </div>
         <div>
-          <p><strong>16.8.2025:</strong> Nové přírůstky – tři 15týdenní slepičky:</p>
+          <p><strong>16.8.2025:</strong> Nové přírůstky – tři 15-ti týdenní slepičky:</p>
           <ul className="list-disc list-inside ml-4">
             <li>Dominant BLUESHELL</li>
             <li>Dominant DARKSHELL</li>
