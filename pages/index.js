@@ -37,15 +37,13 @@ export default function Home() {
       </p>
 
       {/* Aktuální dostupné množství */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-lg text-lg text-gray-700">
-        <h2 className="font-bold mb-2">Aktuální dostupné množství</h2>
+      <div className="mb-4 text-lg text-gray-700">
+        <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
         <p>
-          🥚 Standardní vejce:{" "}
-          <strong className="text-green-700 text-xl ml-1">{stock.standardQuantity}</strong> ks (5 Kč/ks)
+          🥚 Standardní vejce: <strong className="text-green-700 text-xl">{stock.standardQuantity}</strong> ks (5 Kč/ks)
         </p>
         <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong className="text-green-700 text-xl ml-1">{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
+          🥚 Vejce se sníženým cholesterolem: <strong className="text-green-700 text-xl">{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
         </p>
       </div>
 
