@@ -17,6 +17,9 @@ export default function Layout({ children }) {
           <Link href="/objednavka" className="block hover:bg-green-600 p-2 rounded">
             Objednávka vajec
           </Link>
+          <Link href="/novinky" className="block hover:bg-green-600 p-2 rounded">
+            Novinky
+          </Link>
         </nav>
       </aside>
 
