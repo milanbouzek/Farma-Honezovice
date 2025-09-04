@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
 
 export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -8,11 +9,15 @@ export default function Layout({ children }) {
     <div className="min-h-screen bg-green-50 flex flex-col md:flex-row">
       {/* Horní lišta pro mobily */}
       <header className="md:hidden bg-green-700 text-white flex justify-between items-center p-4">
-        <img
-          src="/logo.png"
-          alt="Farma Honezovice logo"
-          className="h-10 w-auto"
-        />
+        <div className="bg-white rounded-xl p-1">
+          <Image
+            src="/logo.png"
+            alt="Farma Honezovice"
+            width={120}
+            height={120}
+            className="object-contain"
+          />
+        </div>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="text-white focus:outline-none text-2xl"
@@ -28,12 +33,17 @@ export default function Layout({ children }) {
         } md:block w-full md:w-64 bg-green-700 text-white p-6 space-y-6`}
       >
         <div className="flex justify-center mb-6">
-          <img
-            src="/logo.png"
-            alt="Farma Honezovice logo"
-            className="h-28 w-auto"
-          />
+          <div className="bg-white rounded-xl p-2">
+            <Image
+              src="/logo.png"
+              alt="Farma Honezovice"
+              width={160}
+              height={160}
+              className="object-contain"
+            />
+          </div>
         </div>
+
         <nav className="space-y-2">
           <Link href="/" className="block hover:bg-green-600 p-2 rounded">
             Úvod
