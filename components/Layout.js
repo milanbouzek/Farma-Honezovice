@@ -11,7 +11,7 @@ export default function Layout({ children }) {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage: "url('/Slepice-pozadi.png')",
+          backgroundImage: "url('/Slepice-pozadi.PNG')",
           backgroundSize: "cover", // vyplní celou plochu
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center", // drží střed
