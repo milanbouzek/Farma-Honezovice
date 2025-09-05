@@ -12,9 +12,9 @@ export default function Layout({ children }) {
         className="absolute inset-0"
         style={{
           backgroundImage: "url('/Slepice-pozadi.png')",
-          backgroundSize: "100% auto", // vyplní celou šířku, výška se dopočítá
+          backgroundSize: "cover", // vyplní celou plochu
           backgroundRepeat: "no-repeat",
-          backgroundPosition: "center top",
+          backgroundPosition: "center", // drží střed
         }}
       ></div>
 
