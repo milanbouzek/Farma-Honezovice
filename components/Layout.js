@@ -9,8 +9,13 @@ export default function Layout({ children }) {
     <div className="min-h-screen relative flex flex-col md:flex-row">
       {/* Pozadí s obrázkem */}
       <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/Slepice-pozadi.png')" }}
+        className="absolute inset-0"
+        style={{
+          backgroundImage: "url('/Slepice-pozadi.png')",
+          backgroundSize: "contain", // vždy zobrazí celý obrázek
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+        }}
       ></div>
 
       {/* Overlay pro čitelnost obsahu */}
@@ -59,7 +64,10 @@ export default function Layout({ children }) {
             <Link href="/" className="block hover:bg-green-600 p-2 rounded">
               Úvod
             </Link>
-            <Link href="/o-farme" className="block hover:bg-green-600 p-2 rounded">
+            <Link
+              href="/o-farme"
+              className="block hover:bg-green-600 p-2 rounded"
+            >
               O farmě
             </Link>
             <Link
@@ -68,7 +76,10 @@ export default function Layout({ children }) {
             >
               Objednávka vajec
             </Link>
-            <Link href="/novinky" className="block hover:bg-green-600 p-2 rounded">
+            <Link
+              href="/novinky"
+              className="block hover:bg-green-600 p-2 rounded"
+            >
               Novinky
             </Link>
             <Link
