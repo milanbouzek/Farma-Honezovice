@@ -3,17 +3,21 @@ import Twilio from "twilio";
 
 const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-async function sendWhatsApp(to, name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
+// tvoje soukromé číslo
+const MY_WHATSAPP_NUMBER = "+420720150734";
+// Twilio WhatsApp číslo
+const TWILIO_WHATSAPP_NUMBER = "+16506635799";
+
+async function sendWhatsApp(name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
   try {
-    // Sestavení volitelných částí zprávy
     const contactParts = [];
     if (email) contactParts.push(email);
     if (phone) contactParts.push(`tel: ${phone}`);
     const contactInfo = contactParts.length ? ` (${contactParts.join(", ")})` : "";
 
     const message = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_NUMBER,
-      to: `whatsapp:${to}`,
+      from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
       body: `Nová objednávka vajec od ${name}${contactInfo}:
 - Standardní: ${standardQty} ks
 - Low-cholesterol: ${lowCholQty} ks
@@ -86,8 +90,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
+    // odeslání zprávy na tvé soukromé číslo
     await sendWhatsApp(
-      "+420720150734",
       name,
       email,
       standardQuantity,
