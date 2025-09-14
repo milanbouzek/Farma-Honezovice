@@ -5,15 +5,22 @@ const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUT
 
 async function sendWhatsApp(to, name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
   try {
+    // Sestavení volitelných částí zprávy
+    const contactParts = [];
+    if (email) contactParts.push(email);
+    if (phone) contactParts.push(`tel: ${phone}`);
+    const contactInfo = contactParts.length ? ` (${contactParts.join(", ")})` : "";
+
     const message = await client.messages.create({
       from: process.env.TWILIO_WHATSAPP_NUMBER,
       to: `whatsapp:${to}`,
-      body: `Nová objednávka vajec od ${name} (${email}${phone ? ", tel: " + phone : ""}):
+      body: `Nová objednávka vajec od ${name}${contactInfo}:
 - Standardní: ${standardQty} ks
 - Low-cholesterol: ${lowCholQty} ks
 - Místo vyzvednutí: ${pickupLocation}
 - Datum vyzvednutí: ${pickupDate}`
     });
+
     console.log("WhatsApp message SID:", message.sid);
   } catch (err) {
     console.error("Twilio WhatsApp error:", err);
@@ -35,12 +42,11 @@ export default async function handler(req, res) {
     pickupDate
   } = req.body;
 
-  if (!name || !email || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
+  if (!name || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
     return res.status(400).json({ success: false, error: "Neplatná data." });
   }
 
   try {
-    // Načtení aktuálního počtu vajec
     const { data: stockData, error: stockError } = await supabaseServer
       .from("eggs_stock")
       .select("standard_quantity, low_chol_quantity")
@@ -56,12 +62,11 @@ export default async function handler(req, res) {
     const newStandard = stockData.standard_quantity - standardQuantity;
     const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
 
-    // Uložení objednávky
     const { error: insertError } = await supabaseServer
       .from("orders")
       .insert([{
         customer_name: name,
-        email,
+        email: email || null,
         phone,
         standard_quantity: standardQuantity,
         low_chol_quantity: lowCholQuantity,
@@ -71,7 +76,6 @@ export default async function handler(req, res) {
 
     if (insertError) throw insertError;
 
-    // Aktualizace zásoby
     const { error: updateError } = await supabaseServer
       .from("eggs_stock")
       .update({
@@ -82,7 +86,6 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // Odeslání upozornění přes WhatsApp
     await sendWhatsApp(
       "+420720150734",
       name,
