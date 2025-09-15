@@ -1,5 +1,6 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import Twilio from "twilio";
+import QRCode from "qrcode";
 
 const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
@@ -8,21 +9,33 @@ const MY_WHATSAPP_NUMBER = "+420720150734";
 // Twilio WhatsApp číslo
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-async function sendWhatsApp(name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
+// nastavení cen
+const PRICE_STANDARD = 5;   // Kč za 1 standardní vejce
+const PRICE_LOWCHOL = 6;    // Kč za 1 vejce se sníženým cholesterolem
+const BANK_ACCOUNT = "123456789/0100"; // nahraď svým číslem účtu
+const BANK_IBAN = "CZ650100000000123456789"; // nahraď svým IBANem
+
+async function sendWhatsApp(name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone, totalPrice, qrUrl) {
   try {
     const contactParts = [];
     if (email) contactParts.push(email);
     if (phone) contactParts.push(`tel: ${phone}`);
     const contactInfo = contactParts.length ? ` (${contactParts.join(", ")})` : "";
 
-    const message = await client.messages.create({
-      from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      body: `Nová objednávka vajec od ${name}${contactInfo}:
+    const messageBody = 
+`Nová objednávka vajec od ${name}${contactInfo}:
 - Standardní: ${standardQty} ks
 - Low-cholesterol: ${lowCholQty} ks
 - Místo vyzvednutí: ${pickupLocation}
-- Datum vyzvednutí: ${pickupDate}`
+- Datum vyzvednutí: ${pickupDate}
+--------------------------------
+Celková cena: ${totalPrice} Kč
+Platba: QR kód ${qrUrl}`;
+
+    const message = await client.messages.create({
+      from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
+      body: messageBody
     });
 
     console.log("WhatsApp message SID:", message.sid);
@@ -66,6 +79,14 @@ export default async function handler(req, res) {
     const newStandard = stockData.standard_quantity - standardQuantity;
     const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
 
+    // výpočet ceny
+    const totalPrice = (standardQuantity * PRICE_STANDARD) + (lowCholQuantity * PRICE_LOWCHOL);
+
+    // QR Platba (ČNB standard)
+    const qrString = `SPD*1.0*ACC:${BANK_IBAN}*AM:${totalPrice}*CC:CZK*MSG:Objednavka vajec`;
+    const qrUrl = await QRCode.toDataURL(qrString);
+
+    // uložení objednávky včetně ceny
     const { error: insertError } = await supabaseServer
       .from("orders")
       .insert([{
@@ -75,7 +96,8 @@ export default async function handler(req, res) {
         standard_quantity: standardQuantity,
         low_chol_quantity: lowCholQuantity,
         pickup_location: pickupLocation,
-        pickup_date: pickupDate
+        pickup_date: pickupDate,
+        total_price: totalPrice
       }]);
 
     if (insertError) throw insertError;
@@ -98,10 +120,17 @@ export default async function handler(req, res) {
       lowCholQuantity,
       pickupLocation,
       pickupDate,
-      phone
+      phone,
+      totalPrice,
+      qrUrl
     );
 
-    return res.status(200).json({ success: true, remaining: { standard: newStandard, lowChol: newLowChol } });
+    return res.status(200).json({ 
+      success: true, 
+      remaining: { standard: newStandard, lowChol: newLowChol },
+      totalPrice,
+      qrUrl
+    });
   } catch (err) {
     console.error("Order API error:", err);
     return res.status(500).json({ success: false, error: err.message || "Server error" });
