@@ -29,24 +29,19 @@ async function sendWhatsAppTemplate({
 }) {
   try {
     const vars = {
-      1: cleanVar(name, "neuvedeno"),
-      2: cleanVar(email, "neuvedeno"),
-      3: cleanVar(phone, "neuvedeno"),
+      1: name || "neuvedeno",
+      2: email || "neuvedeno",
+      3: phone || "neuvedeno",
       4: String(standardQty),
       5: String(lowCholQty),
-      6: cleanVar(pickupLocation, "neuvedeno"),
-      7: cleanVar(pickupDate, "neuvedeno")
+      6: pickupLocation || "neuvedeno",
+      7: pickupDate || "neuvedeno"
     };
-
-    console.log(
-      "Sending WhatsApp template with contentVariables:",
-      JSON.stringify(vars)
-    );
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      contentSid: TEMPLATE_ID,
+      contentSid: "HX24d0095b3de8128c09107e2ebb23c3be", // tvoje template ID
       contentVariables: JSON.stringify(vars)
     });
 
