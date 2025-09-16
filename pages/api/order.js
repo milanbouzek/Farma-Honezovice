@@ -6,9 +6,7 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-// tvoje soukromé číslo
 const MY_WHATSAPP_NUMBER = "+420720150734";
-// Twilio WhatsApp číslo
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 // ID schválené šablony
 const TEMPLATE_ID = "HX24d0095b3de8128c09107e2ebb23c3be";
@@ -28,21 +26,24 @@ async function sendWhatsAppTemplate({
   pickupDate
 }) {
   try {
-    // šablona má v těle přesně 7x {{}}, proto posíláme 7 proměnných
+    // šablona má přesně 7 placeholderů
     const vars = {
       "1": cleanVar(name),
       "2": cleanVar(email),
       "3": cleanVar(phone),
-      "4": String(standardQty),
-      "5": String(lowCholQty),
+      "4": String(standardQty || 0),
+      "5": String(lowCholQty || 0),
       "6": cleanVar(pickupLocation),
       "7": cleanVar(pickupDate)
     };
 
+    // log pro kontrolu před odesláním
+    console.log("Sending WhatsApp template with variables:", vars);
+
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      contentSid: TEMPLATE_ID, // ID šablony
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // nebo `whatsapp:${phone}` pokud posíláš zákazníkovi
+      contentSid: TEMPLATE_ID,
       contentVariables: JSON.stringify(vars)
     });
 
@@ -106,7 +107,7 @@ export default async function handler(req, res) {
     // celková cena
     const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
 
-    // uložení objednávky + získání id
+    // uložení objednávky
     const { data: newOrder, error: insertError } = await supabaseServer
       .from("orders")
       .insert([
