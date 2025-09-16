@@ -26,7 +26,7 @@ async function sendWhatsAppTemplate({
   pickupDate
 }) {
   try {
-    // šablona má přesně 7 placeholderů
+    // všechny proměnné převedeny na string
     const vars = {
       "1": cleanVar(name),
       "2": cleanVar(email),
@@ -37,12 +37,11 @@ async function sendWhatsAppTemplate({
       "7": cleanVar(pickupDate)
     };
 
-    // log pro kontrolu před odesláním
     console.log("Sending WhatsApp template with variables:", vars);
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // nebo `whatsapp:${phone}` pokud posíláš zákazníkovi
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // nebo `phone` pro zákazníka
       contentSid: TEMPLATE_ID,
       contentVariables: JSON.stringify(vars)
     });
@@ -104,7 +103,6 @@ export default async function handler(req, res) {
     const newStandard = stockData.standard_quantity - standardQuantity;
     const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
 
-    // celková cena
     const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
 
     // uložení objednávky
