@@ -13,44 +13,47 @@ const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 // ID schválené šablony
 const TEMPLATE_ID = "HX24d0095b3de8128c09107e2ebb23c3be";
 
-async function sendWhatsAppTemplate(
+function cleanVar(value, fallback = "neuvedeno") {
+  if (!value || String(value).trim() === "") return fallback;
+  return String(value);
+}
+
+async function sendWhatsAppTemplate({
   name,
   email,
+  phone,
   standardQty,
   lowCholQty,
   pickupLocation,
-  pickupDate,
-  phone,
-  orderId,
-  totalPrice
-) {
+  pickupDate
+}) {
   try {
-    const contactParts = [];
-    if (email) contactParts.push(email);
-    if (phone) contactParts.push(`tel: ${phone}`);
-    const contactInfo = contactParts.length
-      ? ` (${contactParts.join(", ")})`
-      : "";
+    const vars = {
+      1: cleanVar(name, "neuvedeno"),
+      2: cleanVar(email, "neuvedeno"),
+      3: cleanVar(phone, "neuvedeno"),
+      4: String(standardQty),
+      5: String(lowCholQty),
+      6: cleanVar(pickupLocation, "neuvedeno"),
+      7: cleanVar(pickupDate, "neuvedeno")
+    };
+
+    console.log(
+      "Sending WhatsApp template with contentVariables:",
+      JSON.stringify(vars)
+    );
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
       contentSid: TEMPLATE_ID,
-      contentVariables: JSON.stringify({
-        1: orderId,        // {{1}} - číslo objednávky
-        2: name,           // {{2}} - jméno
-        3: contactInfo,    // {{3}} - kontaktní info (email/tel)
-        4: standardQty,    // {{4}} - standardní vejce
-        5: lowCholQty,     // {{5}} - low-cholesterol vejce
-        6: pickupLocation, // {{6}} - místo
-        7: pickupDate,     // {{7}} - datum
-        8: totalPrice      // {{8}} - celková cena
-      })
+      contentVariables: JSON.stringify(vars)
     });
 
-    console.log("WhatsApp message SID:", message.sid);
+    console.log("WhatsApp template sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp error:", err);
+    console.error("Twilio WhatsApp template error:", err);
+    throw err;
   }
 }
 
@@ -121,7 +124,7 @@ export default async function handler(req, res) {
           pickup_date: pickupDate
         }
       ])
-      .select("id") // ⬅️ aby se vrátilo ID
+      .select("id")
       .single();
 
     if (insertError) throw insertError;
@@ -137,18 +140,16 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace (šablona)
-    await sendWhatsAppTemplate(
+    // WhatsApp notifikace šablonou
+    await sendWhatsAppTemplate({
       name,
       email,
-      standardQuantity,
-      lowCholQuantity,
-      pickupLocation,
-      pickupDate,
       phone,
-      newOrder.id,
-      totalPrice
-    );
+      standardQty: standardQuantity,
+      lowCholQty: lowCholQuantity,
+      pickupLocation,
+      pickupDate
+    });
 
     return res.status(200).json({
       success: true,
