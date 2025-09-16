@@ -28,20 +28,21 @@ async function sendWhatsAppTemplate({
   pickupDate
 }) {
   try {
+    // šablona má v těle přesně 7x {{}}, proto posíláme 7 proměnných
     const vars = {
-      1: name || "neuvedeno",
-      2: email || "neuvedeno",
-      3: phone || "neuvedeno",
-      4: String(standardQty),
-      5: String(lowCholQty),
-      6: pickupLocation || "neuvedeno",
-      7: pickupDate || "neuvedeno"
+      "1": cleanVar(name),
+      "2": cleanVar(email),
+      "3": cleanVar(phone),
+      "4": String(standardQty),
+      "5": String(lowCholQty),
+      "6": cleanVar(pickupLocation),
+      "7": cleanVar(pickupDate)
     };
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      contentSid: "HX24d0095b3de8128c09107e2ebb23c3be", // tvoje template ID
+      contentSid: TEMPLATE_ID, // ID šablony
       contentVariables: JSON.stringify(vars)
     });
 
