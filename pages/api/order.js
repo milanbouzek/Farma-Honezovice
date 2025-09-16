@@ -10,8 +10,10 @@ const client = new Twilio(
 const MY_WHATSAPP_NUMBER = "+420720150734";
 // Twilio WhatsApp číslo
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
+// ID schválené šablony
+const TEMPLATE_ID = "HX24d0095b3de8128c09107e2ebb23c3be";
 
-async function sendWhatsApp(
+async function sendWhatsAppTemplate(
   name,
   email,
   standardQty,
@@ -33,12 +35,17 @@ async function sendWhatsApp(
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      body: `Nová objednávka #${orderId} od ${name}${contactInfo}:
-- Standardní: ${standardQty} ks
-- Low-cholesterol: ${lowCholQty} ks
-- Místo vyzvednutí: ${pickupLocation}
-- Datum vyzvednutí: ${pickupDate}
-- Celková cena: ${totalPrice} Kč`
+      contentSid: TEMPLATE_ID,
+      contentVariables: JSON.stringify({
+        1: orderId,        // {{1}} - číslo objednávky
+        2: name,           // {{2}} - jméno
+        3: contactInfo,    // {{3}} - kontaktní info (email/tel)
+        4: standardQty,    // {{4}} - standardní vejce
+        5: lowCholQty,     // {{5}} - low-cholesterol vejce
+        6: pickupLocation, // {{6}} - místo
+        7: pickupDate,     // {{7}} - datum
+        8: totalPrice      // {{8}} - celková cena
+      })
     });
 
     console.log("WhatsApp message SID:", message.sid);
@@ -130,8 +137,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace
-    await sendWhatsApp(
+    // WhatsApp notifikace (šablona)
+    await sendWhatsAppTemplate(
       name,
       email,
       standardQuantity,
