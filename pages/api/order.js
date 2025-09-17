@@ -6,27 +6,32 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const MY_WHATSAPP_NUMBER = "+420720150734"; // číslo, kam přijde upozornění
+const MY_WHATSAPP_NUMBER = "+420720150734"; // kam přijde notifikace
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-async function sendWhatsAppNotification({ standardQty, lowCholQty }) {
+// ID schválené šablony (Twilio Content Template SID)
+const TEMPLATE_ID = "HX15e26d02bbfa66cba5a7310f7d12cbff";
+
+async function sendWhatsAppTemplate({ standardQty, lowCholQty }) {
   try {
-    const messageBody = `
-Nová objednávka:
-Standardních vajec: ${standardQty || 0}
-Low cholesterol vajec: ${lowCholQty || 0}
-Více detailů v e-mailu.
-    `;
+    const vars = {
+      "1": String(standardQty || 0),
+      "2": String(lowCholQty || 0)
+    };
+
+    console.log("Sending WhatsApp template with variables:", vars);
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      body: messageBody
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // můžeš změnit na zákazníka: `phone`
+      contentSid: TEMPLATE_ID,
+      contentVariables: JSON.stringify(vars)
     });
 
-    console.log("WhatsApp notification sent SID:", message.sid);
+    console.log("WhatsApp template sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp notification error:", err);
+    console.error("Twilio WhatsApp template error:", err);
+    throw err;
   }
 }
 
@@ -112,8 +117,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp upozornění
-    await sendWhatsAppNotification({
+    // WhatsApp notifikace pomocí schválené šablony
+    await sendWhatsAppTemplate({
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity
     });
