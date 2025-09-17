@@ -22,10 +22,16 @@ export default function OrderForm() {
 
   // spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
   const getDateOffset = (offset) => {
-    const d = new Date();
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    let d = new Date(today);
     d.setDate(d.getDate() + offset);
-    return d.toISOString().split("T")[0]; // YYYY-MM-DD
+
+    return d;
   };
+
+  // formát do YYYY-MM-DD
+  const formatDate = (d) => d.toISOString().split("T")[0];
 
   useEffect(() => {
     async function fetchStock() {
@@ -57,14 +63,45 @@ export default function OrderForm() {
   const handleAdd = (field, amount) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: Math.max(0, parseInt(prev[field] || 0, 10) + amount),
+      [field]: (parseInt(prev[field] || 0, 10) + amount),
     }));
   };
 
   const handleDateQuickPick = (offset) => {
+    let d = getDateOffset(offset);
+
+    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+      const day = d.getDay();
+      if (day === 6) d.setDate(d.getDate() + 2);
+      if (day === 0) d.setDate(d.getDate() + 1);
+    }
+
     setFormData((prev) => ({
       ...prev,
-      pickupDate: getDateOffset(offset),
+      pickupDate: formatDate(d),
+    }));
+  };
+
+  const handleDateChange = (e) => {
+    let selectedDate = new Date(e.target.value);
+    selectedDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    if (selectedDate <= today) {
+      toast.error("❌ Nelze vybrat dnešní datum. Vyberte minimálně zítřek.");
+      return;
+    }
+
+    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+      const day = selectedDate.getDay();
+      if (day === 6) selectedDate.setDate(selectedDate.getDate() + 2);
+      if (day === 0) selectedDate.setDate(selectedDate.getDate() + 1);
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      pickupDate: formatDate(selectedDate),
     }));
   };
 
@@ -100,10 +137,10 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
+        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}. Celková cena: ${data.totalPrice} Kč`);
         setStock({
-          standardQuantity: data.remaining_standard,
-          lowCholQuantity: data.remaining_low_chol,
+          standardQuantity: data.remaining.standard,
+          lowCholQuantity: data.remaining.lowChol,
         });
         setFormData({
           name: "",
@@ -129,80 +166,32 @@ export default function OrderForm() {
       {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>
-          🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
-        </p>
-        <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
-      {/* Formulář */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
-      >
+      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
+        {/* Osobní údaje */}
         <div>
           <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border rounded-xl p-2"/>
         </div>
-
         <div>
           <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border rounded-xl p-2"/>
         </div>
-
         <div>
           <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
-          <input
-            type="text"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border rounded-xl p-2"/>
         </div>
 
         {/* Standardní vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              name="standardQuantity"
-              value={formData.standardQuantity}
-              onChange={handleChange}
-              min="0"
-              className="w-full border rounded-xl p-2"
-            />
-            <button
-              type="button"
-              onClick={() => handleAdd("standardQuantity", 5)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              +5
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAdd("standardQuantity", 10)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              +10
-            </button>
+            <input type="number" name="standardQuantity" value={formData.standardQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2"/>
+            <button type="button" onClick={() => handleAdd("standardQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
@@ -210,28 +199,9 @@ export default function OrderForm() {
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              name="lowCholQuantity"
-              value={formData.lowCholQuantity}
-              onChange={handleChange}
-              min="0"
-              className="w-full border rounded-xl p-2"
-            />
-            <button
-              type="button"
-              onClick={() => handleAdd("lowCholQuantity", 5)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              +5
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAdd("lowCholQuantity", 10)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              +10
-            </button>
+            <input type="number" name="lowCholQuantity" value={formData.lowCholQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2"/>
+            <button type="button" onClick={() => handleAdd("lowCholQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
@@ -240,15 +210,10 @@ export default function OrderForm() {
           Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
         </div>
 
+        {/* Místo vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
-          <select
-            name="pickupLocation"
-            value={formData.pickupLocation}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          >
+          <select name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} required className="w-full border rounded-xl p-2">
             <option value="">-- Vyberte místo --</option>
             <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
@@ -259,36 +224,13 @@ export default function OrderForm() {
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
           <div className="flex gap-2 items-center">
-            <input
-              type="date"
-              name="pickupDate"
-              value={formData.pickupDate}
-              onChange={handleChange}
-              required
-              className="w-full border rounded-xl p-2"
-            />
-            <button
-              type="button"
-              onClick={() => handleDateQuickPick(1)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              Zítra
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDateQuickPick(2)}
-              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-            >
-              Pozítří
-            </button>
+            <input type="date" name="pickupDate" value={formData.pickupDate} onChange={handleDateChange} required className="w-full border rounded-xl p-2"/>
+            <button type="button" onClick={() => handleDateQuickPick(1)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Zítra</button>
+            <button type="button" onClick={() => handleDateQuickPick(2)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Pozítří</button>
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
-        >
+        <button type="submit" disabled={loading} className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition">
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
