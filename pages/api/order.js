@@ -6,46 +6,27 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const MY_WHATSAPP_NUMBER = "+420720150734"; // nebo dynamicky podle zákazníka
+const MY_WHATSAPP_NUMBER = "+420720150734"; // číslo, kam přijde upozornění
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-function cleanVar(value, fallback = "neuvedeno") {
-  if (!value || String(value).trim() === "") return fallback;
-  return String(value);
-}
-
-async function sendWhatsAppMessage({
-  name,
-  email,
-  phone,
-  standardQty,
-  lowCholQty,
-  pickupLocation,
-  pickupDate
-}) {
+async function sendWhatsAppNotification({ standardQty, lowCholQty }) {
   try {
     const messageBody = `
-Jméno: ${cleanVar(name)}
-Email: ${cleanVar(email)}
-Telefonní číslo: ${cleanVar(phone)}
-
-Počet standardních vajec: ${standardQty || 0}
-Počet low cholesterol vajec: ${lowCholQty || 0}
-
-Místo vyzvednutí: ${cleanVar(pickupLocation)}
-Datum vyzvednutí: ${cleanVar(pickupDate)}
+Nová objednávka:
+Standardních vajec: ${standardQty || 0}
+Low cholesterol vajec: ${lowCholQty || 0}
+Více detailů v e-mailu.
     `;
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // nebo `phone` pro zákazníka
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
       body: messageBody
     });
 
-    console.log("WhatsApp message sent SID:", message.sid);
+    console.log("WhatsApp notification sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp message error:", err);
-    throw err;
+    console.error("Twilio WhatsApp notification error:", err);
   }
 }
 
@@ -131,15 +112,10 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace bez šablony
-    await sendWhatsAppMessage({
-      name,
-      email,
-      phone,
+    // WhatsApp upozornění
+    await sendWhatsAppNotification({
       standardQty: standardQuantity,
-      lowCholQty: lowCholQuantity,
-      pickupLocation,
-      pickupDate
+      lowCholQty: lowCholQuantity
     });
 
     return res.status(200).json({
