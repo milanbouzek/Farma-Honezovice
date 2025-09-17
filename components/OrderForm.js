@@ -6,8 +6,8 @@ export default function OrderForm() {
     name: "",
     email: "",
     phone: "",
-    standardQuantity: 0,
-    lowCholQuantity: 0,
+    standardQuantity: "",
+    lowCholQuantity: "",
     pickupLocation: "",
     pickupDate: "",
   });
@@ -16,7 +16,9 @@ export default function OrderForm() {
   const [loading, setLoading] = useState(false);
 
   // výpočet ceny
-  const totalPrice = formData.standardQuantity * 5 + formData.lowCholQuantity * 7;
+  const totalPrice =
+    (parseInt(formData.standardQuantity || 0, 10) * 5) +
+    (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
   // spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
   const getDateOffset = (offset) => {
@@ -47,7 +49,7 @@ export default function OrderForm() {
       ...prev,
       [name]:
         name === "standardQuantity" || name === "lowCholQuantity"
-          ? parseInt(value || 0, 10)
+          ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
   };
@@ -55,7 +57,7 @@ export default function OrderForm() {
   const handleAdd = (field, amount) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: Math.max(0, prev[field] + amount),
+      [field]: Math.max(0, parseInt(prev[field] || 0, 10) + amount),
     }));
   };
 
@@ -69,7 +71,9 @@ export default function OrderForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalEggs = formData.standardQuantity + formData.lowCholQuantity;
+    const standardQty = parseInt(formData.standardQuantity || 0, 10);
+    const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
+    const totalEggs = standardQty + lowCholQty;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
       toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
@@ -87,7 +91,11 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          standardQuantity: standardQty,
+          lowCholQuantity: lowCholQty,
+        }),
       });
       const data = await res.json();
 
@@ -101,8 +109,8 @@ export default function OrderForm() {
           name: "",
           email: "",
           phone: "",
-          standardQuantity: 0,
-          lowCholQuantity: 0,
+          standardQuantity: "",
+          lowCholQuantity: "",
           pickupLocation: "",
           pickupDate: "",
         });
@@ -184,7 +192,7 @@ export default function OrderForm() {
             <button
               type="button"
               onClick={() => handleAdd("standardQuantity", 5)}
-              className="bg-yellow-300 px-3 py-1 rounded-lg hover:bg-yellow-400"
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
             >
               +5
             </button>
@@ -213,7 +221,7 @@ export default function OrderForm() {
             <button
               type="button"
               onClick={() => handleAdd("lowCholQuantity", 5)}
-              className="bg-yellow-300 px-3 py-1 rounded-lg hover:bg-yellow-400"
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
             >
               +5
             </button>
@@ -262,14 +270,14 @@ export default function OrderForm() {
             <button
               type="button"
               onClick={() => handleDateQuickPick(1)}
-              className="bg-blue-300 px-3 py-1 rounded-lg hover:bg-blue-400"
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
             >
               Zítra
             </button>
             <button
               type="button"
               onClick={() => handleDateQuickPick(2)}
-              className="bg-blue-400 px-3 py-1 rounded-lg hover:bg-blue-500"
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
             >
               Pozítří
             </button>
