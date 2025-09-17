@@ -71,7 +71,7 @@ export default function OrderForm() {
 
       if (data.success) {
         toast.success(
-          `✅ Objednávka byla úspěšně odeslána. Celková cena je ${data.totalPrice} Kč.`
+          `✅ Objednávka #${data.orderId} byla úspěšně odeslána. Celková cena je ${data.totalPrice} Kč.`
         );
         setStock({
           standardQuantity: data.remaining.standard,
@@ -102,8 +102,7 @@ export default function OrderForm() {
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
         <p>
-          🥚 Standardní vejce:{" "}
-          <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
+          🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
         </p>
         <p>
           🥚 Vejce se sníženým cholesterolem:{" "}
@@ -114,10 +113,7 @@ export default function OrderForm() {
       {/* Minimální objednávka */}
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
-        <p>
-          10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol
-          vajec).
-        </p>
+        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
       </div>
 
       {/* Uzávěrka objednávek */}
@@ -125,8 +121,8 @@ export default function OrderForm() {
         <h2 className="font-bold">Uzávěrka objednávek</h2>
         <p>
           Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí
-          následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny
-          druhý den k vyzvednutí.
+          následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den
+          k vyzvednutí.
         </p>
       </div>
 
@@ -134,8 +130,7 @@ export default function OrderForm() {
       <div className="mb-6 text-gray-700">
         <h2 className="font-bold">Platba</h2>
         <p>
-          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v
-          hotovosti.
+          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v hotovosti.
         </p>
       </div>
 
@@ -179,9 +174,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet standardních vajec
-          </label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <input
             type="number"
             name="standardQuantity"
