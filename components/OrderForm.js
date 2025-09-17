@@ -15,6 +15,16 @@ export default function OrderForm() {
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
 
+  // výpočet ceny
+  const totalPrice = formData.standardQuantity * 5 + formData.lowCholQuantity * 7;
+
+  // spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
+  const getDateOffset = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split("T")[0]; // YYYY-MM-DD
+  };
+
   useEffect(() => {
     async function fetchStock() {
       try {
@@ -42,15 +52,27 @@ export default function OrderForm() {
     }));
   };
 
+  const handleAdd = (field, amount) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: Math.max(0, prev[field] + amount),
+    }));
+  };
+
+  const handleDateQuickPick = (offset) => {
+    setFormData((prev) => ({
+      ...prev,
+      pickupDate: getDateOffset(offset),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const totalEggs = formData.standardQuantity + formData.lowCholQuantity;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      toast.error(
-        "❌ Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
-      );
+      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
       return;
     }
 
@@ -70,12 +92,10 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(
-          `✅ Objednávka #${data.orderId} byla úspěšně odeslána. Celková cena je ${data.totalPrice} Kč.`
-        );
+        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
         setStock({
-          standardQuantity: data.remaining.standard,
-          lowCholQuantity: data.remaining.lowChol,
+          standardQuantity: data.remaining_standard,
+          lowCholQuantity: data.remaining_low_chol,
         });
         setFormData({
           name: "",
@@ -87,7 +107,7 @@ export default function OrderForm() {
           pickupDate: "",
         });
       } else {
-        toast.error("❌ " + (data.error || "Nepodařilo se odeslat objednávku."));
+        toast.error("❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
     } catch {
       toast.error("❌ Chyba při odesílání objednávky.");
@@ -107,30 +127,6 @@ export default function OrderForm() {
         <p>
           🥚 Vejce se sníženým cholesterolem:{" "}
           <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
-      </div>
-
-      {/* Minimální objednávka */}
-      <div className="mb-4 text-gray-700">
-        <h2 className="font-bold">Minimální objednávka</h2>
-        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
-      </div>
-
-      {/* Uzávěrka objednávek */}
-      <div className="mb-4 text-gray-700">
-        <h2 className="font-bold">Uzávěrka objednávek</h2>
-        <p>
-          Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí
-          následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den
-          k vyzvednutí.
-        </p>
-      </div>
-
-      {/* Platba */}
-      <div className="mb-6 text-gray-700">
-        <h2 className="font-bold">Platba</h2>
-        <p>
-          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v hotovosti.
         </p>
       </div>
 
@@ -173,30 +169,67 @@ export default function OrderForm() {
           />
         </div>
 
+        {/* Standardní vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
-          <input
-            type="number"
-            name="standardQuantity"
-            value={formData.standardQuantity}
-            onChange={handleChange}
-            min="0"
-            className="w-full border rounded-xl p-2"
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="standardQuantity"
+              value={formData.standardQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button
+              type="button"
+              onClick={() => handleAdd("standardQuantity", 5)}
+              className="bg-yellow-300 px-3 py-1 rounded-lg hover:bg-yellow-400"
+            >
+              +5
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAdd("standardQuantity", 10)}
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+            >
+              +10
+            </button>
+          </div>
         </div>
 
+        {/* Low cholesterol vejce */}
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet vajec se sníženým cholesterolem
-          </label>
-          <input
-            type="number"
-            name="lowCholQuantity"
-            value={formData.lowCholQuantity}
-            onChange={handleChange}
-            min="0"
-            className="w-full border rounded-xl p-2"
-          />
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="lowCholQuantity"
+              value={formData.lowCholQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button
+              type="button"
+              onClick={() => handleAdd("lowCholQuantity", 5)}
+              className="bg-yellow-300 px-3 py-1 rounded-lg hover:bg-yellow-400"
+            >
+              +5
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAdd("lowCholQuantity", 10)}
+              className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+            >
+              +10
+            </button>
+          </div>
+        </div>
+
+        {/* Celková cena */}
+        <div className="text-gray-800 font-semibold">
+          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
         </div>
 
         <div>
@@ -209,23 +242,38 @@ export default function OrderForm() {
             className="w-full border rounded-xl p-2"
           >
             <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">
-              Dematic Ostrov u Stříbra 65
-            </option>
+            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
 
+        {/* Datum vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
-          <input
-            type="date"
-            name="pickupDate"
-            value={formData.pickupDate}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="date"
+              name="pickupDate"
+              value={formData.pickupDate}
+              onChange={handleChange}
+              required
+              className="w-full border rounded-xl p-2"
+            />
+            <button
+              type="button"
+              onClick={() => handleDateQuickPick(1)}
+              className="bg-blue-300 px-3 py-1 rounded-lg hover:bg-blue-400"
+            >
+              Zítra
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDateQuickPick(2)}
+              className="bg-blue-400 px-3 py-1 rounded-lg hover:bg-blue-500"
+            >
+              Pozítří
+            </button>
+          </div>
         </div>
 
         <button
