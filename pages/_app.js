@@ -10,18 +10,20 @@ export default function App({ Component, pageProps }) {
         position="top-center"
         toastOptions={{
           style: {
-            borderRadius: "12px",
+            borderRadius: "16px",
             background: "#fff8dc",
             color: "#333",
-            fontSize: "16px",
-            padding: "16px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            fontSize: "18px",          // větší text
+            padding: "24px 32px",      // větší okno
+            minWidth: "300px",         // minimální šířka
+            maxWidth: "500px",         // maximální šířka
+            boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
           },
           success: {
-            duration: 4000,
+            duration: 5000,
           },
           error: {
-            duration: 5000,
+            duration: 6000,
           },
         }}
       />
