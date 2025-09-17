@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -12,7 +13,6 @@ export default function OrderForm() {
   });
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
-  const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -46,22 +46,19 @@ export default function OrderForm() {
     e.preventDefault();
 
     const totalEggs = formData.standardQuantity + formData.lowCholQuantity;
-
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      alert(
+      toast.error(
         "Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
       );
       return;
     }
 
-    // email už není povinný
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
-      alert("Vyplňte všechna povinná pole.");
+      toast.error("Vyplňte všechna povinná pole.");
       return;
     }
 
     setLoading(true);
-    setStatus("Odesílám objednávku...");
 
     try {
       const res = await fetch("/api/order", {
@@ -72,11 +69,16 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        setStatus("Objednávka byla úspěšně odeslána.");
+        toast.success(
+          `✅ Objednávka byla úspěšně odeslána!\nID objednávky: ${data.orderId}\nCelková cena: ${data.totalPrice} Kč`,
+          { duration: 6000, style: { whiteSpace: "pre-line" } }
+        );
+
         setStock({
-          standardQuantity: data.remaining_standard,
-          lowCholQuantity: data.remaining_low_chol,
+          standardQuantity: data.remaining.standard,
+          lowCholQuantity: data.remaining.lowChol,
         });
+
         setFormData({
           name: "",
           email: "",
@@ -87,13 +89,10 @@ export default function OrderForm() {
           pickupDate: "",
         });
       } else {
-        setStatus(
-          "Chyba: " +
-            (data.error || "Nepodařilo se odeslat objednávku.")
-        );
+        toast.error("❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
     } catch {
-      setStatus("Chyba při odesílání objednávky.");
+      toast.error("❌ Došlo k chybě při odesílání objednávky.");
     } finally {
       setLoading(false);
     }
@@ -103,35 +102,23 @@ export default function OrderForm() {
     <div>
       {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
-        <h2 className="font-bold mb-1 text-red-600">
-          Aktuální dostupné množství
-        </h2>
-        <p>
-          🥚 Standardní vejce:{" "}
-          <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
-        </p>
-        <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
+        <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
       {/* Minimální objednávka */}
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
-        <p>
-          10 ks, vždy pouze v násobcích 10 (součet standardních a low
-          cholesterol vajec).
-        </p>
+        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
       </div>
 
       {/* Uzávěrka objednávek */}
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Uzávěrka objednávek</h2>
         <p>
-          Objednávky je nutné zadat do <strong>19:00</strong>, pokud je
-          vyzvednutí následující den. Objednávky vystavené po 19:00 nebudou
-          bohužel připraveny druhý den k vyzvednutí.
+          Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí následující den.
+          Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den k vyzvednutí.
         </p>
       </div>
 
@@ -139,20 +126,14 @@ export default function OrderForm() {
       <div className="mb-6 text-gray-700">
         <h2 className="font-bold">Platba</h2>
         <p>
-          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v
-          hotovosti.
+          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v hotovosti.
         </p>
       </div>
 
       {/* Formulář */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
-      >
+      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
         <div>
-          <label className="block text-gray-700 mb-1">
-            Jméno a příjmení *
-          </label>
+          <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input
             type="text"
             name="name"
@@ -164,9 +145,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Email (nepovinné)
-          </label>
+          <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
           <input
             type="email"
             name="email"
@@ -177,9 +156,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Telefon (nepovinné)
-          </label>
+          <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
           <input
             type="text"
             name="phone"
@@ -190,9 +167,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet standardních vajec
-          </label>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <input
             type="number"
             name="standardQuantity"
@@ -204,9 +179,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet vajec se sníženým cholesterolem
-          </label>
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <input
             type="number"
             name="lowCholQuantity"
@@ -218,9 +191,7 @@ export default function OrderForm() {
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Místo vyzvednutí *
-          </label>
+          <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
           <select
             name="pickupLocation"
             value={formData.pickupLocation}
@@ -229,17 +200,13 @@ export default function OrderForm() {
             className="w-full border rounded-xl p-2"
           >
             <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">
-              Dematic Ostrov u Stříbra 65
-            </option>
+            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-gray-700 mb-1">
-            Datum vyzvednutí *
-          </label>
+          <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
           <input
             type="date"
             name="pickupDate"
@@ -258,8 +225,6 @@ export default function OrderForm() {
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
-
-      {status && <p className="mt-4 text-gray-700">{status}</p>}
     </div>
   );
 }
