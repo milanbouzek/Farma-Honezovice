@@ -9,19 +9,20 @@ export default function App({ Component, pageProps }) {
       <Toaster
         position="top-center"
         toastOptions={{
+          icon: null, // odstraní fajfku nebo jinou ikonu
           style: {
             borderRadius: "16px",
             background: "#fff8dc",
             color: "#333",
             fontSize: "18px",
-            padding: "24px",          // jednotné odsazení
+            padding: "24px",
             minWidth: "300px",
             maxWidth: "500px",
             boxShadow: "0 6px 20px rgba(0,0,0,0.2)",
             display: "flex",
-            justifyContent: "center", // vycentrování horizontálně
-            alignItems: "center",     // vycentrování vertikálně
-            textAlign: "center",      // text uprostřed
+            justifyContent: "center",
+            alignItems: "center",
+            textAlign: "center",
           },
           success: {
             duration: 5000,
