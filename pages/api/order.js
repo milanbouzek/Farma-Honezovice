@@ -1,33 +1,37 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import Twilio from "twilio";
 
-const client = new Twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+const client = new Twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
 
-// tvoje soukromé číslo
-const MY_WHATSAPP_NUMBER = "+420720150734";
-// Twilio WhatsApp číslo
+const MY_WHATSAPP_NUMBER = "+420720150734"; // kam přijde notifikace
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-async function sendWhatsApp(name, email, standardQty, lowCholQty, pickupLocation, pickupDate, phone) {
+// ID schválené šablony (Twilio Content Template SID)
+const TEMPLATE_ID = "HX15e26d02bbfa66cba5a7310f7d12cbff";
+
+async function sendWhatsAppTemplate({ standardQty, lowCholQty }) {
   try {
-    const contactParts = [];
-    if (email) contactParts.push(email);
-    if (phone) contactParts.push(`tel: ${phone}`);
-    const contactInfo = contactParts.length ? ` (${contactParts.join(", ")})` : "";
+    const vars = {
+      "1": String(standardQty || 0),
+      "2": String(lowCholQty || 0),
+    };
+
+    console.log("Sending WhatsApp template with variables:", vars);
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
-      body: `Nová objednávka vajec od ${name}${contactInfo}:
-- Standardní: ${standardQty} ks
-- Low-cholesterol: ${lowCholQty} ks
-- Místo vyzvednutí: ${pickupLocation}
-- Datum vyzvednutí: ${pickupDate}`
+      contentSid: TEMPLATE_ID,
+      contentVariables: JSON.stringify(vars),
     });
 
-    console.log("WhatsApp message SID:", message.sid);
+    console.log("WhatsApp template sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp error:", err);
+    console.error("Twilio WhatsApp template error:", err);
+    throw err;
   }
 }
 
@@ -43,7 +47,7 @@ export default async function handler(req, res) {
     standardQuantity,
     lowCholQuantity,
     pickupLocation,
-    pickupDate
+    pickupDate,
   } = req.body;
 
   if (!name || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
@@ -51,6 +55,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // načtení skladu
     const { data: stockData, error: stockError } = await supabaseServer
       .from("eggs_stock")
       .select("standard_quantity, low_chol_quantity")
@@ -66,42 +71,54 @@ export default async function handler(req, res) {
     const newStandard = stockData.standard_quantity - standardQuantity;
     const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
 
-    const { error: insertError } = await supabaseServer
+    const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
+
+    // uložení objednávky
+    const { data: newOrder, error: insertError } = await supabaseServer
       .from("orders")
-      .insert([{
-        customer_name: name,
-        email: email || null,
-        phone,
-        standard_quantity: standardQuantity,
-        low_chol_quantity: lowCholQuantity,
-        pickup_location: pickupLocation,
-        pickup_date: pickupDate
-      }]);
+      .insert([
+        {
+          customer_name: name,
+          email: email || null,
+          phone,
+          standard_quantity: standardQuantity,
+          low_chol_quantity: lowCholQuantity,
+          pickup_location: pickupLocation,
+          pickup_date: pickupDate,
+        },
+      ])
+      .select("id")
+      .single();
 
     if (insertError) throw insertError;
 
+    // update skladu
     const { error: updateError } = await supabaseServer
       .from("eggs_stock")
       .update({
         standard_quantity: newStandard,
-        low_chol_quantity: newLowChol
+        low_chol_quantity: newLowChol,
       })
       .eq("id", 1);
 
     if (updateError) throw updateError;
 
-    // odeslání zprávy na tvé soukromé číslo
-    await sendWhatsApp(
-      name,
-      email,
-      standardQuantity,
-      lowCholQuantity,
-      pickupLocation,
-      pickupDate,
-      phone
-    );
+    // WhatsApp notifikace
+    await sendWhatsAppTemplate({
+      standardQty: standardQuantity,
+      lowCholQty: lowCholQuantity,
+    });
 
-    return res.status(200).json({ success: true, remaining: { standard: newStandard, lowChol: newLowChol } });
+    return res.status(200).json({
+      success: true,
+      orderId: newOrder.id,
+      totalPrice,
+      remaining: {
+        standard: newStandard,
+        lowChol: newLowChol,
+      },
+      message: `Objednávka byla úspěšně odeslána. Celková cena: ${totalPrice} Kč.`,
+    });
   } catch (err) {
     console.error("Order API error:", err);
     return res.status(500).json({ success: false, error: err.message || "Server error" });
