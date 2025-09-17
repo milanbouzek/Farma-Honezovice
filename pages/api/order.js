@@ -6,17 +6,15 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const MY_WHATSAPP_NUMBER = "+420720150734";
+const MY_WHATSAPP_NUMBER = "+420720150734"; // nebo dynamicky podle zákazníka
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
-// ID schválené šablony
-const TEMPLATE_ID = "HX24d0095b3de8128c09107e2ebb23c3be";
 
 function cleanVar(value, fallback = "neuvedeno") {
   if (!value || String(value).trim() === "") return fallback;
   return String(value);
 }
 
-async function sendWhatsAppTemplate({
+async function sendWhatsAppMessage({
   name,
   email,
   phone,
@@ -26,29 +24,27 @@ async function sendWhatsAppTemplate({
   pickupDate
 }) {
   try {
-    // všechny proměnné převedeny na string
-    const vars = {
-      "1": cleanVar(name),
-      "2": cleanVar(email),
-      "3": cleanVar(phone),
-      "4": String(standardQty || 0),
-      "5": String(lowCholQty || 0),
-      "6": cleanVar(pickupLocation),
-      "7": cleanVar(pickupDate)
-    };
+    const messageBody = `
+Jméno: ${cleanVar(name)}
+Email: ${cleanVar(email)}
+Telefonní číslo: ${cleanVar(phone)}
 
-    console.log("Sending WhatsApp template with variables:", vars);
+Počet standardních vajec: ${standardQty || 0}
+Počet low cholesterol vajec: ${lowCholQty || 0}
+
+Místo vyzvednutí: ${cleanVar(pickupLocation)}
+Datum vyzvednutí: ${cleanVar(pickupDate)}
+    `;
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // nebo `phone` pro zákazníka
-      contentSid: TEMPLATE_ID,
-      contentVariables: JSON.stringify(vars)
+      body: messageBody
     });
 
-    console.log("WhatsApp template sent SID:", message.sid);
+    console.log("WhatsApp message sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp template error:", err);
+    console.error("Twilio WhatsApp message error:", err);
     throw err;
   }
 }
@@ -135,8 +131,8 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace šablonou
-    await sendWhatsAppTemplate({
+    // WhatsApp notifikace bez šablony
+    await sendWhatsAppMessage({
       name,
       email,
       phone,
