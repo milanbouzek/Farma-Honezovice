@@ -23,7 +23,7 @@ async function sendWhatsAppTemplate({ standardQty, lowCholQty }) {
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${MY_WHATSAPP_NUMBER}`, // můžeš změnit na zákazníka: `phone`
+      to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
       contentSid: TEMPLATE_ID,
       contentVariables: JSON.stringify(vars)
     });
@@ -63,7 +63,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // načtení skladu
     const { data: stockData, error: stockError } = await supabaseServer
       .from("eggs_stock")
       .select("standard_quantity, low_chol_quantity")
@@ -87,7 +86,6 @@ export default async function handler(req, res) {
 
     const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
 
-    // uložení objednávky
     const { data: newOrder, error: insertError } = await supabaseServer
       .from("orders")
       .insert([
@@ -106,7 +104,6 @@ export default async function handler(req, res) {
 
     if (insertError) throw insertError;
 
-    // update skladu
     const { error: updateError } = await supabaseServer
       .from("eggs_stock")
       .update({
@@ -117,7 +114,6 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace pomocí schválené šablony
     await sendWhatsAppTemplate({
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity
@@ -125,6 +121,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      message: `Objednávka byla úspěšně odeslána. Celková cena je ${totalPrice} Kč.`,
       orderId: newOrder.id,
       totalPrice,
       remaining: {
