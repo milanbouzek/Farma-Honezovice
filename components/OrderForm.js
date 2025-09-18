@@ -6,14 +6,47 @@ export default function OrderForm() {
     name: "",
     email: "",
     phone: "",
-    standardQuantity: 0,
-    lowCholQuantity: 0,
+    standardQuantity: "",
+    lowCholQuantity: "",
     pickupLocation: "",
     pickupDate: "",
   });
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
+  const [dateError, setDateError] = useState("");
+
+  const totalPrice =
+    (parseInt(formData.standardQuantity || 0, 10) * 5) +
+    (parseInt(formData.lowCholQuantity || 0, 10) * 7);
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const getDateOffset = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split("T")[0];
+  };
+
+  const isWeekend = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    return day === 0 || day === 6;
+  };
+
+  const isToday = (dateStr) => {
+    const d = new Date(dateStr);
+    d.setHours(0,0,0,0);
+    return d.getTime() === today.getTime();
+  };
+
+  const isValidDate = (dateStr, location) => {
+    if (!dateStr) return false;
+    if (isToday(dateStr)) return false;
+    if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(dateStr)) return false;
+    return true;
+  };
 
   useEffect(() => {
     async function fetchStock() {
@@ -33,29 +66,75 @@ export default function OrderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]:
         name === "standardQuantity" || name === "lowCholQuantity"
-          ? parseInt(value || 0, 10)
+          ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
+
+    if (name === "pickupDate") {
+      if (!isValidDate(value, formData.pickupLocation)) {
+        if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+          setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+        } else {
+          setDateError("❌ Nelze vybrat dnešní den.");
+        }
+      } else {
+        setDateError("");
+      }
+    }
+  };
+
+  const handleAdd = (field, amount) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: Math.max(0, parseInt(prev[field] || 0, 10) + amount),
+    }));
+  };
+
+  const handleDateQuickPick = (offset) => {
+    const dateStr = getDateOffset(offset);
+    setFormData((prev) => ({
+      ...prev,
+      pickupDate: dateStr,
+    }));
+    if (!isValidDate(dateStr, formData.pickupLocation)) {
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("❌ Nelze vybrat dnešní den.");
+      }
+    } else {
+      setDateError("");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const totalEggs = formData.standardQuantity + formData.lowCholQuantity;
+    const standardQty = parseInt(formData.standardQuantity || 0, 10);
+    const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
+    const totalEggs = standardQty + lowCholQty;
 
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      toast.error(
-        "❌ Minimální objednávka je 10 ks a vždy jen násobky 10 (součet standardních a low cholesterol vajec)."
-      );
+      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
       return;
     }
 
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
       toast.error("❌ Vyplňte všechna povinná pole.");
+      return;
+    }
+
+    if (!isValidDate(formData.pickupDate, formData.pickupLocation)) {
+      toast.error(
+        formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
+          ? "❌ Nelze odeslat objednávku s dnešním dnem nebo víkendem pro Dematic."
+          : "❌ Nelze odeslat objednávku s dnešním dnem."
+      );
       return;
     }
 
@@ -65,29 +144,32 @@ export default function OrderForm() {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          standardQuantity: standardQty,
+          lowCholQuantity: lowCholQty,
+        }),
       });
       const data = await res.json();
 
       if (data.success) {
-        toast.success(
-          `✅ Objednávka #${data.orderId} byla úspěšně odeslána. Celková cena je ${data.totalPrice} Kč.`
-        );
+        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
         setStock({
-          standardQuantity: data.remaining.standard,
-          lowCholQuantity: data.remaining.lowChol,
+          standardQuantity: data.remaining_standard,
+          lowCholQuantity: data.remaining_low_chol,
         });
         setFormData({
           name: "",
           email: "",
           phone: "",
-          standardQuantity: 0,
-          lowCholQuantity: 0,
+          standardQuantity: "",
+          lowCholQuantity: "",
           pickupLocation: "",
           pickupDate: "",
         });
+        setDateError("");
       } else {
-        toast.error("❌ " + (data.error || "Nepodařilo se odeslat objednávku."));
+        toast.error("❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
     } catch {
       toast.error("❌ Chyba při odesílání objednávky.");
@@ -101,40 +183,10 @@ export default function OrderForm() {
       {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>
-          🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
-        </p>
-        <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
-      {/* Minimální objednávka */}
-      <div className="mb-4 text-gray-700">
-        <h2 className="font-bold">Minimální objednávka</h2>
-        <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
-      </div>
-
-      {/* Uzávěrka objednávek */}
-      <div className="mb-4 text-gray-700">
-        <h2 className="font-bold">Uzávěrka objednávek</h2>
-        <p>
-          Objednávky je nutné zadat do <strong>19:00</strong>, pokud je vyzvednutí
-          následující den. Objednávky vystavené po 19:00 nebudou bohužel připraveny druhý den
-          k vyzvednutí.
-        </p>
-      </div>
-
-      {/* Platba */}
-      <div className="mb-6 text-gray-700">
-        <h2 className="font-bold">Platba</h2>
-        <p>
-          Platba proběhne při dodání vajec - buď bezhotovostně (QR kód) nebo v hotovosti.
-        </p>
-      </div>
-
-      {/* Formulář */}
       <form
         onSubmit={handleSubmit}
         className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
@@ -173,30 +225,42 @@ export default function OrderForm() {
           />
         </div>
 
+        {/* Standardní vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
-          <input
-            type="number"
-            name="standardQuantity"
-            value={formData.standardQuantity}
-            onChange={handleChange}
-            min="0"
-            className="w-full border rounded-xl p-2"
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="standardQuantity"
+              value={formData.standardQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button type="button" onClick={() => handleAdd("standardQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
+          </div>
         </div>
 
+        {/* Low cholesterol vejce */}
         <div>
-          <label className="block text-gray-700 mb-1">
-            Počet vajec se sníženým cholesterolem
-          </label>
-          <input
-            type="number"
-            name="lowCholQuantity"
-            value={formData.lowCholQuantity}
-            onChange={handleChange}
-            min="0"
-            className="w-full border rounded-xl p-2"
-          />
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="lowCholQuantity"
+              value={formData.lowCholQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button type="button" onClick={() => handleAdd("lowCholQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
+          </div>
+        </div>
+
+        <div className="text-gray-800 font-semibold">
+          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
         </div>
 
         <div>
@@ -209,23 +273,27 @@ export default function OrderForm() {
             className="w-full border rounded-xl p-2"
           >
             <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">
-              Dematic Ostrov u Stříbra 65
-            </option>
+            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
 
+        {/* Datum vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
-          <input
-            type="date"
-            name="pickupDate"
-            value={formData.pickupDate}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="date"
+              name="pickupDate"
+              value={formData.pickupDate}
+              onChange={handleChange}
+              required
+              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
+            />
+            <button type="button" onClick={() => handleDateQuickPick(1)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Zítra</button>
+            <button type="button" onClick={() => handleDateQuickPick(2)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Pozítří</button>
+          </div>
+          {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
         </div>
 
         <button
