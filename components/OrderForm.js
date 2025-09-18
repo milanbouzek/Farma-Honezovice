@@ -24,7 +24,7 @@ export default function OrderForm() {
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
 
   const getDateOffset = (offset) => {
     const d = new Date();
@@ -43,7 +43,7 @@ export default function OrderForm() {
 
   const isValidDate = (date) => {
     const d = new Date(date);
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     if (d <= today) return false;
     if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
     return true;
@@ -306,7 +306,7 @@ export default function OrderForm() {
               selected={formData.pickupDate ? new Date(formData.pickupDate) : undefined}
               onSelect={handleDateSelect}
               disabled={[
-                { before: today }, // minulé dny a dnešní den
+                { before: new Date(today.getTime() + 24*60*60*1000) }, // dnešní a minulé dny
                 formData.pickupLocation === "Dematic Ostrov u Stříbra 65" ? { daysOfWeek: [0,6] } : null
               ].filter(Boolean)}
               weekStartsOn={1} // pondělí
