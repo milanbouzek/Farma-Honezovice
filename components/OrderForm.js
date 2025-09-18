@@ -257,17 +257,33 @@ export default function OrderForm() {
 
         {/* Místo vyzvednutí */}
         <div className="flex gap-2">
-          {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
-            <button
-              key={loc}
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, pickupLocation: loc }))}
-              className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}
-            >
-              {loc}
-            </button>
-          ))}
-        </div>
+  {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
+    <button
+      key={loc}
+      type="button"
+      onClick={() => {
+        setFormData(prev => ({ ...prev, pickupLocation: loc }));
+        
+        // Kontrola víkendu pro Dematic
+        if (loc === "Dematic Ostrov u Stříbra 65" && formData.pickupDate) {
+          const [dd, mm, yyyy] = formData.pickupDate.split(".");
+          const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
+          const day = selectedDate.getDay();
+          if (day === 0 || day === 6) {
+            setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+          } else {
+            setDateError("");
+          }
+        } else {
+          setDateError("");
+        }
+      }}
+      className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}
+    >
+      {loc}
+    </button>
+  ))}
+</div>
 
         {/* Datum vyzvednutí */}
         <div>
