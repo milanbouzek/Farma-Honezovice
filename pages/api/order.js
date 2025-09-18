@@ -19,17 +19,17 @@ async function sendWhatsAppTemplate({
   standardQty,
   lowCholQty,
   pickupLocation,
-  pickupDate
+  pickupDate,
 }) {
   try {
     const vars = {
-      "1": name,
-      "2": email || "",
-      "3": phone || "",
-      "4": String(standardQty || 0),
-      "5": String(lowCholQty || 0),
-      "6": pickupLocation,
-      "7": pickupDate, // uživateli necháme ve formátu dd.mm.yyyy
+      "1": String(name || ""),
+      "2": String(email || ""),
+      "3": String(phone || ""),
+      "4": String(standardQty ?? 0),
+      "5": String(lowCholQty ?? 0),
+      "6": String(pickupLocation || ""),
+      "7": String(pickupDate || ""),
     };
 
     console.log("Sending WhatsApp template with variables:", vars);
@@ -63,15 +63,16 @@ export default async function handler(req, res) {
     pickupDate,
   } = req.body;
 
-  if (!name || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
-    return res.status(400).json({ success: false, error: "Neplatná data." });
-  }
-
-  // převod z dd.mm.yyyy na yyyy-mm-dd pro DB
-  let dbPickupDate = pickupDate;
-  if (pickupDate.includes(".")) {
-    const [dd, mm, yyyy] = pickupDate.split(".");
-    dbPickupDate = `${yyyy}-${mm}-${dd}`;
+  if (
+    !name ||
+    standardQuantity < 0 ||
+    lowCholQuantity < 0 ||
+    !pickupLocation ||
+    !pickupDate
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Neplatná data." });
   }
 
   try {
@@ -84,8 +85,14 @@ export default async function handler(req, res) {
 
     if (stockError) throw stockError;
 
-    if (!stockData || stockData.standard_quantity < standardQuantity || stockData.low_chol_quantity < lowCholQuantity) {
-      return res.status(400).json({ success: false, error: "Nedostatek vajec." });
+    if (
+      !stockData ||
+      stockData.standard_quantity < standardQuantity ||
+      stockData.low_chol_quantity < lowCholQuantity
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Nedostatek vajec." });
     }
 
     const newStandard = stockData.standard_quantity - standardQuantity;
@@ -104,7 +111,7 @@ export default async function handler(req, res) {
           standard_quantity: standardQuantity,
           low_chol_quantity: lowCholQuantity,
           pickup_location: pickupLocation,
-          pickup_date: dbPickupDate, // ✅ ukládáme ve správném formátu
+          pickup_date: pickupDate,
         },
       ])
       .select("id")
@@ -123,7 +130,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace (uživateli ukážeme dd.mm.yyyy)
+    // WhatsApp notifikace
     await sendWhatsAppTemplate({
       name,
       email,
@@ -131,7 +138,7 @@ export default async function handler(req, res) {
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity,
       pickupLocation,
-      pickupDate
+      pickupDate,
     });
 
     return res.status(200).json({
@@ -146,6 +153,8 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error("Order API error:", err);
-    return res.status(500).json({ success: false, error: err.message || "Server error" });
+    return res
+      .status(500)
+      .json({ success: false, error: err.message || "Server error" });
   }
 }
