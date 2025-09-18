@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { addDays, isWeekend, isToday } from "date-fns";
+import { addDays, format, isBefore, isWeekend, parseISO, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -12,44 +10,52 @@ export default function OrderForm() {
     standardQuantity: "",
     lowCholQuantity: "",
     pickupLocation: "",
-    pickupDate: null,
+    pickupDate: "",
   });
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
+  const [calendarDays, setCalendarDays] = useState([]);
 
-  // Výpočet ceny
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
   const today = new Date();
+  const tomorrow = addDays(today, 1);
 
-  const isDateSelectable = (date) => {
-    if (!date) return false;
-    if (isToday(date)) return false; // zablokovat dnešní den
-    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(date)) return false;
-    return true;
+  const fetchStock = async () => {
+    try {
+      const res = await fetch("/api/stock");
+      const data = await res.json();
+      setStock({
+        standardQuantity: data.standardQuantity || 0,
+        lowCholQuantity: data.lowCholQuantity || 0,
+      });
+    } catch {
+      setStock({ standardQuantity: 0, lowCholQuantity: 0 });
+    }
   };
 
-  const getDateOffset = (offset) => addDays(today, offset);
-
   useEffect(() => {
-    async function fetchStock() {
-      try {
-        const res = await fetch("/api/stock");
-        const data = await res.json();
-        setStock({
-          standardQuantity: data.standardQuantity || 0,
-          lowCholQuantity: data.lowCholQuantity || 0,
-        });
-      } catch {
-        setStock({ standardQuantity: 0, lowCholQuantity: 0 });
-      }
-    }
     fetchStock();
   }, []);
+
+  // Vypočítá dny pro aktuální týden (pondělí–neděle)
+  useEffect(() => {
+    const start = startOfWeek(today, { weekStartsOn: 1 }); // pondělí
+    const end = endOfWeek(today, { weekStartsOn: 1 }); // neděle
+    const days = eachDayOfInterval({ start, end });
+    setCalendarDays(days);
+  }, []);
+
+  const isValidDate = (date) => {
+    const parsed = parseISO(date);
+    if (isBefore(parsed, tomorrow)) return false; // nelze dnešní den
+    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(parsed)) return false; // víkend Dematic
+    return true;
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -60,7 +66,14 @@ export default function OrderForm() {
           ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
-    setDateError(""); // vymaže chybu při změně jiného pole
+
+    if (name === "pickupDate") {
+      if (!isValidDate(value)) {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("");
+      }
+    }
   };
 
   const handleAdd = (field, amount) => {
@@ -71,9 +84,13 @@ export default function OrderForm() {
   };
 
   const handleDateQuickPick = (offset) => {
-    const date = getDateOffset(offset);
-    setFormData((prev) => ({ ...prev, pickupDate: date }));
-    setDateError(isDateSelectable(date) ? "" : "❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+    const dateStr = format(addDays(today, offset), "yyyy-MM-dd");
+    setFormData((prev) => ({ ...prev, pickupDate: dateStr }));
+    if (!isValidDate(dateStr)) {
+      setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+    } else {
+      setDateError("");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -93,14 +110,12 @@ export default function OrderForm() {
       return;
     }
 
-    // Kontrola platného data pro Dematic
-    if (!isDateSelectable(formData.pickupDate)) {
+    if (!isValidDate(formData.pickupDate)) {
       toast.error("❌ Nelze odeslat objednávku s dnešním dnem nebo víkendem pro Dematic.");
       return;
     }
 
     setLoading(true);
-
     try {
       const res = await fetch("/api/order", {
         method: "POST",
@@ -109,7 +124,6 @@ export default function OrderForm() {
           ...formData,
           standardQuantity: standardQty,
           lowCholQuantity: lowCholQty,
-          pickupDate: formData.pickupDate.toISOString().split("T")[0],
         }),
       });
       const data = await res.json();
@@ -127,7 +141,7 @@ export default function OrderForm() {
           standardQuantity: "",
           lowCholQuantity: "",
           pickupLocation: "",
-          pickupDate: null,
+          pickupDate: "",
         });
         setDateError("");
       } else {
@@ -152,7 +166,6 @@ export default function OrderForm() {
         onSubmit={handleSubmit}
         className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
       >
-        {/* Jméno */}
         <div>
           <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input
@@ -165,7 +178,6 @@ export default function OrderForm() {
           />
         </div>
 
-        {/* Email */}
         <div>
           <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
           <input
@@ -177,7 +189,6 @@ export default function OrderForm() {
           />
         </div>
 
-        {/* Telefon */}
         <div>
           <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
           <input
@@ -218,7 +229,7 @@ export default function OrderForm() {
           </div>
         </div>
 
-        {/* Low cholesterol */}
+        {/* Low cholesterol vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
@@ -247,38 +258,42 @@ export default function OrderForm() {
           </div>
         </div>
 
+        {/* Celková cena */}
         <div className="text-gray-800 font-semibold">
           Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
         </div>
 
-        {/* Pickup location */}
+        {/* Místo vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
-          <select
-            name="pickupLocation"
-            value={formData.pickupLocation}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          >
-            <option value="">-- Vyberte místo --</option>
-            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
-            <option value="Honezovice">Honezovice</option>
-          </select>
+          <div className="flex gap-2">
+            {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((location) => (
+              <button
+                key={location}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, pickupLocation: location }))}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  formData.pickupLocation === location
+                    ? "bg-yellow-500 text-white"
+                    : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"
+                }`}
+              >
+                {location}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Datum vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
           <div className="flex gap-2 items-center">
-            <DatePicker
-              selected={formData.pickupDate}
-              onChange={(date) => {
-                setFormData((prev) => ({ ...prev, pickupDate: date }));
-                setDateError(isDateSelectable(date) ? "" : "❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-              }}
-              filterDate={isDateSelectable}
-              placeholderText="Vyberte datum"
+            <input
+              type="date"
+              name="pickupDate"
+              value={formData.pickupDate}
+              onChange={handleChange}
+              required
               className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
             />
             <button
