@@ -42,11 +42,11 @@ export default function OrderForm() {
 
   const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
 
-  const isValidDate = (date) => {
+  const isValidDate = (date, location = formData.pickupLocation) => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
     if (d <= today) return false;
-    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
+    if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
     return true;
   };
 
@@ -85,17 +85,16 @@ export default function OrderForm() {
   };
 
   const handleDateSelect = (date) => {
-    setFormData((prev) => ({
-      ...prev,
-      pickupDate: formatDateCZ(date),
-    }));
+    const formatted = formatDateCZ(date);
     if (!isValidDate(date)) {
-      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
-        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-      } else {
-        setDateError("❌ Nelze vybrat dnešní den.");
-      }
+      setDateError(
+        formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
+          ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
+          : "❌ Nelze vybrat dnešní den."
+      );
+      setFormData((prev) => ({ ...prev, pickupDate: "" }));
     } else {
+      setFormData((prev) => ({ ...prev, pickupDate: formatted }));
       setDateError("");
       setShowCalendar(false);
     }
@@ -103,19 +102,7 @@ export default function OrderForm() {
 
   const handleDateQuickPick = (offset) => {
     const d = getDateOffset(offset);
-    setFormData((prev) => ({
-      ...prev,
-      pickupDate: formatDateCZ(d),
-    }));
-    if (!isValidDate(d)) {
-      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
-        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-      } else {
-        setDateError("❌ Nelze vybrat dnešní den.");
-      }
-    } else {
-      setDateError("");
-    }
+    handleDateSelect(d);
   };
 
   const handleSubmit = async (e) => {
@@ -132,6 +119,14 @@ export default function OrderForm() {
 
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
       toast.error("❌ Vyplňte všechna povinná pole.");
+      return;
+    }
+
+    // serverově validujeme datum pro Dematic
+    const [dd, mm, yyyy] = formData.pickupDate.split(".");
+    const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
+    if (!isValidDate(selectedDate, formData.pickupLocation)) {
+      toast.error("❌ Vybrané datum není platné pro zvolené místo vyzvednutí.");
       return;
     }
 
@@ -185,105 +180,67 @@ export default function OrderForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
+        {/* Jméno, email, telefon */}
         <div>
           <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border rounded-xl p-2" />
         </div>
-
         <div>
           <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
-          <input
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border rounded-xl p-2" />
         </div>
-
         <div>
           <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
-          <input
-            type="text"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded-xl p-2"
-          />
+          <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border rounded-xl p-2" />
         </div>
 
+        {/* Počet vajec */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              name="standardQuantity"
-              value={formData.standardQuantity}
-              onChange={handleChange}
-              min="0"
-              className="w-full border rounded-xl p-2"
-            />
+            <input type="number" name="standardQuantity" value={formData.standardQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
             <button type="button" onClick={() => handleAdd("standardQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
-
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              name="lowCholQuantity"
-              value={formData.lowCholQuantity}
-              onChange={handleChange}
-              min="0"
-              className="w-full border rounded-xl p-2"
-            />
+            <input type="number" name="lowCholQuantity" value={formData.lowCholQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
-        <div className="text-gray-800 font-semibold">
-          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
-        </div>
+        <div className="text-gray-800 font-semibold">Celková cena: <span className="text-green-700">{totalPrice} Kč</span></div>
 
         {/* Místo vyzvednutí */}
         <div className="flex gap-2">
-  {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
-    <button
-      key={loc}
-      type="button"
-      onClick={() => {
-        setFormData(prev => ({ ...prev, pickupLocation: loc }));
-        
-        // Kontrola víkendu pro Dematic
-        if (loc === "Dematic Ostrov u Stříbra 65" && formData.pickupDate) {
-          const [dd, mm, yyyy] = formData.pickupDate.split(".");
-          const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
-          const day = selectedDate.getDay();
-          if (day === 0 || day === 6) {
-            setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-          } else {
-            setDateError("");
-          }
-        } else {
-          setDateError("");
-        }
-      }}
-      className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}
-    >
-      {loc}
-    </button>
-  ))}
-</div>
+          {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
+            <button
+              key={loc}
+              type="button"
+              onClick={() => {
+                setFormData(prev => ({ ...prev, pickupLocation: loc }));
+                if (loc === "Dematic Ostrov u Stříbra 65" && formData.pickupDate) {
+                  const [dd, mm, yyyy] = formData.pickupDate.split(".");
+                  const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
+                  if (!isValidDate(selectedDate, loc)) {
+                    setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+                    setFormData(prev => ({ ...prev, pickupDate: "" }));
+                  } else {
+                    setDateError("");
+                  }
+                } else {
+                  setDateError("");
+                }
+              }}
+              className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}
+            >
+              {loc}
+            </button>
+          ))}
+        </div>
 
         {/* Datum vyzvednutí */}
         <div>
@@ -297,21 +254,21 @@ export default function OrderForm() {
             className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
           />
           {showCalendar && (
-           <DayPicker
-  mode="single"
-  selected={formData.pickupDate ? new Date(formData.pickupDate.split(".").reverse().join("-")) : undefined}
-  onSelect={handleDateSelect}
-  disabled={(date) => {
-    date.setHours(0,0,0,0);
-    if (date <= today) return true; // minulé a dnešní dny
-    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
-      const day = date.getDay();
-      if (day === 0 || day === 6) return true; // sobota nebo neděle
-    }
-    return false; // ostatní dny povoleny
-  }}
-  weekStartsOn={1}
-/>
+            <DayPicker
+              mode="single"
+              selected={formData.pickupDate ? new Date(formData.pickupDate.split(".").reverse().join("-")) : undefined}
+              onSelect={handleDateSelect}
+              disabled={(date) => {
+                date.setHours(0,0,0,0);
+                if (date <= today) return true;
+                if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+                  const day = date.getDay();
+                  if (day === 0 || day === 6) return true;
+                }
+                return false;
+              }}
+              weekStartsOn={1}
+            />
           )}
           {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
           <div className="flex gap-2 mt-2">
