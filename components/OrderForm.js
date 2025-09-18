@@ -14,7 +14,7 @@ export default function OrderForm() {
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
-  const [dateError, setDateError] = useState("");
+  const [dateError, setDateError] = useState(""); // ✅ chybová hláška pro datum
 
   // výpočet ceny
   const totalPrice =
@@ -44,58 +44,20 @@ export default function OrderForm() {
     fetchStock();
   }, []);
 
-  // validace vybraného datumu
-  const validateDate = (dateStr, location) => {
-    if (!dateStr) return "";
-
-    const selected = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const day = selected.getDay(); // 0 = neděle, 6 = sobota
-
-    if (selected.getTime() === today.getTime()) {
-      return "❌ Nelze vybrat dnešní datum.";
-    }
-
-    if (selected < today) {
-      return "❌ Nelze vybrat datum v minulosti.";
-    }
-
-    if (location === "Dematic Ostrov u Stříbra 65" && (day === 0 || day === 6)) {
-      return "❌ Nelze vybrat víkend pro Dematic Ostrov u Stříbra 65.";
-    }
-
-    return "";
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === "pickupDate" || name === "pickupLocation") {
-      const newData = { ...formData, [name]: value };
-      const errorMsg = validateDate(newData.pickupDate, newData.pickupLocation);
-
-      if (errorMsg) {
-        setDateError(errorMsg);
-        // resetneme neplatné datum
-        if (name === "pickupDate") {
-          setFormData((prev) => ({ ...prev, pickupDate: "" }));
-        } else {
-          setFormData(newData);
-        }
-      } else {
-        setDateError("");
-        setFormData(newData);
-      }
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]:
-          name === "standardQuantity" || name === "lowCholQuantity"
-            ? value === "" ? "" : parseInt(value, 10)
-            : value,
-      }));
+    if (name === "pickupDate") {
+      validateDate(value, formData.pickupLocation);
     }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "standardQuantity" || name === "lowCholQuantity"
+          ? value === "" ? "" : parseInt(value, 10)
+          : value,
+    }));
   };
 
   const handleAdd = (field, amount) => {
@@ -106,16 +68,39 @@ export default function OrderForm() {
   };
 
   const handleDateQuickPick = (offset) => {
-    const dateStr = getDateOffset(offset);
-    const errorMsg = validateDate(dateStr, formData.pickupLocation);
+    const newDate = getDateOffset(offset);
+    validateDate(newDate, formData.pickupLocation);
+    setFormData((prev) => ({
+      ...prev,
+      pickupDate: newDate,
+    }));
+  };
 
-    if (errorMsg) {
-      setDateError(errorMsg);
-      setFormData((prev) => ({ ...prev, pickupDate: "" }));
-    } else {
-      setDateError("");
-      setFormData((prev) => ({ ...prev, pickupDate: dateStr }));
+  const validateDate = (date, location) => {
+    if (!date) {
+      setDateError("❌ Vyberte prosím datum.");
+      return false;
     }
+
+    const selected = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selected <= today) {
+      setDateError("❌ Datum vyzvednutí musí být nejdříve zítra.");
+      return false;
+    }
+
+    if (location === "Dematic Ostrov u Stříbra 65") {
+      const day = selected.getDay();
+      if (day === 0 || day === 6) {
+        setDateError("❌ Vyzvednutí v Dematic je možné jen v pracovní dny.");
+        return false;
+      }
+    }
+
+    setDateError("");
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -130,13 +115,12 @@ export default function OrderForm() {
       return;
     }
 
-    const errorMsg = validateDate(formData.pickupDate, formData.pickupLocation);
-    if (errorMsg) {
-      toast.error(errorMsg);
+    // ✅ pojistka pro datum
+    if (!validateDate(formData.pickupDate, formData.pickupLocation)) {
       return;
     }
 
-    if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
+    if (!formData.name || !formData.pickupLocation) {
       toast.error("❌ Vyplňte všechna povinná pole.");
       return;
     }
@@ -170,6 +154,7 @@ export default function OrderForm() {
           pickupLocation: "",
           pickupDate: "",
         });
+        setDateError("");
       } else {
         toast.error("❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
       }
@@ -301,7 +286,10 @@ export default function OrderForm() {
           <select
             name="pickupLocation"
             value={formData.pickupLocation}
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e);
+              validateDate(formData.pickupDate, e.target.value);
+            }}
             required
             className="w-full border rounded-xl p-2"
           >
