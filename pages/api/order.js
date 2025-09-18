@@ -6,15 +6,14 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const MY_WHATSAPP_NUMBER = "+420720150734"; // kam přijde notifikace
+const MY_WHATSAPP_NUMBER = "+420720150734"; 
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-// ID schválené šablony (Twilio Content Template SID)
 const TEMPLATE_ID = "HXcf10544a4ca0baaa4e8470fa5b571275";
 
-// Pomocná funkce – převede "dd.mm.yyyy" na "yyyy-mm-dd"
-function toISODate(dateStr) {
-  const [dd, mm, yyyy] = dateStr.split(".");
+// Pomocná funkce na převod "dd.mm.yyyy" → ISO "yyyy-mm-dd"
+function parseCZDate(czDate) {
+  const [dd, mm, yyyy] = czDate.split(".");
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -25,17 +24,17 @@ async function sendWhatsAppTemplate({
   standardQty,
   lowCholQty,
   pickupLocation,
-  pickupDate // ve formátu dd.mm.yyyy
+  pickupDate
 }) {
   try {
     const vars = {
-      "1": name,
+      "1": name || "",
       "2": email || "",
       "3": phone || "",
       "4": String(standardQty || 0),
       "5": String(lowCholQty || 0),
-      "6": pickupLocation,
-      "7": pickupDate, // šablona očekává český formát
+      "6": pickupLocation || "",
+      "7": pickupDate || "",
     };
 
     console.log("Sending WhatsApp template with variables:", vars);
@@ -66,7 +65,7 @@ export default async function handler(req, res) {
     standardQuantity,
     lowCholQuantity,
     pickupLocation,
-    pickupDate, // přijde jako dd.mm.yyyy
+    pickupDate,
   } = req.body;
 
   if (!name || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
@@ -74,8 +73,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Převod na ISO pro DB
-    const isoPickupDate = toISODate(pickupDate);
+    // převést datum pro DB
+    const dbDate = parseCZDate(pickupDate);
 
     // načtení skladu
     const { data: stockData, error: stockError } = await supabaseServer
@@ -95,7 +94,7 @@ export default async function handler(req, res) {
 
     const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
 
-    // uložení objednávky
+    // uložení objednávky (už s ISO datem)
     const { data: newOrder, error: insertError } = await supabaseServer
       .from("orders")
       .insert([
@@ -106,7 +105,7 @@ export default async function handler(req, res) {
           standard_quantity: standardQuantity,
           low_chol_quantity: lowCholQuantity,
           pickup_location: pickupLocation,
-          pickup_date: isoPickupDate, // do DB vždy ISO
+          pickup_date: dbDate,
         },
       ])
       .select("id")
@@ -125,7 +124,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace (tam necháme český formát datumu)
+    // WhatsApp notifikace (použijeme původní pickupDate ve formátu dd.mm.yyyy)
     await sendWhatsAppTemplate({
       name,
       email,
@@ -133,7 +132,7 @@ export default async function handler(req, res) {
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity,
       pickupLocation,
-      pickupDate, // původní dd.mm.yyyy
+      pickupDate, 
     });
 
     return res.status(200).json({
