@@ -24,12 +24,12 @@ export default function OrderForm() {
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
   const today = new Date();
-  today.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
 
   const getDateOffset = (offset) => {
     const d = new Date();
+    d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + offset);
-    d.setHours(0,0,0,0);
     return d;
   };
 
@@ -44,7 +44,7 @@ export default function OrderForm() {
 
   const isValidDate = (date) => {
     const d = new Date(date);
-    d.setHours(0,0,0,0);
+    d.setHours(0, 0, 0, 0);
     if (d <= today) return false;
     if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
     return true;
@@ -75,6 +75,18 @@ export default function OrderForm() {
           ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
+
+    if (name === "pickupDate") {
+      if (!isValidDate(value)) {
+        if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+          setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+        } else {
+          setDateError("❌ Nelze vybrat dnešní den.");
+        }
+      } else {
+        setDateError("");
+      }
+    }
   };
 
   const handleAdd = (field, amount) => {
@@ -85,12 +97,13 @@ export default function OrderForm() {
   };
 
   const handleDateSelect = (date) => {
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
     setFormData((prev) => ({
       ...prev,
-      pickupDate: date.toISOString().split("T")[0],
+      pickupDate: selectedDate.toISOString().split("T")[0],
     }));
-
-    if (!isValidDate(date)) {
+    if (!isValidDate(selectedDate)) {
       if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
         setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
       } else {
@@ -108,7 +121,6 @@ export default function OrderForm() {
       ...prev,
       pickupDate: d.toISOString().split("T")[0],
     }));
-
     if (!isValidDate(d)) {
       if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
         setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
@@ -290,7 +302,7 @@ export default function OrderForm() {
               selected={formData.pickupDate ? new Date(formData.pickupDate) : undefined}
               onSelect={handleDateSelect}
               disabled={[
-                { before: today },
+                { before: getDateOffset(1).setHours(0,0,0,0) ? today : today }, // minulé a dnešní dny
                 formData.pickupLocation === "Dematic Ostrov u Stříbra 65" ? { daysOfWeek: [0,6] } : null
               ].filter(Boolean)}
               weekStartsOn={1}
