@@ -16,25 +16,35 @@ export default function OrderForm() {
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
 
-  const today = new Date();
-
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
   const getDateOffset = (offset) => {
     const d = new Date();
     d.setDate(d.getDate() + offset);
-    return d.toISOString().split("T")[0]; // YYYY-MM-DD
+    return d.toISOString().split("T")[0];
   };
 
-  const isValidDate = (location, dateStr) => {
-    const date = new Date(dateStr);
-    const day = date.getDay();
-    // Dnešní den zakázán pro všechny
-    if (date.toDateString() === today.toDateString()) return false;
-    // Dematic -> víkendy zakázány
-    if (location === "Dematic Ostrov u Stříbra 65" && (day === 0 || day === 6)) return false;
+  const isWeekend = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    return day === 0 || day === 6;
+  };
+
+  const isToday = (dateStr) => {
+    const d = new Date(dateStr);
+    d.setHours(0,0,0,0);
+    return d.getTime() === today.getTime();
+  };
+
+  const isValidDate = (dateStr, location) => {
+    if (!dateStr) return false;
+    if (isToday(dateStr)) return false;
+    if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(dateStr)) return false;
     return true;
   };
 
@@ -65,11 +75,13 @@ export default function OrderForm() {
           : value,
     }));
 
-    if (name === "pickupDate" || name === "pickupLocation") {
-      const location = name === "pickupLocation" ? value : formData.pickupLocation;
-      const date = name === "pickupDate" ? value : formData.pickupDate;
-      if (date && !isValidDate(location, date)) {
-        setDateError("❌ Nelze vybrat dnešní den ani víkend pro Dematic.");
+    if (name === "pickupDate") {
+      if (!isValidDate(value, formData.pickupLocation)) {
+        if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+          setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+        } else {
+          setDateError("❌ Nelze vybrat dnešní den.");
+        }
       } else {
         setDateError("");
       }
@@ -85,9 +97,16 @@ export default function OrderForm() {
 
   const handleDateQuickPick = (offset) => {
     const dateStr = getDateOffset(offset);
-    setFormData((prev) => ({ ...prev, pickupDate: dateStr }));
-    if (!isValidDate(formData.pickupLocation, dateStr)) {
-      setDateError("❌ Nelze vybrat dnešní den ani víkend pro Dematic.");
+    setFormData((prev) => ({
+      ...prev,
+      pickupDate: dateStr,
+    }));
+    if (!isValidDate(dateStr, formData.pickupLocation)) {
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("❌ Nelze vybrat dnešní den.");
+      }
     } else {
       setDateError("");
     }
@@ -110,12 +129,17 @@ export default function OrderForm() {
       return;
     }
 
-    if (!isValidDate(formData.pickupLocation, formData.pickupDate)) {
-      toast.error("❌ Nelze odeslat objednávku s dnešním dnem nebo víkendem pro Dematic.");
+    if (!isValidDate(formData.pickupDate, formData.pickupLocation)) {
+      toast.error(
+        formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
+          ? "❌ Nelze odeslat objednávku s dnešním dnem nebo víkendem pro Dematic."
+          : "❌ Nelze odeslat objednávku s dnešním dnem."
+      );
       return;
     }
 
     setLoading(true);
+
     try {
       const res = await fetch("/api/order", {
         method: "POST",
@@ -127,6 +151,7 @@ export default function OrderForm() {
         }),
       });
       const data = await res.json();
+
       if (data.success) {
         toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
         setStock({
@@ -155,68 +180,127 @@ export default function OrderForm() {
 
   return (
     <div>
+      {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>🥚 Standardní: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
-        <p>🥚 Low chol.: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg"
+      >
         <div>
           <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border rounded-xl p-2" />
+          <input
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+            className="w-full border rounded-xl p-2"
+          />
         </div>
 
         <div>
           <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border rounded-xl p-2" />
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className="w-full border rounded-xl p-2"
+          />
         </div>
 
         <div>
           <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
-          <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border rounded-xl p-2" />
+          <input
+            type="text"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            className="w-full border rounded-xl p-2"
+          />
         </div>
 
+        {/* Standardní vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <div className="flex gap-2 items-center">
-            <input type="number" name="standardQuantity" value={formData.standardQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
+            <input
+              type="number"
+              name="standardQuantity"
+              value={formData.standardQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
             <button type="button" onClick={() => handleAdd("standardQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
+        {/* Low cholesterol vejce */}
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
-            <input type="number" name="lowCholQuantity" value={formData.lowCholQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
+            <input
+              type="number"
+              name="lowCholQuantity"
+              value={formData.lowCholQuantity}
+              onChange={handleChange}
+              min="0"
+              className="w-full border rounded-xl p-2"
+            />
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
-        <div className="text-gray-800 font-semibold">Celková cena: <span className="text-green-700">{totalPrice} Kč</span></div>
+        <div className="text-gray-800 font-semibold">
+          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
+        </div>
 
         <div>
           <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
-          <select name="pickupLocation" value={formData.pickupLocation} onChange={handleChange} required className="w-full border rounded-xl p-2">
+          <select
+            name="pickupLocation"
+            value={formData.pickupLocation}
+            onChange={handleChange}
+            required
+            className="w-full border rounded-xl p-2"
+          >
             <option value="">-- Vyberte místo --</option>
             <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
             <option value="Honezovice">Honezovice</option>
           </select>
         </div>
 
+        {/* Datum vyzvednutí */}
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
           <div className="flex gap-2 items-center">
-            <input type="date" name="pickupDate" value={formData.pickupDate} onChange={handleChange} required className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`} />
+            <input
+              type="date"
+              name="pickupDate"
+              value={formData.pickupDate}
+              onChange={handleChange}
+              required
+              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
+            />
             <button type="button" onClick={() => handleDateQuickPick(1)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Zítra</button>
             <button type="button" onClick={() => handleDateQuickPick(2)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">Pozítří</button>
           </div>
           {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
         </div>
 
-        <button type="submit" disabled={loading} className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition">
+        <button
+          type="submit"
+          disabled={loading}
+          className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
+        >
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
