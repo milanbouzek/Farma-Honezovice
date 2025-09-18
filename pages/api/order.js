@@ -29,7 +29,7 @@ async function sendWhatsAppTemplate({
       "4": String(standardQty || 0),
       "5": String(lowCholQty || 0),
       "6": pickupLocation,
-      "7": pickupDate,
+      "7": pickupDate, // uživateli necháme ve formátu dd.mm.yyyy
     };
 
     console.log("Sending WhatsApp template with variables:", vars);
@@ -67,6 +67,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "Neplatná data." });
   }
 
+  // převod z dd.mm.yyyy na yyyy-mm-dd pro DB
+  let dbPickupDate = pickupDate;
+  if (pickupDate.includes(".")) {
+    const [dd, mm, yyyy] = pickupDate.split(".");
+    dbPickupDate = `${yyyy}-${mm}-${dd}`;
+  }
+
   try {
     // načtení skladu
     const { data: stockData, error: stockError } = await supabaseServer
@@ -97,7 +104,7 @@ export default async function handler(req, res) {
           standard_quantity: standardQuantity,
           low_chol_quantity: lowCholQuantity,
           pickup_location: pickupLocation,
-          pickup_date: pickupDate,
+          pickup_date: dbPickupDate, // ✅ ukládáme ve správném formátu
         },
       ])
       .select("id")
@@ -116,7 +123,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace
+    // WhatsApp notifikace (uživateli ukážeme dd.mm.yyyy)
     await sendWhatsAppTemplate({
       name,
       email,
