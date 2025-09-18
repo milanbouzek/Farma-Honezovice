@@ -24,11 +24,12 @@ export default function OrderForm() {
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  today.setHours(0,0,0,0);
 
   const getDateOffset = (offset) => {
     const d = new Date();
     d.setDate(d.getDate() + offset);
+    d.setHours(0,0,0,0);
     return d;
   };
 
@@ -39,22 +40,21 @@ export default function OrderForm() {
     return `${d}.${m}.${y}`;
   };
 
+  const formatISOLocal = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
   const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
 
   const isValidDate = (date) => {
     const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
+    d.setHours(0,0,0,0);
     if (d <= today) return false;
     if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
     return true;
-  };
-
-  const disabledDays = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    if (d <= today) return true; // blokuje dnešní a minulé dny
-    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return true; // víkendy jen pro Dematic
-    return false;
   };
 
   useEffect(() => {
@@ -82,16 +82,6 @@ export default function OrderForm() {
           ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
-
-    if (name === "pickupDate") {
-      if (!isValidDate(value)) {
-        setDateError(formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
-          ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
-          : "❌ Nelze vybrat dnešní den.");
-      } else {
-        setDateError("");
-      }
-    }
   };
 
   const handleAdd = (field, amount) => {
@@ -104,12 +94,14 @@ export default function OrderForm() {
   const handleDateSelect = (date) => {
     setFormData((prev) => ({
       ...prev,
-      pickupDate: date.toISOString().split("T")[0],
+      pickupDate: formatISOLocal(date),
     }));
     if (!isValidDate(date)) {
-      setDateError(formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
-        ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
-        : "❌ Nelze vybrat dnešní den.");
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("❌ Nelze vybrat dnešní den.");
+      }
     } else {
       setDateError("");
       setShowCalendar(false);
@@ -120,12 +112,14 @@ export default function OrderForm() {
     const d = getDateOffset(offset);
     setFormData((prev) => ({
       ...prev,
-      pickupDate: d.toISOString().split("T")[0],
+      pickupDate: formatISOLocal(d),
     }));
     if (!isValidDate(d)) {
-      setDateError(formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
-        ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
-        : "❌ Nelze vybrat dnešní den.");
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("❌ Nelze vybrat dnešní den.");
+      }
     } else {
       setDateError("");
     }
@@ -133,7 +127,6 @@ export default function OrderForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const standardQty = parseInt(formData.standardQuantity || 0, 10);
     const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standardQty + lowCholQty;
@@ -154,7 +147,6 @@ export default function OrderForm() {
     }
 
     setLoading(true);
-
     try {
       const res = await fetch("/api/order", {
         method: "POST",
@@ -220,7 +212,7 @@ export default function OrderForm() {
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <div className="flex gap-2 items-center">
-            <input type="number" name="standardQuantity" value={formData.standardQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
+            <input type="number" name="standardQuantity" value={formData.standardQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2"/>
             <button type="button" onClick={() => handleAdd("standardQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
@@ -229,22 +221,19 @@ export default function OrderForm() {
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
-            <input type="number" name="lowCholQuantity" value={formData.lowCholQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2" />
+            <input type="number" name="lowCholQuantity" value={formData.lowCholQuantity} onChange={handleChange} min="0" className="w-full border rounded-xl p-2"/>
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
             <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
 
-        <div className="text-gray-800 font-semibold">Celková cena: <span className="text-green-700">{totalPrice} Kč</span></div>
+        <div className="text-gray-800 font-semibold">
+          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
+        </div>
 
         <div className="flex gap-2">
           {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
-            <button
-              key={loc}
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, pickupLocation: loc }))}
-              className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}
-            >
+            <button key={loc} type="button" onClick={() => setFormData(prev => ({ ...prev, pickupLocation: loc }))} className={`px-4 py-2 rounded-xl font-semibold shadow-md ${formData.pickupLocation === loc ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"}`}>
               {loc}
             </button>
           ))}
@@ -252,20 +241,16 @@ export default function OrderForm() {
 
         <div>
           <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
-          <input
-            type="text"
-            name="pickupDate"
-            value={formData.pickupDate ? formatDateCZ(new Date(formData.pickupDate)) : ""}
-            onFocus={() => setShowCalendar(true)}
-            readOnly
-            className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
-          />
+          <input type="text" name="pickupDate" value={formData.pickupDate ? formatDateCZ(new Date(formData.pickupDate)) : ""} onFocus={() => setShowCalendar(true)} readOnly className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`} />
           {showCalendar && (
             <DayPicker
               mode="single"
               selected={formData.pickupDate ? new Date(formData.pickupDate) : undefined}
               onSelect={handleDateSelect}
-              disabled={disabledDays}
+              disabled={[
+                { before: today },
+                formData.pickupLocation === "Dematic Ostrov u Stříbra 65" ? { daysOfWeek: [0,6] } : null
+              ].filter(Boolean)}
               weekStartsOn={1}
             />
           )}
