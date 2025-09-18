@@ -14,12 +14,14 @@ export default function OrderForm() {
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
+  const [dateError, setDateError] = useState("");
 
   // výpočet ceny
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
+  // spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
   const getDateOffset = (offset) => {
     const d = new Date();
     d.setDate(d.getDate() + offset);
@@ -42,28 +44,47 @@ export default function OrderForm() {
     fetchStock();
   }, []);
 
+  const validateDate = (dateStr, location) => {
+    if (!dateStr) return "";
+
+    const selected = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const day = selected.getDay(); // 0 = neděle, 6 = sobota
+
+    if (selected <= today) {
+      return "❌ Nelze vybrat dnešní datum.";
+    }
+
+    if (location === "Dematic Ostrov u Stříbra 65" && (day === 0 || day === 6)) {
+      return "❌ Nelze vybrat víkend pro Dematic Ostrov u Stříbra 65.";
+    }
+
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // speciální validace pro datum
     if (name === "pickupDate") {
-      const selected = new Date(value);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const day = selected.getDay(); // 0 = neděle, 6 = sobota
+      const err = validateDate(value, formData.pickupLocation);
+      setDateError(err);
+      setFormData((prev) => ({
+        ...prev,
+        pickupDate: err ? "" : value,
+      }));
+      return;
+    }
 
-      if (selected <= today) {
-        toast.error("❌ Nelze vybrat dnešní datum.");
-        return;
+    if (name === "pickupLocation") {
+      const err = validateDate(formData.pickupDate, value);
+      setDateError(err);
+      if (err) {
+        setFormData((prev) => ({ ...prev, pickupDate: "" }));
+      } else {
+        setFormData((prev) => ({ ...prev, pickupLocation: value }));
       }
-
-      if (
-        formData.pickupLocation === "Dematic Ostrov u Stříbra 65" &&
-        (day === 0 || day === 6)
-      ) {
-        toast.error("❌ Nelze vybrat víkend pro Dematic Ostrov u Stříbra 65.");
-        return;
-      }
+      return;
     }
 
     setFormData((prev) => ({
@@ -83,21 +104,12 @@ export default function OrderForm() {
   };
 
   const handleDateQuickPick = (offset) => {
-    const candidate = new Date();
-    candidate.setDate(candidate.getDate() + offset);
-
-    // zakázání víkendu pro Dematic
-    if (
-      formData.pickupLocation === "Dematic Ostrov u Stříbra 65" &&
-      (candidate.getDay() === 0 || candidate.getDay() === 6)
-    ) {
-      toast.error("❌ Vybraný den je víkend, nelze vyzvednout u Dematic.");
-      return;
-    }
-
+    const dateStr = getDateOffset(offset);
+    const err = validateDate(dateStr, formData.pickupLocation);
+    setDateError(err);
     setFormData((prev) => ({
       ...prev,
-      pickupDate: candidate.toISOString().split("T")[0],
+      pickupDate: err ? "" : dateStr,
     }));
   };
 
@@ -108,22 +120,10 @@ export default function OrderForm() {
     const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standardQty + lowCholQty;
 
-    // opakovaná kontrola před odesláním
-    const selectedDate = new Date(formData.pickupDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const day = selectedDate.getDay();
-
-    if (selectedDate <= today) {
-      toast.error("❌ Nelze vybrat dnešní datum.");
-      return;
-    }
-
-    if (
-      formData.pickupLocation === "Dematic Ostrov u Stříbra 65" &&
-      (day === 0 || day === 6)
-    ) {
-      toast.error("❌ Nelze vybrat víkend pro Dematic Ostrov u Stříbra 65.");
+    // finální kontrola před odesláním
+    const finalDateError = validateDate(formData.pickupDate, formData.pickupLocation);
+    if (finalDateError) {
+      toast.error(finalDateError);
       return;
     }
 
@@ -152,7 +152,7 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
+        toast.success(`Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
         setStock({
           standardQuantity: data.remaining_standard,
           lowCholQuantity: data.remaining_low_chol,
@@ -185,7 +185,8 @@ export default function OrderForm() {
           🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
         </p>
         <p>
-          🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
+          🥚 Vejce se sníženým cholesterolem:{" "}
+          <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
         </p>
       </div>
 
@@ -237,7 +238,7 @@ export default function OrderForm() {
               name="standardQuantity"
               value={formData.standardQuantity}
               onChange={handleChange}
-              min="1"
+              min="0"
               className="w-full border rounded-xl p-2"
             />
             <button
@@ -316,7 +317,7 @@ export default function OrderForm() {
               value={formData.pickupDate}
               onChange={handleChange}
               required
-              className="w-full border rounded-xl p-2"
+              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
               min={getDateOffset(1)}
             />
             <button
@@ -334,6 +335,7 @@ export default function OrderForm() {
               Pozítří
             </button>
           </div>
+          {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
         </div>
 
         <button
