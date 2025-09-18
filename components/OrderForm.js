@@ -150,7 +150,7 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
+        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}. Celková cena: ${totalPrice} Kč`);
         setStock({
           standardQuantity: data.remaining_standard,
           lowCholQuantity: data.remaining_low_chol,
