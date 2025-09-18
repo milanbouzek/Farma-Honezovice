@@ -281,16 +281,21 @@ export default function OrderForm() {
             className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
           />
           {showCalendar && (
-            <DayPicker
-              mode="single"
-              selected={formData.pickupDate ? new Date(formData.pickupDate.split(".").reverse().join("-")) : undefined}
-              onSelect={handleDateSelect}
-              disabled={[
-                { before: today },
-                formData.pickupLocation === "Dematic Ostrov u Stříbra 65" ? { daysOfWeek: [0,6] } : null
-              ].filter(Boolean)}
-              weekStartsOn={1}
-            />
+           <DayPicker
+  mode="single"
+  selected={formData.pickupDate ? new Date(formData.pickupDate.split(".").reverse().join("-")) : undefined}
+  onSelect={handleDateSelect}
+  disabled={(date) => {
+    date.setHours(0,0,0,0);
+    if (date <= today) return true; // minulé a dnešní dny
+    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+      const day = date.getDay();
+      if (day === 0 || day === 6) return true; // sobota nebo neděle
+    }
+    return false; // ostatní dny povoleny
+  }}
+  weekStartsOn={1}
+/>
           )}
           {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
           <div className="flex gap-2 mt-2">
