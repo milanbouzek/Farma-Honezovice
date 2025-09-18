@@ -9,14 +9,27 @@ const client = new Twilio(
 const MY_WHATSAPP_NUMBER = "+420720150734"; // kam přijde notifikace
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
-// ID schválené šablony (Twilio Content Template SID)
-const TEMPLATE_ID = "HX15e26d02bbfa66cba5a7310f7d12cbff";
+// Nové ID schválené šablony (Twilio Content Template SID)
+const TEMPLATE_ID = "HXcf10544a4ca0baaa4e8470fa5b571275";
 
-async function sendWhatsAppTemplate({ standardQty, lowCholQty }) {
+async function sendWhatsAppTemplate({
+  name,
+  email,
+  phone,
+  standardQty,
+  lowCholQty,
+  pickupLocation,
+  pickupDate
+}) {
   try {
     const vars = {
-      "1": String(standardQty || 0),
-      "2": String(lowCholQty || 0),
+      "1": name,
+      "2": email || "",
+      "3": phone || "",
+      "4": String(standardQty || 0),
+      "5": String(lowCholQty || 0),
+      "6": pickupLocation,
+      "7": pickupDate,
     };
 
     console.log("Sending WhatsApp template with variables:", vars);
@@ -105,8 +118,13 @@ export default async function handler(req, res) {
 
     // WhatsApp notifikace
     await sendWhatsAppTemplate({
+      name,
+      email,
+      phone,
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity,
+      pickupLocation,
+      pickupDate
     });
 
     return res.status(200).json({
