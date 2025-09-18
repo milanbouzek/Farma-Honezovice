@@ -14,7 +14,7 @@ export default function OrderForm() {
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const [loading, setLoading] = useState(false);
-  const [dateError, setDateError] = useState(""); // ✅ chybová hláška pro datum
+  const [dateError, setDateError] = useState("");
 
   // výpočet ceny
   const totalPrice =
@@ -27,6 +27,9 @@ export default function OrderForm() {
     d.setDate(d.getDate() + offset);
     return d.toISOString().split("T")[0]; // YYYY-MM-DD
   };
+
+  // zítřejší datum jako minimum pro input
+  const tomorrow = getDateOffset(1);
 
   useEffect(() => {
     async function fetchStock() {
@@ -44,13 +47,49 @@ export default function OrderForm() {
     fetchStock();
   }, []);
 
+  const validateDate = (dateValue, location) => {
+    if (!dateValue) return "";
+
+    const selectedDate = new Date(dateValue);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // kontrola: dnešní nebo starší datum
+    if (selectedDate <= today) {
+      return "❌ Datum musí být nejdříve zítřek.";
+    }
+
+    // kontrola: víkend pro Dematic
+    if (location === "Dematic Ostrov u Stříbra 65") {
+      const day = selectedDate.getDay(); // 0 = neděle, 6 = sobota
+      if (day === 0 || day === 6) {
+        return "❌ Pro vyzvednutí v Dematic nelze zvolit víkend.";
+      }
+    }
+
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    // pokud jde o datum, validujeme hned
     if (name === "pickupDate") {
-      validateDate(value, formData.pickupLocation);
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      setDateError(validateDate(value, formData.pickupLocation));
+      return;
     }
 
+    // pokud jde o místo, přepočítáme validaci pro datum
+    if (name === "pickupLocation") {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+      if (formData.pickupDate) {
+        setDateError(validateDate(formData.pickupDate, value));
+      }
+      return;
+    }
+
+    // standardní změny
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -69,38 +108,11 @@ export default function OrderForm() {
 
   const handleDateQuickPick = (offset) => {
     const newDate = getDateOffset(offset);
-    validateDate(newDate, formData.pickupLocation);
     setFormData((prev) => ({
       ...prev,
       pickupDate: newDate,
     }));
-  };
-
-  const validateDate = (date, location) => {
-    if (!date) {
-      setDateError("❌ Vyberte prosím datum.");
-      return false;
-    }
-
-    const selected = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selected <= today) {
-      setDateError("❌ Datum vyzvednutí musí být nejdříve zítra.");
-      return false;
-    }
-
-    if (location === "Dematic Ostrov u Stříbra 65") {
-      const day = selected.getDay();
-      if (day === 0 || day === 6) {
-        setDateError("❌ Vyzvednutí v Dematic je možné jen v pracovní dny.");
-        return false;
-      }
-    }
-
-    setDateError("");
-    return true;
+    setDateError(validateDate(newDate, formData.pickupLocation));
   };
 
   const handleSubmit = async (e) => {
@@ -115,13 +127,17 @@ export default function OrderForm() {
       return;
     }
 
-    // ✅ pojistka pro datum
-    if (!validateDate(formData.pickupDate, formData.pickupLocation)) {
+    // kontrola povinných polí
+    if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
+      toast.error("❌ Vyplňte všechna povinná pole.");
       return;
     }
 
-    if (!formData.name || !formData.pickupLocation) {
-      toast.error("❌ Vyplňte všechna povinná pole.");
+    // kontrola datumu
+    const validationMsg = validateDate(formData.pickupDate, formData.pickupLocation);
+    if (validationMsg) {
+      setDateError(validationMsg);
+      toast.error("❌ " + validationMsg);
       return;
     }
 
@@ -286,10 +302,7 @@ export default function OrderForm() {
           <select
             name="pickupLocation"
             value={formData.pickupLocation}
-            onChange={(e) => {
-              handleChange(e);
-              validateDate(formData.pickupDate, e.target.value);
-            }}
+            onChange={handleChange}
             required
             className="w-full border rounded-xl p-2"
           >
@@ -308,6 +321,7 @@ export default function OrderForm() {
               name="pickupDate"
               value={formData.pickupDate}
               onChange={handleChange}
+              min={tomorrow}
               required
               className="w-full border rounded-xl p-2"
             />
