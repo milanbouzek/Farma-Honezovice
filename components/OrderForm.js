@@ -44,6 +44,7 @@ export default function OrderForm() {
     fetchStock();
   }, []);
 
+  // validace vybraného datumu
   const validateDate = (dateStr, location) => {
     if (!dateStr) return "";
 
@@ -52,8 +53,12 @@ export default function OrderForm() {
     today.setHours(0, 0, 0, 0);
     const day = selected.getDay(); // 0 = neděle, 6 = sobota
 
-    if (selected <= today) {
+    if (selected.getTime() === today.getTime()) {
       return "❌ Nelze vybrat dnešní datum.";
+    }
+
+    if (selected < today) {
+      return "❌ Nelze vybrat datum v minulosti.";
     }
 
     if (location === "Dematic Ostrov u Stříbra 65" && (day === 0 || day === 6)) {
@@ -66,34 +71,31 @@ export default function OrderForm() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === "pickupDate") {
-      const err = validateDate(value, formData.pickupLocation);
-      setDateError(err);
+    if (name === "pickupDate" || name === "pickupLocation") {
+      const newData = { ...formData, [name]: value };
+      const errorMsg = validateDate(newData.pickupDate, newData.pickupLocation);
+
+      if (errorMsg) {
+        setDateError(errorMsg);
+        // resetneme neplatné datum
+        if (name === "pickupDate") {
+          setFormData((prev) => ({ ...prev, pickupDate: "" }));
+        } else {
+          setFormData(newData);
+        }
+      } else {
+        setDateError("");
+        setFormData(newData);
+      }
+    } else {
       setFormData((prev) => ({
         ...prev,
-        pickupDate: err ? "" : value,
+        [name]:
+          name === "standardQuantity" || name === "lowCholQuantity"
+            ? value === "" ? "" : parseInt(value, 10)
+            : value,
       }));
-      return;
     }
-
-    if (name === "pickupLocation") {
-      const err = validateDate(formData.pickupDate, value);
-      setDateError(err);
-      if (err) {
-        setFormData((prev) => ({ ...prev, pickupDate: "" }));
-      } else {
-        setFormData((prev) => ({ ...prev, pickupLocation: value }));
-      }
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === "standardQuantity" || name === "lowCholQuantity"
-          ? value === "" ? "" : parseInt(value, 10)
-          : value,
-    }));
   };
 
   const handleAdd = (field, amount) => {
@@ -105,12 +107,15 @@ export default function OrderForm() {
 
   const handleDateQuickPick = (offset) => {
     const dateStr = getDateOffset(offset);
-    const err = validateDate(dateStr, formData.pickupLocation);
-    setDateError(err);
-    setFormData((prev) => ({
-      ...prev,
-      pickupDate: err ? "" : dateStr,
-    }));
+    const errorMsg = validateDate(dateStr, formData.pickupLocation);
+
+    if (errorMsg) {
+      setDateError(errorMsg);
+      setFormData((prev) => ({ ...prev, pickupDate: "" }));
+    } else {
+      setDateError("");
+      setFormData((prev) => ({ ...prev, pickupDate: dateStr }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -120,15 +125,14 @@ export default function OrderForm() {
     const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standardQty + lowCholQty;
 
-    // finální kontrola před odesláním
-    const finalDateError = validateDate(formData.pickupDate, formData.pickupLocation);
-    if (finalDateError) {
-      toast.error(finalDateError);
+    if (totalEggs < 10 || totalEggs % 10 !== 0) {
+      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
       return;
     }
 
-    if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
+    const errorMsg = validateDate(formData.pickupDate, formData.pickupLocation);
+    if (errorMsg) {
+      toast.error(errorMsg);
       return;
     }
 
@@ -152,7 +156,7 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
+        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}`);
         setStock({
           standardQuantity: data.remaining_standard,
           lowCholQuantity: data.remaining_low_chol,
@@ -317,8 +321,7 @@ export default function OrderForm() {
               value={formData.pickupDate}
               onChange={handleChange}
               required
-              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
-              min={getDateOffset(1)}
+              className="w-full border rounded-xl p-2"
             />
             <button
               type="button"
