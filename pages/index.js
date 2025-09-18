@@ -68,6 +68,7 @@ export default function Home() {
         <p>Platba proběhne při dodání vajec – buď bezhotovostně (QR kód) nebo v hotovosti.</p>
       </div>
 
+      {/* Tlačítko pro přechod na stránku objednávky */}
       <button
         onClick={() => router.push("/objednavka")}
         className="bg-yellow-400 text-gray-900 font-semibold px-6 py-3 rounded-xl shadow-md hover:bg-yellow-500 hover:scale-105 transform transition duration-300"
