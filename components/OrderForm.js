@@ -16,20 +16,28 @@ export default function OrderForm() {
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
 
-  // výpočet ceny
+  // Výpočet ceny
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
     (parseInt(formData.lowCholQuantity || 0, 10) * 7);
 
-  // spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  // Spočítá datum podle offsetu (1 = zítra, 2 = pozítří)
   const getDateOffset = (offset) => {
     const d = new Date();
     d.setDate(d.getDate() + offset);
     return d.toISOString().split("T")[0]; // YYYY-MM-DD
   };
 
-  // zítřejší datum jako minimum pro input
-  const tomorrow = getDateOffset(1);
+  // Kontrola validního dne pro Dematic
+  const isValidDematicDate = (dateStr) => {
+    const date = new Date(dateStr);
+    const day = date.getDay();
+    return day !== 0 && day !== 6 && date > today;
+  };
 
   useEffect(() => {
     async function fetchStock() {
@@ -47,49 +55,9 @@ export default function OrderForm() {
     fetchStock();
   }, []);
 
-  const validateDate = (dateValue, location) => {
-    if (!dateValue) return "";
-
-    const selectedDate = new Date(dateValue);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // kontrola: dnešní nebo starší datum
-    if (selectedDate <= today) {
-      return "❌ Datum musí být nejdříve zítřek.";
-    }
-
-    // kontrola: víkend pro Dematic
-    if (location === "Dematic Ostrov u Stříbra 65") {
-      const day = selectedDate.getDay(); // 0 = neděle, 6 = sobota
-      if (day === 0 || day === 6) {
-        return "❌ Pro vyzvednutí v Dematic nelze zvolit víkend.";
-      }
-    }
-
-    return "";
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // pokud jde o datum, validujeme hned
-    if (name === "pickupDate") {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-      setDateError(validateDate(value, formData.pickupLocation));
-      return;
-    }
-
-    // pokud jde o místo, přepočítáme validaci pro datum
-    if (name === "pickupLocation") {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-      if (formData.pickupDate) {
-        setDateError(validateDate(formData.pickupDate, value));
-      }
-      return;
-    }
-
-    // standardní změny
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -97,6 +65,16 @@ export default function OrderForm() {
           ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
+
+    if (name === "pickupDate" && formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+      if (!isValidDematicDate(value)) {
+        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        setDateError("");
+      }
+    } else {
+      setDateError("");
+    }
   };
 
   const handleAdd = (field, amount) => {
@@ -107,12 +85,16 @@ export default function OrderForm() {
   };
 
   const handleDateQuickPick = (offset) => {
-    const newDate = getDateOffset(offset);
+    const dateStr = getDateOffset(offset);
     setFormData((prev) => ({
       ...prev,
-      pickupDate: newDate,
+      pickupDate: dateStr,
     }));
-    setDateError(validateDate(newDate, formData.pickupLocation));
+    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && !isValidDematicDate(dateStr)) {
+      setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+    } else {
+      setDateError("");
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -127,17 +109,17 @@ export default function OrderForm() {
       return;
     }
 
-    // kontrola povinných polí
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
       toast.error("❌ Vyplňte všechna povinná pole.");
       return;
     }
 
-    // kontrola datumu
-    const validationMsg = validateDate(formData.pickupDate, formData.pickupLocation);
-    if (validationMsg) {
-      setDateError(validationMsg);
-      toast.error("❌ " + validationMsg);
+    // Kontrola platného data pro Dematic
+    if (
+      formData.pickupLocation === "Dematic Ostrov u Stříbra 65" &&
+      !isValidDematicDate(formData.pickupDate)
+    ) {
+      toast.error("❌ Nelze odeslat objednávku s dnešním dnem nebo víkendem pro Dematic.");
       return;
     }
 
@@ -186,13 +168,8 @@ export default function OrderForm() {
       {/* Aktuální dostupné množství */}
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>
-          🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)
-        </p>
-        <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)
-        </p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
       {/* Formulář */}
@@ -321,9 +298,8 @@ export default function OrderForm() {
               name="pickupDate"
               value={formData.pickupDate}
               onChange={handleChange}
-              min={tomorrow}
               required
-              className="w-full border rounded-xl p-2"
+              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
             />
             <button
               type="button"
