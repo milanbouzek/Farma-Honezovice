@@ -9,6 +9,7 @@ const client = new Twilio(
 const MY_WHATSAPP_NUMBER = "+420720150734"; 
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
+// ID schválené šablony (Twilio Content Template SID)
 const TEMPLATE_ID = "HXcf10544a4ca0baaa4e8470fa5b571275";
 
 // Pomocná funkce na převod "dd.mm.yyyy" → ISO "yyyy-mm-dd"
@@ -28,16 +29,16 @@ async function sendWhatsAppTemplate({
 }) {
   try {
     const vars = {
-      "1": name || "",
-      "2": email || "",
-      "3": phone || "",
+      "1": String(name || ""),
+      "2": String(email || ""),
+      "3": String(phone || ""),
       "4": String(standardQty || 0),
       "5": String(lowCholQty || 0),
-      "6": pickupLocation || "",
-      "7": pickupDate || "",
+      "6": String(pickupLocation || ""),
+      "7": String(pickupDate || ""),
     };
 
-    console.log("Sending WhatsApp template with variables:", vars);
+    console.log(">>> WhatsApp contentVariables:", JSON.stringify(vars));
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
@@ -46,9 +47,9 @@ async function sendWhatsAppTemplate({
       contentVariables: JSON.stringify(vars),
     });
 
-    console.log("WhatsApp template sent SID:", message.sid);
+    console.log("✅ WhatsApp template sent SID:", message.sid);
   } catch (err) {
-    console.error("Twilio WhatsApp template error:", err);
+    console.error("❌ Twilio WhatsApp template error:", err);
     throw err;
   }
 }
@@ -124,7 +125,7 @@ export default async function handler(req, res) {
 
     if (updateError) throw updateError;
 
-    // WhatsApp notifikace (použijeme původní pickupDate ve formátu dd.mm.yyyy)
+    // WhatsApp notifikace (původní pickupDate "dd.mm.yyyy")
     await sendWhatsAppTemplate({
       name,
       email,
@@ -132,7 +133,7 @@ export default async function handler(req, res) {
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity,
       pickupLocation,
-      pickupDate, 
+      pickupDate,
     });
 
     return res.status(200).json({
@@ -146,7 +147,7 @@ export default async function handler(req, res) {
       message: `Objednávka byla úspěšně odeslána. Celková cena: ${totalPrice} Kč.`,
     });
   } catch (err) {
-    console.error("Order API error:", err);
+    console.error("❌ Order API error:", err);
     return res.status(500).json({ success: false, error: err.message || "Server error" });
   }
 }
