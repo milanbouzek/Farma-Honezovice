@@ -6,7 +6,7 @@ const client = new Twilio(
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const MY_WHATSAPP_NUMBER = "+420720150734"; 
+const MY_WHATSAPP_NUMBER = "+420720150734";
 const TWILIO_WHATSAPP_NUMBER = "+16506635799";
 
 const TEMPLATE_ID = "HXcf10544a4ca0baaa4e8470fa5b571275";
@@ -28,13 +28,13 @@ async function sendWhatsAppTemplate({
 }) {
   try {
     const vars = {
-      "1": name || "",
-      "2": email || "",
-      "3": phone || "",
-      "4": String(standardQty || 0),
-      "5": String(lowCholQty || 0),
-      "6": pickupLocation || "",
-      "7": pickupDate || "",
+      "1": String(name || "—"),
+      "2": String(email || "—"),
+      "3": String(phone || "—"),
+      "4": String(standardQty ?? 0),
+      "5": String(lowCholQty ?? 0),
+      "6": String(pickupLocation || "—"),
+      "7": String(pickupDate || "—"),
     };
 
     console.log("Sending WhatsApp template with variables:", vars);
@@ -132,7 +132,7 @@ export default async function handler(req, res) {
       standardQty: standardQuantity,
       lowCholQty: lowCholQuantity,
       pickupLocation,
-      pickupDate, 
+      pickupDate,
     });
 
     return res.status(200).json({
