@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import QRCode from "qrcode.react";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -145,7 +146,37 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`✅ Objednávka byla úspěšně odeslána. Číslo: ${data.orderId}. Celková cena: ${totalPrice} Kč`);
+        // QR platba
+        const account = "CZ1910000000193296360227"; // IBAN
+        const message = `Objednávka ${data.orderId}`;
+        const qrString = `SPD*1.0*ACC:${account}*AM:${totalPrice}.00*CC:CZK*MSG:${message}`;
+
+        toast.custom(
+          (t) => (
+            <div className="bg-white shadow-lg rounded-xl p-4 flex flex-col items-center relative max-w-sm">
+              {/* Křížek v pravém horním rohu */}
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
+              >
+                ✖
+              </button>
+
+              <p className="font-semibold text-green-700 mb-1">✅ Objednávka odeslána!</p>
+              <p>Číslo objednávky: <strong>{data.orderId}</strong></p>
+              <p>Celková cena: <strong>{totalPrice} Kč</strong></p>
+
+              <div className="mt-3">
+                <QRCode value={qrString} size={150} />
+              </div>
+              <p className="mt-2 text-sm text-gray-600">
+                Prosím zaplaťte pomocí QR kódu
+              </p>
+            </div>
+          ),
+          { duration: Infinity }
+        );
+
         setStock({
           standardQuantity: data.remaining_standard,
           lowCholQuantity: data.remaining_low_chol,
