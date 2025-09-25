@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { QRCode } from "qrcode.react";
-import { X } from "lucide-react";
+import QRCode from "qrcode.react";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -20,6 +19,8 @@ export default function OrderForm() {
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrValue, setQrValue] = useState("");
 
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
@@ -124,6 +125,7 @@ export default function OrderForm() {
       return;
     }
 
+    // serverově validujeme datum pro Dematic
     const [dd, mm, yyyy] = formData.pickupDate.split(".");
     const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
     if (!isValidDate(selectedDate, formData.pickupLocation)) {
@@ -146,41 +148,30 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
+        // QR kód ve formátu pro české banky
+        const qrString = `SPD*1.0*ACC:CZ1001000000193296360227*AM:${totalPrice}*CC:CZK*MSG:Objednávka ${data.orderId}`;
+        setQrValue(qrString);
+
         toast.custom((t) => (
-          <div
-            className={`relative bg-white p-6 rounded-2xl shadow-xl border-2 border-green-500 w-[420px] ${
-              t.visible ? "animate-enter" : "animate-leave"
-            }`}
-          >
-            {/* Zavírací tlačítko */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 w-96 relative">
             <button
               onClick={() => toast.dismiss(t.id)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-black"
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
             >
-              <X size={22} />
+              ✖
             </button>
-
-            <h2 className="text-2xl font-bold text-green-700 mb-3">
-              ✅ Objednávka byla odeslána
-            </h2>
-            <p className="text-lg text-gray-800 mb-2">
-              Číslo objednávky: <strong>{data.orderId}</strong>
+            <h2 className="text-lg font-bold mb-2">✅ Objednávka byla úspěšně odeslána</h2>
+            <p className="mb-2">Číslo objednávky: <strong>{data.orderId}</strong></p>
+            <p className="mb-4">Celková cena: <strong>{totalPrice} Kč</strong></p>
+            <p className="mb-4 text-sm text-gray-600">
+              Platbu můžete provést předem přes QR kód nebo při vyzvednutí objednávky.
             </p>
-            <p className="text-lg text-gray-800 mb-4">
-              Celková cena:{" "}
-              <span className="text-green-700 font-semibold">{totalPrice} Kč</span>
-            </p>
-
-            <p className="text-base text-gray-700 mb-4">
-              Můžete zaplatit <strong>předem pomocí QR kódu</strong> nebo až při vyzvednutí objednávky.
-            </p>
-
-            <div className="flex justify-center">
-              <QRCode
-                value={`SPD*1.0*ACC:CZ1010000000193296360227*AM:${totalPrice}*CC:CZK*MSG:Objednávka ${data.orderId}`}
-                size={180}
-              />
-            </div>
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600"
+            >
+              Zobrazit QR kód
+            </button>
           </div>
         ), { duration: Infinity });
 
@@ -319,6 +310,23 @@ export default function OrderForm() {
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
+
+      {/* Modal s QR kódem */}
+      {showQRModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-2xl shadow-lg relative w-96">
+            <button
+              onClick={() => setShowQRModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              ✖
+            </button>
+            <h2 className="text-lg font-bold mb-4">QR platba</h2>
+            <QRCode value={qrValue} size={256} />
+            <p className="mt-4 text-sm text-gray-600">Naskenujte QR kód pro platbu předem.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
