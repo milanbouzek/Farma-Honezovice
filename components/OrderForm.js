@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import QRCode from "qrcode.react";
+import { X } from "lucide-react";
+import { QRCodeCanvas } from "qrcode.react";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -19,8 +20,8 @@ export default function OrderForm() {
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [qrValue, setQrValue] = useState("");
+  const [showQR, setShowQR] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
 
   const totalPrice =
     (parseInt(formData.standardQuantity || 0, 10) * 5) +
@@ -125,7 +126,6 @@ export default function OrderForm() {
       return;
     }
 
-    // serverově validujeme datum pro Dematic
     const [dd, mm, yyyy] = formData.pickupDate.split(".");
     const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
     if (!isValidDate(selectedDate, formData.pickupLocation)) {
@@ -148,32 +148,29 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        // QR kód ve formátu pro české banky
-        const qrString = `SPD*1.0*ACC:CZ1001000000193296360227*AM:${totalPrice}*CC:CZK*MSG:Objednávka ${data.orderId}`;
-        setQrValue(qrString);
+        setLastOrder({ orderId: data.orderId, price: totalPrice });
+        setShowQR(true);
 
         toast.custom((t) => (
-          <div className="bg-white rounded-2xl shadow-lg p-6 w-96 relative">
+          <div
+            className={`bg-white shadow-lg rounded-2xl p-6 max-w-md relative ${
+              t.visible ? "animate-enter" : "animate-leave"
+            }`}
+          >
             <button
               onClick={() => toast.dismiss(t.id)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
             >
-              ✖
+              <X size={20} />
             </button>
-            <h2 className="text-lg font-bold mb-2">✅ Objednávka byla úspěšně odeslána</h2>
-            <p className="mb-2">Číslo objednávky: <strong>{data.orderId}</strong></p>
-            <p className="mb-4">Celková cena: <strong>{totalPrice} Kč</strong></p>
-            <p className="mb-4 text-sm text-gray-600">
-              Platbu můžete provést předem přes QR kód nebo při vyzvednutí objednávky.
+            <h3 className="text-lg font-bold mb-2">✅ Objednávka byla úspěšně odeslána</h3>
+            <p className="mb-1">Číslo objednávky: <strong>{data.orderId}</strong></p>
+            <p className="mb-3">Celková cena: <strong>{totalPrice} Kč</strong></p>
+            <p className="text-sm text-gray-600">
+              Je možné zaplatit předem přes QR kód nebo při vyzvednutí objednávky.
             </p>
-            <button
-              onClick={() => setShowQRModal(true)}
-              className="bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600"
-            >
-              Zobrazit QR kód
-            </button>
           </div>
-        ), { duration: Infinity });
+        ));
 
         setStock({
           standardQuantity: data.remaining_standard,
@@ -201,6 +198,35 @@ export default function OrderForm() {
 
   return (
     <div>
+      <Toaster position="top-center" />
+
+      {/* QR modal */}
+      {showQR && lastOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[9999] px-4">
+          <div className="bg-white p-6 rounded-2xl shadow-lg relative w-full max-w-sm sm:max-w-md">
+            <button
+              onClick={() => setShowQR(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-lg font-bold mb-2">Platba přes QR kód</h2>
+            <p className="mb-4 text-sm text-gray-600">
+              Číslo účtu: <strong>19-3296360227/0100</strong><br />
+              Částka: <strong>{lastOrder.price} Kč</strong><br />
+              Variabilní symbol: <strong>{lastOrder.orderId}</strong>
+            </p>
+            <div className="flex justify-center">
+              <QRCodeCanvas
+                value={`SPD*1.0*ACC:CZ1001000000193296360227*AM:${lastOrder.price}.00*CC:CZK*X-VS:${lastOrder.orderId}`}
+                size={window.innerWidth < 640 ? 150 : 200} // menší QR na mobilech
+                includeMargin={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stav zásob */}
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
@@ -208,22 +234,27 @@ export default function OrderForm() {
         <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
+      {/* Formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4 max-w-lg">
-        {/* Jméno, email, telefon */}
+        {/* Jméno */}
         <div>
           <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input type="text" name="name" value={formData.name} onChange={handleChange} required className="w-full border rounded-xl p-2" />
         </div>
+
+        {/* Email */}
         <div>
           <label className="block text-gray-700 mb-1">Email (nepovinné)</label>
           <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full border rounded-xl p-2" />
         </div>
+
+        {/* Telefon */}
         <div>
           <label className="block text-gray-700 mb-1">Telefon (nepovinné)</label>
           <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full border rounded-xl p-2" />
         </div>
 
-        {/* Počet vajec */}
+        {/* Počet standardních vajec */}
         <div>
           <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
           <div className="flex gap-2 items-center">
@@ -232,6 +263,8 @@ export default function OrderForm() {
             <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
           </div>
         </div>
+
+        {/* Počet low cholesterol vajec */}
         <div>
           <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
           <div className="flex gap-2 items-center">
@@ -241,6 +274,7 @@ export default function OrderForm() {
           </div>
         </div>
 
+        {/* Cena */}
         <div className="text-gray-800 font-semibold">Celková cena: <span className="text-green-700">{totalPrice} Kč</span></div>
 
         {/* Místo vyzvednutí */}
@@ -306,27 +340,11 @@ export default function OrderForm() {
           </div>
         </div>
 
+        {/* Submit */}
         <button type="submit" disabled={loading} className="bg-yellow-400 px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition">
           {loading ? "Odesílám..." : "Odeslat objednávku"}
         </button>
       </form>
-
-      {/* Modal s QR kódem */}
-      {showQRModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl shadow-lg relative w-96">
-            <button
-              onClick={() => setShowQRModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-            >
-              ✖
-            </button>
-            <h2 className="text-lg font-bold mb-4">QR platba</h2>
-            <QRCode value={qrValue} size={256} />
-            <p className="mt-4 text-sm text-gray-600">Naskenujte QR kód pro platbu předem.</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
