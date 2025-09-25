@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import QRCode from "qrcode.react";
+import { QRCode } from "qrcode.react";
+import { X } from "lucide-react";
 
 export default function OrderForm() {
   const [formData, setFormData] = useState({
@@ -123,7 +124,6 @@ export default function OrderForm() {
       return;
     }
 
-    // serverově validujeme datum pro Dematic
     const [dd, mm, yyyy] = formData.pickupDate.split(".");
     const selectedDate = new Date(`${yyyy}-${mm}-${dd}`);
     if (!isValidDate(selectedDate, formData.pickupLocation)) {
@@ -146,36 +146,43 @@ export default function OrderForm() {
       const data = await res.json();
 
       if (data.success) {
-        // QR platba
-        const account = "CZ1910000000193296360227"; // IBAN
-        const message = `Objednávka ${data.orderId}`;
-        const qrString = `SPD*1.0*ACC:${account}*AM:${totalPrice}.00*CC:CZK*MSG:${message}`;
+        toast.custom((t) => (
+          <div
+            className={`relative bg-white p-6 rounded-2xl shadow-xl border-2 border-green-500 w-[420px] ${
+              t.visible ? "animate-enter" : "animate-leave"
+            }`}
+          >
+            {/* Zavírací tlačítko */}
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-black"
+            >
+              <X size={22} />
+            </button>
 
-        toast.custom(
-          (t) => (
-            <div className="bg-white shadow-lg rounded-xl p-4 flex flex-col items-center relative max-w-sm">
-              {/* Křížek v pravém horním rohu */}
-              <button
-                onClick={() => toast.dismiss(t.id)}
-                className="absolute top-2 right-2 text-gray-500 hover:text-gray-800"
-              >
-                ✖
-              </button>
+            <h2 className="text-2xl font-bold text-green-700 mb-3">
+              ✅ Objednávka byla odeslána
+            </h2>
+            <p className="text-lg text-gray-800 mb-2">
+              Číslo objednávky: <strong>{data.orderId}</strong>
+            </p>
+            <p className="text-lg text-gray-800 mb-4">
+              Celková cena:{" "}
+              <span className="text-green-700 font-semibold">{totalPrice} Kč</span>
+            </p>
 
-              <p className="font-semibold text-green-700 mb-1">✅ Objednávka odeslána!</p>
-              <p>Číslo objednávky: <strong>{data.orderId}</strong></p>
-              <p>Celková cena: <strong>{totalPrice} Kč</strong></p>
+            <p className="text-base text-gray-700 mb-4">
+              Můžete zaplatit <strong>předem pomocí QR kódu</strong> nebo až při vyzvednutí objednávky.
+            </p>
 
-              <div className="mt-3">
-                <QRCode value={qrString} size={150} />
-              </div>
-              <p className="mt-2 text-sm text-gray-600">
-                Prosím zaplaťte pomocí QR kódu
-              </p>
+            <div className="flex justify-center">
+              <QRCode
+                value={`SPD*1.0*ACC:CZ1010000000193296360227*AM:${totalPrice}*CC:CZK*MSG:Objednávka ${data.orderId}`}
+                size={180}
+              />
             </div>
-          ),
-          { duration: Infinity }
-        );
+          </div>
+        ), { duration: Infinity });
 
         setStock({
           standardQuantity: data.remaining_standard,
