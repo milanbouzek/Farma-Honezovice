@@ -14,10 +14,7 @@ function StockBox() {
     try {
       const res = await fetch("/api/stock");
       const data = await res.json();
-      setStock({
-        standard_quantity: data.standardQuantity,
-        low_chol_quantity: data.lowCholQuantity,
-      });
+      setStock(data);
       setStandard(data.standardQuantity);
       setLowChol(data.lowCholQuantity);
     } catch (err) {
@@ -31,16 +28,13 @@ function StockBox() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          standardQuantity: standard,
-          lowCholQuantity: lowChol,
+          standard_quantity: standard,
+          low_chol_quantity: lowChol,
         }),
       });
       const data = await res.json();
       if (res.ok) {
-        setStock({
-          standard_quantity: data.standardQuantity,
-          low_chol_quantity: data.lowCholQuantity,
-        });
+        setStock(data);
         setEditMode(false);
         toast.success("Sklad úspěšně aktualizován");
       } else {
@@ -95,8 +89,12 @@ function StockBox() {
         </div>
       ) : (
         <div className="flex gap-6 items-center">
-          <p><b>Standard:</b> {stock.standard_quantity}</p>
-          <p><b>LowChol:</b> {stock.low_chol_quantity}</p>
+          <p>
+            <b>Standard:</b> {stock.standardQuantity}
+          </p>
+          <p>
+            <b>LowChol:</b> {stock.lowCholQuantity}
+          </p>
           <button
             onClick={() => setEditMode(true)}
             className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
@@ -176,10 +174,63 @@ export default function AdminPage() {
 
       {loading ? (
         <p>Načítám objednávky...</p>
+      ) : orders.length === 0 ? (
+        <p>Žádné objednávky</p>
       ) : (
-        <>
-          {/* renderSection zůstává beze změn */}
-        </>
+        <div className="bg-white shadow rounded-xl p-4">
+          {orders.map((order) => (
+            <div
+              key={order.id}
+              className="flex justify-between items-center border-b py-2"
+            >
+              <div>
+                <p>
+                  <b>ID:</b> {order.id}
+                </p>
+                <p>
+                  <b>Status:</b> {order.status}
+                </p>
+                <p>
+                  <b>Jméno:</b> {order.name}
+                </p>
+                <p>
+                  <b>Telefon:</b> {order.phone}
+                </p>
+                <p>
+                  <b>Standard:</b> {order.standard_quantity}
+                </p>
+                <p>
+                  <b>LowChol:</b> {order.low_chol_quantity}
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/admin/orders", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: order.id }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      toast.success(
+                        `Objednávka ${order.id} → ${data.status}`
+                      );
+                      fetchOrders();
+                    } else {
+                      toast.error(data.error || "Chyba při změně stavu");
+                    }
+                  } catch (err) {
+                    toast.error("Chyba: " + err.message);
+                  }
+                }}
+                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+              >
+                Posunout stav
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
