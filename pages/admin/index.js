@@ -4,7 +4,19 @@ import toast, { Toaster } from "react-hot-toast";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
 
-const STATUS_FLOW = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
+const STATUS_ORDER = ["Nová objednávka", "Zpracovává se", "Vyřízená", "Zrušená"];
+const COLOR_MAP = {
+  "Nová objednávka": "text-red-600",
+  "Zpracovává se": "text-yellow-500",
+  "Vyřízená": "text-green-600",
+  "Zrušená": "text-green-600",
+};
+const BUTTON_COLOR_MAP = {
+  "Nová objednávka": "bg-red-500",
+  "Zpracovává se": "bg-yellow-400",
+  "Vyřízená": "bg-green-500",
+  "Zrušená": "bg-green-500",
+};
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -29,7 +41,7 @@ export default function AdminPage() {
         .select("*")
         .order("id", { ascending: true });
       if (error) throw error;
-      setOrders(data || []);
+      setOrders(data);
     } catch (err) {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
@@ -38,10 +50,9 @@ export default function AdminPage() {
   };
 
   const advanceStatus = async (order) => {
-    const currentIndex = STATUS_FLOW.indexOf(order.status);
-    if (currentIndex === -1 || currentIndex === STATUS_FLOW.length - 1) return;
-
-    const newStatus = STATUS_FLOW[currentIndex + 1];
+    const currentIndex = STATUS_ORDER.indexOf(order.status);
+    if (currentIndex === -1 || currentIndex === STATUS_ORDER.length - 1) return;
+    const newStatus = STATUS_ORDER[currentIndex + 1];
 
     try {
       const { error } = await supabaseServer
@@ -49,11 +60,10 @@ export default function AdminPage() {
         .update({ status: newStatus })
         .eq("id", order.id);
       if (error) throw error;
-
       setOrders((prev) =>
         prev.map((o) => (o.id === order.id ? { ...o, status: newStatus } : o))
       );
-      toast.success(`✅ Status objednávky změněn na: ${newStatus}`);
+      toast.success(`✅ Status změněn na "${newStatus}"`);
     } catch (err) {
       toast.error("Chyba při aktualizaci statusu: " + err.message);
     }
@@ -81,10 +91,11 @@ export default function AdminPage() {
     );
   }
 
+  // Rozdělení objednávek podle statusu
   const sections = [
-    { title: "Nové objednávky", status: ["nová objednávka"], color: "red-500" },
-    { title: "Zpracovává se", status: ["zpracovává se"], color: "yellow-400" },
-    { title: "Vyřízené / Zrušené", status: ["vyřízená", "zrušená"], color: "green-500" },
+    { title: "Nová objednávka", orders: orders.filter(o => o.status === "Nová objednávka") },
+    { title: "Zpracovává se", orders: orders.filter(o => o.status === "Zpracovává se") },
+    { title: "Vyřízená / Zrušená", orders: orders.filter(o => o.status === "Vyřízená" || o.status === "Zrušená") },
   ];
 
   return (
@@ -94,14 +105,17 @@ export default function AdminPage() {
 
       {loading ? (
         <p>Načítám objednávky...</p>
+      ) : orders.length === 0 ? (
+        <p>Žádné objednávky.</p>
       ) : (
-        sections.map((section) => {
-          const filteredOrders = orders.filter((o) => section.status.includes(o.status));
-          if (filteredOrders.length === 0) return null;
-
-          return (
-            <div key={section.title} className="mb-8">
-              <h2 className={`text-xl font-bold mb-2 text-${section.color}`}>{section.title}</h2>
+        sections.map((section) => (
+          <div key={section.title} className="mb-8">
+            <h2 className={`text-xl font-bold mb-4 ${COLOR_MAP[section.title]}`}>
+              {section.title}
+            </h2>
+            {section.orders.length === 0 ? (
+              <p>Žádné objednávky v této sekci.</p>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
                   <thead className="bg-gray-200">
@@ -119,7 +133,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOrders.map((order) => (
+                    {section.orders.map((order) => (
                       <tr key={order.id} className="border-b hover:bg-gray-50">
                         <td className="p-2">{order.id}</td>
                         <td className="p-2">{order.customer_name}</td>
@@ -129,12 +143,16 @@ export default function AdminPage() {
                         <td className="p-2">{order.low_chol_quantity}</td>
                         <td className="p-2">{order.pickup_location}</td>
                         <td className="p-2">{order.pickup_date}</td>
-                        <td className="p-2 font-semibold">{order.status}</td>
                         <td className="p-2">
-                          {STATUS_FLOW.indexOf(order.status) < STATUS_FLOW.length - 1 && (
+                          <span className={`${COLOR_MAP[order.status]} font-semibold`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="p-2">
+                          {order.status !== "Vyřízená" && order.status !== "Zrušená" && (
                             <button
                               onClick={() => advanceStatus(order)}
-                              className={`bg-${section.color} text-white px-2 py-1 rounded hover:opacity-80`}
+                              className={`${BUTTON_COLOR_MAP[order.status]} text-white px-2 py-1 rounded hover:opacity-80`}
                             >
                               Posunout
                             </button>
@@ -145,9 +163,9 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          );
-        })
+            )}
+          </div>
+        ))
       )}
     </div>
   );
