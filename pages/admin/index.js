@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabaseServer } from "../../lib/supabaseServerClient";
 import toast, { Toaster } from "react-hot-toast";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
@@ -20,16 +19,14 @@ export default function AdminPage() {
     }
   };
 
-  // Načtení objednávek ze Supabase
+  // Načtení objednávek přes API route
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabaseServer
-        .from("orders")
-        .select("*")
-        .order("id", { ascending: true });
-      if (error) throw error;
-      setOrders(data);
+      const res = await fetch("/api/admin/orders");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setOrders(data.orders);
     } catch (err) {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
@@ -40,11 +37,14 @@ export default function AdminPage() {
   // Označení objednávky jako vyřízené
   const markAsProcessed = async (orderId) => {
     try {
-      const { error } = await supabaseServer
-        .from("orders")
-        .update({ processed: true })
-        .eq("id", orderId);
-      if (error) throw error;
+      const res = await fetch("/api/admin/markProcessed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, processed: true } : o))
       );
