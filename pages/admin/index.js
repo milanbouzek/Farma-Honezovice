@@ -107,6 +107,55 @@ function StockBox() {
   );
 }
 
+function OrderSection({ statusLabel, color, orders, onAdvance }) {
+  const sectionOrders = orders.filter((o) => o.status === statusLabel);
+
+  return (
+    <div
+      className={`p-4 rounded-xl mb-4`}
+      style={{ backgroundColor: color, minHeight: "80px" }}
+    >
+      <h2 className="text-xl font-bold mb-2">{statusLabel.toUpperCase()}</h2>
+      {sectionOrders.length === 0 ? (
+        <p>Žádné objednávky</p>
+      ) : (
+        sectionOrders.map((order) => (
+          <div
+            key={order.id}
+            className="flex justify-between items-center border-b py-2"
+          >
+            <div>
+              <p>
+                <b>ID:</b> {order.id}
+              </p>
+              <p>
+                <b>Jméno:</b> {order.customer_name}
+              </p>
+              <p>
+                <b>Telefon:</b> {order.phone}
+              </p>
+              <p>
+                <b>Standard:</b> {order.standard_quantity}
+              </p>
+              <p>
+                <b>LowChol:</b> {order.low_chol_quantity}
+              </p>
+            </div>
+            {order.status !== STATUSES[STATUSES.length - 1] && (
+              <button
+                onClick={() => onAdvance(order.id)}
+                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+              >
+                Další stav
+              </button>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
@@ -132,6 +181,25 @@ export default function AdminPage() {
       fetchOrders();
     } else {
       toast.error("❌ Špatné heslo");
+    }
+  };
+
+  const advanceStatus = async (id) => {
+    try {
+      const res = await fetch("/api/admin/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Objednávka ${id} → ${data.status}`);
+        fetchOrders();
+      } else {
+        toast.error(data.error || "Chyba při změně stavu");
+      }
+    } catch (err) {
+      toast.error("Chyba: " + err.message);
     }
   };
 
@@ -169,68 +237,38 @@ export default function AdminPage() {
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-      {/* 🔹 Box se skladem */}
+      {/* Box se skladem */}
       <StockBox />
 
       {loading ? (
         <p>Načítám objednávky...</p>
-      ) : orders.length === 0 ? (
-        <p>Žádné objednávky</p>
       ) : (
-        <div className="bg-white shadow rounded-xl p-4">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="flex justify-between items-center border-b py-2"
-            >
-              <div>
-                <p>
-                  <b>ID:</b> {order.id}
-                </p>
-                <p>
-                  <b>Status:</b> {order.status}
-                </p>
-                <p>
-                  <b>Jméno:</b> {order.name}
-                </p>
-                <p>
-                  <b>Telefon:</b> {order.phone}
-                </p>
-                <p>
-                  <b>Standard:</b> {order.standard_quantity}
-                </p>
-                <p>
-                  <b>LowChol:</b> {order.low_chol_quantity}
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch("/api/admin/orders", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: order.id }),
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                      toast.success(
-                        `Objednávka ${order.id} → ${data.status}`
-                      );
-                      fetchOrders();
-                    } else {
-                      toast.error(data.error || "Chyba při změně stavu");
-                    }
-                  } catch (err) {
-                    toast.error("Chyba: " + err.message);
-                  }
-                }}
-                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-              >
-                Posunout stav
-              </button>
-            </div>
-          ))}
-        </div>
+        <>
+          <OrderSection
+            statusLabel="nová objednávka"
+            color="#fca5a5" // červená
+            orders={orders}
+            onAdvance={advanceStatus}
+          />
+          <OrderSection
+            statusLabel="zpracovává se"
+            color="#facc15" // oranžová
+            orders={orders}
+            onAdvance={advanceStatus}
+          />
+          <OrderSection
+            statusLabel="vyřízená"
+            color="#86efac" // zelená
+            orders={orders}
+            onAdvance={advanceStatus}
+          />
+          <OrderSection
+            statusLabel="zrušená"
+            color="#86efac" // zelená
+            orders={orders}
+            onAdvance={advanceStatus}
+          />
+        </>
       )}
     </div>
   );
