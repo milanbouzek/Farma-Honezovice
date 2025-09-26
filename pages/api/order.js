@@ -1,6 +1,8 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import Twilio from "twilio";
 
+const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
+
 const client = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -54,99 +56,64 @@ async function sendWhatsAppTemplate({
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  const {
-    name,
-    email,
-    phone,
-    standardQuantity,
-    lowCholQuantity,
-    pickupLocation,
-    pickupDate,
-  } = req.body;
-
-  if (!name || standardQuantity < 0 || lowCholQuantity < 0 || !pickupLocation || !pickupDate) {
-    return res.status(400).json({ success: false, error: "Neplatná data." });
-  }
-
   try {
-    // převést datum pro DB
-    const dbDate = parseCZDate(pickupDate);
+    if (req.method === "GET") {
+      const { data, error } = await supabaseServer
+        .from("orders")
+        .select("*")
+        .order("id", { ascending: true });
 
-    // načtení skladu
-    const { data: stockData, error: stockError } = await supabaseServer
-      .from("eggs_stock")
-      .select("standard_quantity, low_chol_quantity")
-      .limit(1)
-      .maybeSingle();
-
-    if (stockError) throw stockError;
-
-    if (!stockData || stockData.standard_quantity < standardQuantity || stockData.low_chol_quantity < lowCholQuantity) {
-      return res.status(400).json({ success: false, error: "Nedostatek vajec." });
+      if (error) throw error;
+      return res.status(200).json({ orders: data });
     }
 
-    const newStandard = stockData.standard_quantity - standardQuantity;
-    const newLowChol = stockData.low_chol_quantity - lowCholQuantity;
+    if (req.method === "POST") {
+      const { id, name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
+      if (!id) return res.status(400).json({ error: "Chybí ID objednávky" });
 
-    const totalPrice = standardQuantity * 5 + lowCholQuantity * 7;
+      // Načtení objednávky
+      const { data: orderData, error: selectError } = await supabaseServer
+        .from("orders")
+        .select("id, status")
+        .eq("id", id)
+        .single();
 
-    // uložení objednávky (už s ISO datem)
-    const { data: newOrder, error: insertError } = await supabaseServer
-      .from("orders")
-      .insert([
-        {
-          customer_name: name,
-          email: email || null,
+      if (selectError) throw selectError;
+      if (!orderData) return res.status(404).json({ error: "Objednávka nenalezena" });
+
+      // Posun statusu o jeden dále
+      const currentIndex = STATUSES.indexOf(orderData.status);
+      const newIndex = currentIndex < STATUSES.length - 1 ? currentIndex + 1 : currentIndex;
+      const newStatus = STATUSES[newIndex];
+
+      const { data: updatedOrder, error: updateError } = await supabaseServer
+        .from("orders")
+        .update({ status: newStatus })
+        .eq("id", id)
+        .select("id, status")
+        .single();
+
+      if (updateError) throw updateError;
+
+      // WhatsApp notifikace (pokud jsou dostupné údaje)
+      if (name && pickupLocation && pickupDate) {
+        await sendWhatsAppTemplate({
+          name,
+          email,
           phone,
-          standard_quantity: standardQuantity,
-          low_chol_quantity: lowCholQuantity,
-          pickup_location: pickupLocation,
-          pickup_date: dbDate,
-        },
-      ])
-      .select("id")
-      .single();
+          standardQty: standardQuantity,
+          lowCholQty: lowCholQuantity,
+          pickupLocation,
+          pickupDate,
+        });
+      }
 
-    if (insertError) throw insertError;
+      return res.status(200).json(updatedOrder);
+    }
 
-    // update skladu
-    const { error: updateError } = await supabaseServer
-      .from("eggs_stock")
-      .update({
-        standard_quantity: newStandard,
-        low_chol_quantity: newLowChol,
-      })
-      .eq("id", 1);
-
-    if (updateError) throw updateError;
-
-    // WhatsApp notifikace (použijeme původní pickupDate ve formátu dd.mm.yyyy)
-    await sendWhatsAppTemplate({
-      name,
-      email,
-      phone,
-      standardQty: standardQuantity,
-      lowCholQty: lowCholQuantity,
-      pickupLocation,
-      pickupDate,
-    });
-
-    return res.status(200).json({
-      success: true,
-      orderId: newOrder.id,
-      totalPrice,
-      remaining: {
-        standard: newStandard,
-        lowChol: newLowChol,
-      },
-      message: `Objednávka byla úspěšně odeslána. Celková cena: ${totalPrice} Kč.`,
-    });
+    return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
-    console.error("Order API error:", err);
-    return res.status(500).json({ success: false, error: err.message || "Server error" });
+    console.error("Admin orders API error:", err);
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 }
