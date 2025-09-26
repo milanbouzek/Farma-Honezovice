@@ -1,6 +1,8 @@
 import { supabaseServer } from "../../lib/supabaseServerClient";
 import Twilio from "twilio";
 
+const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
+
 const client = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -36,6 +38,8 @@ async function sendWhatsAppTemplate({
       "7": String(pickupDate || "—"),
     };
 
+    console.log("Sending WhatsApp template with variables:", vars);
+
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
       to: `whatsapp:${MY_WHATSAPP_NUMBER}`,
@@ -51,49 +55,103 @@ async function sendWhatsAppTemplate({
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-
-  const { name, email, phone, standardQuantity, lowCholQuantity, pickupLocation, pickupDate } = req.body;
-
-  if (!name || !pickupLocation || !pickupDate || standardQuantity < 0 || lowCholQuantity < 0) {
-    return res.status(400).json({ success: false, error: "Neplatná data." });
-  }
-
   try {
-    const dbDate = parseCZDate(pickupDate);
+    if (req.method === "GET") {
+      const { data, error } = await supabaseServer
+        .from("orders")
+        .select("*")
+        .order("id", { ascending: true });
+      if (error) throw error;
 
-    // Uložení nové objednávky
-    const { data: newOrder, error } = await supabaseServer
-      .from("orders")
-      .insert([{
-        customer_name: name,
-        email: email || null,
+      return res.status(200).json({ orders: data });
+    }
+
+    if (req.method === "POST") {
+      const {
+        name,
+        email,
         phone,
-        standard_quantity: standardQuantity,
-        low_chol_quantity: lowCholQuantity,
-        pickup_location: pickupLocation,
-        pickup_date: dbDate,
-        status: "nová objednávka",
-      }])
-      .select("id")
-      .single();
+        standardQuantity,
+        lowCholQuantity,
+        pickupLocation,
+        pickupDate
+      } = req.body;
 
-    if (error) throw error;
+      if (!name || !pickupLocation || !pickupDate) {
+        return res.status(400).json({ success: false, error: "Neplatná data." });
+      }
 
-    // Odeslání WhatsApp notifikace
-    await sendWhatsAppTemplate({
-      name,
-      email,
-      phone,
-      standardQty: standardQuantity,
-      lowCholQty: lowCholQuantity,
-      pickupLocation,
-      pickupDate,
-    });
+      const standardQty = Number(standardQuantity);
+      const lowCholQty = Number(lowCholQuantity);
 
-    return res.status(200).json({ success: true, orderId: newOrder.id });
+      // Načtení skladu
+      const { data: stockData, error: stockError } = await supabaseServer
+        .from("eggs_stock")
+        .select("id, standard_quantity, low_chol_quantity")
+        .limit(1)
+        .maybeSingle();
+
+      if (stockError) throw stockError;
+      if (!stockData) return res.status(400).json({ success: false, error: "Sklad nenalezen." });
+
+      if (stockData.standard_quantity < standardQty || stockData.low_chol_quantity < lowCholQty) {
+        return res.status(400).json({ success: false, error: "Nedostatek vajec ve skladu." });
+      }
+
+      const newStandard = stockData.standard_quantity - standardQty;
+      const newLowChol = stockData.low_chol_quantity - lowCholQty;
+
+      // Uložení objednávky
+      const { data: newOrder, error: insertError } = await supabaseServer
+        .from("orders")
+        .insert([
+          {
+            customer_name: name,
+            email: email || null,
+            phone,
+            standard_quantity: standardQty,
+            low_chol_quantity: lowCholQty,
+            pickup_location: pickupLocation,
+            pickup_date: parseCZDate(pickupDate),
+            status: STATUSES[0], // nová objednávka
+          },
+        ])
+        .select("id, status")
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Update skladu
+      const { error: updateError } = await supabaseServer
+        .from("eggs_stock")
+        .update({ standard_quantity: newStandard, low_chol_quantity: newLowChol })
+        .eq("id", stockData.id);
+
+      if (updateError) throw updateError;
+
+      // WhatsApp notifikace
+      await sendWhatsAppTemplate({
+        name,
+        email,
+        phone,
+        standardQty,
+        lowCholQty,
+        pickupLocation,
+        pickupDate,
+      });
+
+      return res.status(200).json({
+        success: true,
+        orderId: newOrder.id,
+        totalPrice: standardQty * 5 + lowCholQty * 7,
+        remaining: { standard: newStandard, lowChol: newLowChol },
+        message: `Objednávka byla úspěšně odeslána.`,
+      });
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
   } catch (err) {
     console.error("Order API error:", err);
-    return res.status(500).json({ success: false, error: err.message || "Server error" });
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 }
