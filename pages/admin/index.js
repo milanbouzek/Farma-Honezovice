@@ -14,9 +14,12 @@ function StockBox() {
     try {
       const res = await fetch("/api/stock");
       const data = await res.json();
-      setStock(data.stock);
-      setStandard(data.stock.standard_quantity);
-      setLowChol(data.stock.low_chol_quantity);
+      setStock({
+        standard_quantity: data.standardQuantity,
+        low_chol_quantity: data.lowCholQuantity,
+      });
+      setStandard(data.standardQuantity);
+      setLowChol(data.lowCholQuantity);
     } catch (err) {
       toast.error("Chyba při načítání skladu: " + err.message);
     }
@@ -27,11 +30,17 @@ function StockBox() {
       const res = await fetch("/api/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ standard_quantity: standard, low_chol_quantity: lowChol }),
+        body: JSON.stringify({
+          standardQuantity: standard,
+          lowCholQuantity: lowChol,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        setStock(data.stock);
+        setStock({
+          standard_quantity: data.standardQuantity,
+          low_chol_quantity: data.lowCholQuantity,
+        });
         setEditMode(false);
         toast.success("Sklad úspěšně aktualizován");
       } else {
@@ -162,7 +171,7 @@ export default function AdminPage() {
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-      {/* Box se skladem */}
+      {/* 🔹 Box se skladem */}
       <StockBox />
 
       {loading ? (
