@@ -2,13 +2,7 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-
-const STATUS_SECTIONS = [
-  { label: "nová objednávka", color: "#F87171" },    // červená
-  { label: "zpracovává se", color: "#FBBF24" },      // žlutá
-  { label: "vyřízená", color: "#34D399" },          // zelená
-  { label: "zrušená", color: "#34D399" },           // zelená
-];
+const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -55,22 +49,50 @@ export default function AdminPage() {
     }
   };
 
-  const renderSection = ({ label, color }) => {
-    const sectionOrders = orders.filter((o) => o.status === label);
+  // Automatický refresh každých 10 sekund
+  useEffect(() => {
+    if (authenticated) {
+      fetchOrders(); // první načtení
+      const interval = setInterval(() => {
+        fetchOrders();
+      }, 10000); // 10 sekund
+
+      return () => clearInterval(interval); // vyčistí interval při odchodu ze stránky
+    }
+  }, [authenticated]);
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Toaster position="top-center" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
+
+  const renderSection = (statusLabel, color) => {
+    const sectionOrders = orders.filter((o) => o.status === statusLabel);
 
     return (
-      <div
-        key={label}
-        className="p-4 mb-6 rounded-lg shadow"
-        style={{ backgroundColor: `${color}20` }}
-      >
-        <h2 className="text-xl font-bold mb-2" style={{ color }}>
-          {label.toUpperCase()}
+      <div className="mb-6 p-4 rounded-lg shadow" style={{ backgroundColor: "#f9f9f9", border: `2px solid ${color}` }}>
+        <h2 className={`text-xl font-bold mb-2`} style={{ color }}>
+          {statusLabel.toUpperCase()}
         </h2>
         {sectionOrders.length === 0 ? (
-          <div className="text-gray-500 p-4 border rounded text-center">
-            Žádné objednávky
-          </div>
+          <p className="p-2">Žádné objednávky v této kategorii.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
@@ -99,7 +121,7 @@ export default function AdminPage() {
                     <td className="p-2">{order.pickup_location}</td>
                     <td className="p-2">{order.pickup_date}</td>
                     <td className="p-2">
-                      {order.status !== STATUS_SECTIONS[STATUS_SECTIONS.length - 1].label && (
+                      {order.status !== STATUSES[STATUSES.length - 1] && (
                         <button
                           onClick={() => advanceStatus(order.id)}
                           className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
@@ -118,28 +140,6 @@ export default function AdminPage() {
     );
   };
 
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <Toaster position="top-center" />
@@ -147,7 +147,12 @@ export default function AdminPage() {
       {loading ? (
         <p>Načítám objednávky...</p>
       ) : (
-        STATUS_SECTIONS.map(renderSection)
+        <>
+          {renderSection("nová objednávka", "red")}
+          {renderSection("zpracovává se", "orange")}
+          {renderSection("vyřízená", "green")}
+          {renderSection("zrušená", "green")}
+        </>
       )}
     </div>
   );
