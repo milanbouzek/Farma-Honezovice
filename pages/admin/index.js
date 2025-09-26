@@ -4,19 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
 
-const STATUS_ORDER = ["new", "processing", "processed", "canceled"];
-const STATUS_LABELS = {
-  new: "Nová objednávka",
-  processing: "Zpracovává se",
-  processed: "Vyřízená",
-  canceled: "Zrušená",
-};
-const STATUS_COLORS = {
-  new: "bg-red-100",
-  processing: "bg-yellow-100",
-  processed: "bg-green-100",
-  canceled: "bg-green-100",
-};
+const STATUS_FLOW = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -41,7 +29,7 @@ export default function AdminPage() {
         .select("*")
         .order("id", { ascending: true });
       if (error) throw error;
-      setOrders(data);
+      setOrders(data || []);
     } catch (err) {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
@@ -50,25 +38,24 @@ export default function AdminPage() {
   };
 
   const advanceStatus = async (order) => {
-    const currentIndex = STATUS_ORDER.indexOf(order.status);
-    const nextStatus =
-      currentIndex < STATUS_ORDER.length - 1
-        ? STATUS_ORDER[currentIndex + 1]
-        : order.status;
+    const currentIndex = STATUS_FLOW.indexOf(order.status);
+    if (currentIndex === -1 || currentIndex === STATUS_FLOW.length - 1) return;
+
+    const newStatus = STATUS_FLOW[currentIndex + 1];
 
     try {
       const { error } = await supabaseServer
         .from("orders")
-        .update({ status: nextStatus })
+        .update({ status: newStatus })
         .eq("id", order.id);
       if (error) throw error;
 
       setOrders((prev) =>
-        prev.map((o) => (o.id === order.id ? { ...o, status: nextStatus } : o))
+        prev.map((o) => (o.id === order.id ? { ...o, status: newStatus } : o))
       );
-      toast.success(`✅ Status změněn na: ${STATUS_LABELS[nextStatus]}`);
+      toast.success(`✅ Status objednávky změněn na: ${newStatus}`);
     } catch (err) {
-      toast.error("Chyba při aktualizaci objednávky: " + err.message);
+      toast.error("Chyba při aktualizaci statusu: " + err.message);
     }
   };
 
@@ -94,83 +81,73 @@ export default function AdminPage() {
     );
   }
 
-  const ordersBySection = {
-    new: orders.filter((o) => o.status === "new"),
-    processing: orders.filter((o) => o.status === "processing"),
-    done: orders.filter((o) => o.status === "processed" || o.status === "canceled"),
-  };
-
-  const renderTable = (ordersArray) => (
-    <table className="min-w-full bg-white rounded-xl shadow overflow-hidden mb-6">
-      <thead className="bg-gray-200">
-        <tr>
-          <th className="p-2 text-left">ID</th>
-          <th className="p-2 text-left">Jméno</th>
-          <th className="p-2 text-left">Email</th>
-          <th className="p-2 text-left">Telefon</th>
-          <th className="p-2 text-left">Standard</th>
-          <th className="p-2 text-left">LowChol</th>
-          <th className="p-2 text-left">Místo</th>
-          <th className="p-2 text-left">Datum</th>
-          <th className="p-2 text-left">Status</th>
-          <th className="p-2 text-left">Akce</th>
-        </tr>
-      </thead>
-      <tbody>
-        {ordersArray.map((order) => (
-          <tr key={order.id} className="border-b hover:bg-gray-50">
-            <td className="p-2">{order.id}</td>
-            <td className="p-2">{order.customer_name}</td>
-            <td className="p-2">{order.email || "-"}</td>
-            <td className="p-2">{order.phone || "-"}</td>
-            <td className="p-2">{order.standard_quantity}</td>
-            <td className="p-2">{order.low_chol_quantity}</td>
-            <td className="p-2">{order.pickup_location}</td>
-            <td className="p-2">{order.pickup_date}</td>
-            <td className="p-2 font-semibold">{STATUS_LABELS[order.status]}</td>
-            <td className="p-2">
-              {order.status !== "processed" && order.status !== "canceled" && (
-                <button
-                  onClick={() => advanceStatus(order)}
-                  className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                >
-                  Další status
-                </button>
-              )}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  const sections = [
+    { title: "Nové objednávky", status: ["nová objednávka"], color: "red-500" },
+    { title: "Zpracovává se", status: ["zpracovává se"], color: "yellow-400" },
+    { title: "Vyřízené / Zrušené", status: ["vyřízená", "zrušená"], color: "green-500" },
+  ];
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-      {/* Nové objednávky */}
-      {ordersBySection.new.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Nové objednávky</h2>
-          {renderTable(ordersBySection.new)}
-        </div>
-      )}
+      {loading ? (
+        <p>Načítám objednávky...</p>
+      ) : (
+        sections.map((section) => {
+          const filteredOrders = orders.filter((o) => section.status.includes(o.status));
+          if (filteredOrders.length === 0) return null;
 
-      {/* Zpracovává se */}
-      {ordersBySection.processing.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-yellow-600 mb-2">Zpracovává se</h2>
-          {renderTable(ordersBySection.processing)}
-        </div>
-      )}
-
-      {/* Vyřízené / zrušené */}
-      {ordersBySection.done.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-green-600 mb-2">Vyřízené / zrušené</h2>
-          {renderTable(ordersBySection.done)}
-        </div>
+          return (
+            <div key={section.title} className="mb-8">
+              <h2 className={`text-xl font-bold mb-2 text-${section.color}`}>{section.title}</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                  <thead className="bg-gray-200">
+                    <tr>
+                      <th className="p-2 text-left">ID</th>
+                      <th className="p-2 text-left">Jméno</th>
+                      <th className="p-2 text-left">Email</th>
+                      <th className="p-2 text-left">Telefon</th>
+                      <th className="p-2 text-left">Standard</th>
+                      <th className="p-2 text-left">LowChol</th>
+                      <th className="p-2 text-left">Místo</th>
+                      <th className="p-2 text-left">Datum</th>
+                      <th className="p-2 text-left">Status</th>
+                      <th className="p-2 text-left">Akce</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr key={order.id} className="border-b hover:bg-gray-50">
+                        <td className="p-2">{order.id}</td>
+                        <td className="p-2">{order.customer_name}</td>
+                        <td className="p-2">{order.email || "-"}</td>
+                        <td className="p-2">{order.phone || "-"}</td>
+                        <td className="p-2">{order.standard_quantity}</td>
+                        <td className="p-2">{order.low_chol_quantity}</td>
+                        <td className="p-2">{order.pickup_location}</td>
+                        <td className="p-2">{order.pickup_date}</td>
+                        <td className="p-2 font-semibold">{order.status}</td>
+                        <td className="p-2">
+                          {STATUS_FLOW.indexOf(order.status) < STATUS_FLOW.length - 1 && (
+                            <button
+                              onClick={() => advanceStatus(order)}
+                              className={`bg-${section.color} text-white px-2 py-1 rounded hover:opacity-80`}
+                            >
+                              Posunout
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })
       )}
     </div>
   );
