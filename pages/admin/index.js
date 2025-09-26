@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
+
+const STATUS_SECTIONS = [
+  { label: "nová objednávka", color: "#F87171" },    // červená
+  { label: "zpracovává se", color: "#FBBF24" },      // žlutá
+  { label: "vyřízená", color: "#34D399" },          // zelená
+  { label: "zrušená", color: "#34D399" },           // zelená
+];
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
@@ -49,6 +55,69 @@ export default function AdminPage() {
     }
   };
 
+  const renderSection = ({ label, color }) => {
+    const sectionOrders = orders.filter((o) => o.status === label);
+
+    return (
+      <div
+        key={label}
+        className="p-4 mb-6 rounded-lg shadow"
+        style={{ backgroundColor: `${color}20` }}
+      >
+        <h2 className="text-xl font-bold mb-2" style={{ color }}>
+          {label.toUpperCase()}
+        </h2>
+        {sectionOrders.length === 0 ? (
+          <div className="text-gray-500 p-4 border rounded text-center">
+            Žádné objednávky
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="p-2 text-left">ID</th>
+                  <th className="p-2 text-left">Jméno</th>
+                  <th className="p-2 text-left">Email</th>
+                  <th className="p-2 text-left">Telefon</th>
+                  <th className="p-2 text-left">Standard</th>
+                  <th className="p-2 text-left">LowChol</th>
+                  <th className="p-2 text-left">Místo</th>
+                  <th className="p-2 text-left">Datum</th>
+                  <th className="p-2 text-left">Akce</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectionOrders.map((order) => (
+                  <tr key={order.id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">{order.id}</td>
+                    <td className="p-2">{order.customer_name}</td>
+                    <td className="p-2">{order.email || "-"}</td>
+                    <td className="p-2">{order.phone || "-"}</td>
+                    <td className="p-2">{order.standard_quantity}</td>
+                    <td className="p-2">{order.low_chol_quantity}</td>
+                    <td className="p-2">{order.pickup_location}</td>
+                    <td className="p-2">{order.pickup_date}</td>
+                    <td className="p-2">
+                      {order.status !== STATUS_SECTIONS[STATUS_SECTIONS.length - 1].label && (
+                        <button
+                          onClick={() => advanceStatus(order.id)}
+                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                        >
+                          Další stav
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -71,60 +140,6 @@ export default function AdminPage() {
     );
   }
 
-  const renderSection = (statusLabel, color) => {
-    const sectionOrders = orders.filter((o) => o.status === statusLabel);
-    if (!sectionOrders.length) return null;
-
-    return (
-      <div className="mb-6">
-        <h2 className={`text-xl font-bold mb-2`} style={{ color }}>
-          {statusLabel.toUpperCase()}
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="p-2 text-left">ID</th>
-                <th className="p-2 text-left">Jméno</th>
-                <th className="p-2 text-left">Email</th>
-                <th className="p-2 text-left">Telefon</th>
-                <th className="p-2 text-left">Standard</th>
-                <th className="p-2 text-left">LowChol</th>
-                <th className="p-2 text-left">Místo</th>
-                <th className="p-2 text-left">Datum</th>
-                <th className="p-2 text-left">Akce</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sectionOrders.map((order) => (
-                <tr key={order.id} className="border-b hover:bg-gray-50">
-                  <td className="p-2">{order.id}</td>
-                  <td className="p-2">{order.customer_name}</td>
-                  <td className="p-2">{order.email || "-"}</td>
-                  <td className="p-2">{order.phone || "-"}</td>
-                  <td className="p-2">{order.standard_quantity}</td>
-                  <td className="p-2">{order.low_chol_quantity}</td>
-                  <td className="p-2">{order.pickup_location}</td>
-                  <td className="p-2">{order.pickup_date}</td>
-                  <td className="p-2">
-                    {order.status !== STATUSES[STATUSES.length - 1] && (
-                      <button
-                        onClick={() => advanceStatus(order.id)}
-                        className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                      >
-                        Další stav
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <Toaster position="top-center" />
@@ -132,12 +147,7 @@ export default function AdminPage() {
       {loading ? (
         <p>Načítám objednávky...</p>
       ) : (
-        <>
-          {renderSection("nová objednávka", "red")}
-          {renderSection("zpracovává se", "orange")}
-          {renderSection("vyřízená", "green")}
-          {renderSection("zrušená", "green")}
-        </>
+        STATUS_SECTIONS.map(renderSection)
       )}
     </div>
   );
