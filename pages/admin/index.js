@@ -27,14 +27,11 @@ function StockBox() {
       const res = await fetch("/api/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          standard_quantity: standard,
-          low_chol_quantity: lowChol,
-        }),
+        body: JSON.stringify({ standard_quantity: standard, low_chol_quantity: lowChol }),
       });
       const data = await res.json();
       if (res.ok) {
-        setStock(data);
+        setStock({ standardQuantity: standard, lowCholQuantity: lowChol });
         setEditMode(false);
         toast.success("Sklad úspěšně aktualizován");
       } else {
@@ -89,12 +86,8 @@ function StockBox() {
         </div>
       ) : (
         <div className="flex gap-6 items-center">
-          <p>
-            <b>Standard:</b> {stock.standardQuantity}
-          </p>
-          <p>
-            <b>LowChol:</b> {stock.lowCholQuantity}
-          </p>
+          <p><b>Standard:</b> {stock.standardQuantity}</p>
+          <p><b>LowChol:</b> {stock.lowCholQuantity}</p>
           <button
             onClick={() => setEditMode(true)}
             className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
@@ -107,60 +100,12 @@ function StockBox() {
   );
 }
 
-function OrderSection({ statusLabel, color, orders, onAdvance }) {
-  const sectionOrders = orders.filter((o) => o.status === statusLabel);
-
-  return (
-    <div
-      className={`p-4 rounded-xl mb-4`}
-      style={{ backgroundColor: color, minHeight: "80px" }}
-    >
-      <h2 className="text-xl font-bold mb-2">{statusLabel.toUpperCase()}</h2>
-      {sectionOrders.length === 0 ? (
-        <p>Žádné objednávky</p>
-      ) : (
-        sectionOrders.map((order) => (
-          <div
-            key={order.id}
-            className="flex justify-between items-center border-b py-2"
-          >
-            <div>
-              <p>
-                <b>ID:</b> {order.id}
-              </p>
-              <p>
-                <b>Jméno:</b> {order.customer_name}
-              </p>
-              <p>
-                <b>Telefon:</b> {order.phone}
-              </p>
-              <p>
-                <b>Standard:</b> {order.standard_quantity}
-              </p>
-              <p>
-                <b>LowChol:</b> {order.low_chol_quantity}
-              </p>
-            </div>
-            {order.status !== STATUSES[STATUSES.length - 1] && (
-              <button
-                onClick={() => onAdvance(order.id)}
-                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-              >
-                Další stav
-              </button>
-            )}
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -192,14 +137,12 @@ export default function AdminPage() {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      if (res.ok) {
-        toast.success(`Objednávka ${id} → ${data.status}`);
-        fetchOrders();
-      } else {
-        toast.error(data.error || "Chyba při změně stavu");
-      }
+      setOrders((prev) =>
+        prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o))
+      );
+      toast.success("✅ Status změněn na: " + data.status);
     } catch (err) {
-      toast.error("Chyba: " + err.message);
+      toast.error("Chyba při změně statusu: " + err.message);
     }
   };
 
@@ -232,42 +175,79 @@ export default function AdminPage() {
     );
   }
 
+  const renderSection = (statusLabel, color, collapsible = false) => {
+    const sectionOrders = orders.filter((o) => o.status === statusLabel);
+    if (!sectionOrders.length && !collapsible) return null;
+
+    return (
+      <div className={`mb-6 p-4 rounded-xl`} style={{ backgroundColor: color + "20" }}>
+        <h2
+          className="text-xl font-bold mb-2 cursor-pointer select-none"
+          onClick={() => collapsible && setShowCompleted(!showCompleted)}
+        >
+          {statusLabel.toUpperCase()} {collapsible && `(${sectionOrders.length})`}
+        </h2>
+        {(!collapsible || showCompleted) && sectionOrders.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
+              <thead className="bg-gray-200">
+                <tr>
+                  <th className="p-2 text-left">ID</th>
+                  <th className="p-2 text-left">Jméno</th>
+                  <th className="p-2 text-left">Email</th>
+                  <th className="p-2 text-left">Telefon</th>
+                  <th className="p-2 text-left">Standard</th>
+                  <th className="p-2 text-left">LowChol</th>
+                  <th className="p-2 text-left">Místo</th>
+                  <th className="p-2 text-left">Datum</th>
+                  <th className="p-2 text-left">Akce</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sectionOrders.map((order) => (
+                  <tr key={order.id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">{order.id}</td>
+                    <td className="p-2">{order.customer_name}</td>
+                    <td className="p-2">{order.email || "-"}</td>
+                    <td className="p-2">{order.phone || "-"}</td>
+                    <td className="p-2">{order.standard_quantity}</td>
+                    <td className="p-2">{order.low_chol_quantity}</td>
+                    <td className="p-2">{order.pickup_location}</td>
+                    <td className="p-2">{order.pickup_date}</td>
+                    <td className="p-2">
+                      {order.status !== STATUSES[STATUSES.length - 1] &&
+                        order.status !== "zrušená" && (
+                        <button
+                          onClick={() => advanceStatus(order.id)}
+                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                        >
+                          Další stav
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
-
-      {/* Box se skladem */}
       <StockBox />
-
       {loading ? (
         <p>Načítám objednávky...</p>
       ) : (
         <>
-          <OrderSection
-            statusLabel="nová objednávka"
-            color="#fca5a5" // červená
-            orders={orders}
-            onAdvance={advanceStatus}
-          />
-          <OrderSection
-            statusLabel="zpracovává se"
-            color="#facc15" // oranžová
-            orders={orders}
-            onAdvance={advanceStatus}
-          />
-          <OrderSection
-            statusLabel="vyřízená"
-            color="#86efac" // zelená
-            orders={orders}
-            onAdvance={advanceStatus}
-          />
-          <OrderSection
-            statusLabel="zrušená"
-            color="#86efac" // zelená
-            orders={orders}
-            onAdvance={advanceStatus}
-          />
+          {renderSection("nová objednávka", "red")}
+          {renderSection("zpracovává se", "orange")}
+          {renderSection("vyřízená", "green", true)}
+          {renderSection("zrušená", "green", true)}
         </>
       )}
     </div>
