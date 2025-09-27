@@ -44,10 +44,6 @@ export default function Home() {
       </div>
 
 p>
-
-  {/* Zobrazení stavu vajec */}
-  <StockBox />
-
           
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
@@ -76,5 +72,6 @@ p>
     </Layout>
   );
 }
+
 
 
