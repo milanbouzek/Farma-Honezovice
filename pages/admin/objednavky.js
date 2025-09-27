@@ -52,3 +52,23 @@ export default function OrdersPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <AdminLayout>
+      <Toaster position="top-center" />
+      <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
+      <StockBox />
+      {loading ? <p>Načítám objednávky…</p> : <OrdersTable orders={orders} refreshOrders={fetchOrders} />}
+    </AdminLayout>
+  );
+}
