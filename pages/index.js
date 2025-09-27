@@ -43,6 +43,12 @@ export default function Home() {
         <p>🥚 Vejce se sníženým cholesterolem: <strong className="text-green-700 text-xl">{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
       </div>
 
+p>
+
+  {/* Zobrazení stavu vajec */}
+  <StockBox />
+
+          
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
         <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
@@ -70,4 +76,5 @@ export default function Home() {
     </Layout>
   );
 }
+
 
