@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
+import NavMenu from "../../components/NavMenu";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
 const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
@@ -42,9 +43,7 @@ export default function AdminPage() {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      setOrders((prev) =>
-        prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o))
-      );
+      setOrders((prev) => prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o)));
       toast.success("✅ Status změněn na: " + data.status);
     } catch (err) {
       toast.error("Chyba při změně statusu: " + err.message);
@@ -81,137 +80,96 @@ export default function AdminPage() {
     );
   }
 
-  const renderSection = (statusLabel, color, hideIfEmpty = false) => {
-    const sectionOrders = orders.filter((o) => o.status === statusLabel);
-    if (!sectionOrders.length && hideIfEmpty) return null;
+  // Filtrace sekcí
+  const newOrders = orders.filter((o) => o.status === "nová objednávka");
+  const processingOrders = orders.filter((o) => o.status === "zpracovává se");
+  const completedOrders = orders.filter((o) => o.status === "vyřízená" || o.status === "zrušená");
 
-    const sectionTitle = statusLabel.toUpperCase();
-    return (
-      <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-        <h2 className="text-xl font-bold mb-2" style={{ color }}>
-          {sectionTitle}
-        </h2>
-        {sectionOrders.length === 0 ? (
-          <p className="italic text-gray-500">Žádné objednávky</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="p-2 text-left">ID</th>
-                  <th className="p-2 text-left">Jméno</th>
-                  <th className="p-2 text-left">Email</th>
-                  <th className="p-2 text-left">Telefon</th>
-                  <th className="p-2 text-left">Standard</th>
-                  <th className="p-2 text-left">LowChol</th>
-                  <th className="p-2 text-left">Místo</th>
-                  <th className="p-2 text-left">Datum</th>
-                  <th className="p-2 text-left">Akce</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sectionOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b hover:bg-gray-50"
-                    style={{
-                      backgroundColor:
-                        order.status === "nová objednávka"
-                          ? "#fee2e2"
-                          : order.status === "zpracovává se"
-                          ? "#fef9c3"
-                          : "#d1fae5",
-                    }}
+  const renderTable = (data, color) => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
+        <thead className="bg-gray-200">
+          <tr>
+            <th className="p-2 text-left">ID</th>
+            <th className="p-2 text-left">Jméno</th>
+            <th className="p-2 text-left">Email</th>
+            <th className="p-2 text-left">Telefon</th>
+            <th className="p-2 text-left">Standard</th>
+            <th className="p-2 text-left">LowChol</th>
+            <th className="p-2 text-left">Místo</th>
+            <th className="p-2 text-left">Datum</th>
+            <th className="p-2 text-left">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((order) => (
+            <tr key={order.id} style={{ backgroundColor: color }} className="border-b hover:bg-gray-50">
+              <td className="p-2">{order.id}</td>
+              <td className="p-2">{order.customer_name}</td>
+              <td className="p-2">{order.email || "-"}</td>
+              <td className="p-2">{order.phone || "-"}</td>
+              <td className="p-2">{order.standard_quantity}</td>
+              <td className="p-2">{order.low_chol_quantity}</td>
+              <td className="p-2">{order.pickup_location}</td>
+              <td className="p-2">{order.pickup_date}</td>
+              <td className="p-2">
+                {order.status !== STATUSES[STATUSES.length - 1] && (
+                  <button
+                    onClick={() => advanceStatus(order.id)}
+                    className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
                   >
-                    <td className="p-2">{order.id}</td>
-                    <td className="p-2">{order.customer_name}</td>
-                    <td className="p-2">{order.email || "-"}</td>
-                    <td className="p-2">{order.phone || "-"}</td>
-                    <td className="p-2">{order.standard_quantity}</td>
-                    <td className="p-2">{order.low_chol_quantity}</td>
-                    <td className="p-2">{order.pickup_location}</td>
-                    <td className="p-2">{order.pickup_date}</td>
-                    <td className="p-2">
-                      {order.status !== STATUSES[STATUSES.length - 1] && (
-                        <button
-                          onClick={() => advanceStatus(order.id)}
-                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                        >
-                          Další stav
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const completedOrders = orders.filter(
-    (o) => o.status === "vyřízená" || o.status === "zrušená"
+                    Další stav
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <Toaster position="top-center" />
-      <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
+    <div className="min-h-screen bg-gray-100">
+      <NavMenu />
+      <div className="p-6">
+        <Toaster position="top-center" />
+        <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-      {/* Stav skladu */}
-      <StockBox />
+        {/* Stock */}
+        <StockBox />
 
-      {/* Sekce nová */}
-      {renderSection("nová objednávka", "red", true)}
-
-      {/* Sekce zpracovává se */}
-      {renderSection("zpracovává se", "orange", true)}
-
-      {/* Sekce vyřízené / zrušené s rozklikem */}
-      <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-        <button
-          onClick={() => setShowCompleted(!showCompleted)}
-          className="text-left w-full font-bold text-green-700"
-        >
-          {showCompleted ? "▼ Dokončené a zrušené objednávky" : "► Dokončené a zrušené objednávky"}
-        </button>
-        {showCompleted && completedOrders.length > 0 && (
-          <div className="overflow-x-auto mt-2">
-            <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="p-2 text-left">ID</th>
-                  <th className="p-2 text-left">Jméno</th>
-                  <th className="p-2 text-left">Email</th>
-                  <th className="p-2 text-left">Telefon</th>
-                  <th className="p-2 text-left">Standard</th>
-                  <th className="p-2 text-left">LowChol</th>
-                  <th className="p-2 text-left">Místo</th>
-                  <th className="p-2 text-left">Datum</th>
-                  <th className="p-2 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedOrders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-gray-50 bg-green-100">
-                    <td className="p-2">{order.id}</td>
-                    <td className="p-2">{order.customer_name}</td>
-                    <td className="p-2">{order.email || "-"}</td>
-                    <td className="p-2">{order.phone || "-"}</td>
-                    <td className="p-2">{order.standard_quantity}</td>
-                    <td className="p-2">{order.low_chol_quantity}</td>
-                    <td className="p-2">{order.pickup_location}</td>
-                    <td className="p-2">{order.pickup_date}</td>
-                    <td className="p-2">{order.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Nové */}
+        {newOrders.length > 0 && (
+          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+            <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
+            {renderTable(newOrders, "#fee2e2")}
           </div>
         )}
-        {showCompleted && completedOrders.length === 0 && <p className="italic text-gray-500 mt-2">Žádné objednávky</p>}
+
+        {/* Zpracovává se */}
+        {processingOrders.length > 0 && (
+          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+            <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
+            {renderTable(processingOrders, "#fef9c3")}
+          </div>
+        )}
+
+        {/* Vyřízené / zrušené */}
+        <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+          <button
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="text-left w-full font-bold text-green-700"
+          >
+            {showCompleted
+              ? "▼ Dokončené a zrušené objednávky"
+              : "► Dokončené a zrušené objednávky"}
+          </button>
+          {showCompleted && completedOrders.length > 0 && renderTable(completedOrders, "#d1fae5")}
+          {showCompleted && completedOrders.length === 0 && (
+            <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
+          )}
+        </div>
       </div>
     </div>
   );
