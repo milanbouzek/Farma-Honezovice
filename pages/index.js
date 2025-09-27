@@ -1,6 +1,7 @@
 import Layout from "../components/Layout";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import StockBox from "../components/StockBox";
 
 export default function Home() {
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
@@ -69,3 +70,4 @@ export default function Home() {
     </Layout>
   );
 }
+
