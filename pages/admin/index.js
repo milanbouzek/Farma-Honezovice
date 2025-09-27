@@ -14,9 +14,13 @@ function StockBox() {
     try {
       const res = await fetch("/api/stock");
       const data = await res.json();
-      setStock(data);
-      setStandard(data.standard_quantity);
-      setLowChol(data.low_chol_quantity);
+      if (res.ok) {
+        setStock(data.stock);
+        setStandard(data.stock.standard_quantity);
+        setLowChol(data.stock.low_chol_quantity);
+      } else {
+        toast.error(data.error || "Chyba při načítání skladu");
+      }
     } catch (err) {
       toast.error("Chyba při načítání skladu: " + err.message);
     }
@@ -27,11 +31,14 @@ function StockBox() {
       const res = await fetch("/api/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ standard_quantity: standard, low_chol_quantity: lowChol }),
+        body: JSON.stringify({
+          standard_quantity: standard,
+          low_chol_quantity: lowChol,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        setStock(data);
+        setStock(data.stock);
         setEditMode(false);
         toast.success("Sklad úspěšně aktualizován");
       } else {
@@ -86,8 +93,16 @@ function StockBox() {
         </div>
       ) : (
         <div className="flex gap-6 items-center">
-          <p><b>Standard:</b> {stock.standard_quantity}</p>
-          <p><b>LowChol:</b> {stock.low_chol_quantity}</p>
+          <p>
+            <b>Standard:</b> {stock.standard_quantity}
+          </p>
+          <p>
+            <b>LowChol:</b> {stock.low_chol_quantity}
+          </p>
+          <p>
+            <b>Celkem vajec:</b>{" "}
+            {stock.standard_quantity + stock.low_chol_quantity}
+          </p>
           <button
             onClick={() => setEditMode(true)}
             className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
@@ -119,22 +134,22 @@ export default function AdminPage() {
     }
   };
 
-  const advanceStatus = async (id) => {
+  const updateStatus = async (id) => {
     try {
       const res = await fetch("/api/admin/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      const data = await res.json();
       if (res.ok) {
-        await fetchOrders();
-        toast.success("Stav objednávky aktualizován");
+        toast.success("Stav objednávky posunut");
+        fetchOrders();
       } else {
-        const err = await res.json();
-        toast.error(err.error || "Chyba při změně stavu");
+        toast.error(data.error || "Chyba při změně stavu");
       }
     } catch (err) {
-      toast.error("Chyba při změně stavu: " + err.message);
+      toast.error("Chyba: " + err.message);
     }
   };
 
@@ -157,110 +172,61 @@ export default function AdminPage() {
   const renderSection = (status, title) => {
     const sectionOrders = orders.filter((o) => o.status === status);
 
+    let sectionColor = "";
+    if (status === "nová objednávka") sectionColor = "bg-red-100";
+    else if (status === "zpracovává se") sectionColor = "bg-yellow-100";
+    else if (status === "vyřízená" || status === "zrušená")
+      sectionColor = "bg-green-100";
+
+    const renderTable = () => (
+      <table className="w-full border bg-white">
+        <thead>
+          <tr className="bg-gray-200">
+            <th className="border px-2 py-1">ID</th>
+            <th className="border px-2 py-1">Status</th>
+            <th className="border px-2 py-1">Vytvořeno</th>
+            <th className="border px-2 py-1">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sectionOrders.map((order) => (
+            <tr key={order.id}>
+              <td className="border px-2 py-1">{order.id}</td>
+              <td className="border px-2 py-1">{order.status}</td>
+              <td className="border px-2 py-1">{order.created_at}</td>
+              <td className="border px-2 py-1 text-center">
+                <button
+                  onClick={() => updateStatus(order.id)}
+                  className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                >
+                  Posunout stav
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+
     if (status === "vyřízená" || status === "zrušená") {
       return (
-        <div className="bg-white shadow p-4 rounded-xl mb-6">
+        <div key={status} className={`${sectionColor} shadow p-4 rounded-xl mb-6`}>
           <details>
-            <summary className="cursor-pointer font-bold text-lg">{title} ({sectionOrders.length})</summary>
-            {sectionOrders.length === 0 ? (
-              <p className="mt-2">Žádné objednávky</p>
-            ) : (
-              <table className="w-full border mt-2">
-                <thead>
-                  <tr className="bg-gray-200">
-                    <th className="p-2">ID</th>
-                    <th className="p-2">Jméno</th>
-                    <th className="p-2">Email</th>
-                    <th className="p-2">Telefon</th>
-                    <th className="p-2">Standard</th>
-                    <th className="p-2">LowChol</th>
-                    <th className="p-2">Místo odběru</th>
-                    <th className="p-2">Datum odběru</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sectionOrders.map((order) => {
-                    let rowColor = "";
-                    if (order.status === "nová objednávka") rowColor = "bg-red-100";
-                    else if (order.status === "zpracovává se") rowColor = "bg-yellow-100";
-                    else if (order.status === "vyřízená" || order.status === "zrušená")
-                      rowColor = "bg-green-100";
-
-                    return (
-                      <tr key={order.id} className={`${rowColor} border-b`}>
-                        <td className="p-2">{order.id}</td>
-                        <td className="p-2">{order.customer_name}</td>
-                        <td className="p-2">{order.email || "-"}</td>
-                        <td className="p-2">{order.phone || "-"}</td>
-                        <td className="p-2">{order.standard_quantity}</td>
-                        <td className="p-2">{order.low_chol_quantity}</td>
-                        <td className="p-2">{order.pickup_location}</td>
-                        <td className="p-2">{order.pickup_date}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+            <summary className="cursor-pointer font-bold text-lg">
+              {title} ({sectionOrders.length})
+            </summary>
+            {sectionOrders.length > 0 && renderTable()}
           </details>
         </div>
       );
     }
 
     return (
-      <div className="bg-white shadow p-4 rounded-xl mb-6">
-        <h2 className="font-bold text-lg mb-2">{title}</h2>
-        {sectionOrders.length === 0 ? (
-          <p>Žádné objednávky</p>
-        ) : (
-          <table className="w-full border">
-            <thead>
-              <tr className="bg-gray-200">
-                <th className="p-2">ID</th>
-                <th className="p-2">Jméno</th>
-                <th className="p-2">Email</th>
-                <th className="p-2">Telefon</th>
-                <th className="p-2">Standard</th>
-                <th className="p-2">LowChol</th>
-                <th className="p-2">Místo odběru</th>
-                <th className="p-2">Datum odběru</th>
-                <th className="p-2">Akce</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sectionOrders.map((order) => {
-                let rowColor = "";
-                if (order.status === "nová objednávka") rowColor = "bg-red-100";
-                else if (order.status === "zpracovává se") rowColor = "bg-yellow-100";
-                else if (order.status === "vyřízená" || order.status === "zrušená")
-                  rowColor = "bg-green-100";
-
-                return (
-                  <tr key={order.id} className={`${rowColor} border-b hover:opacity-80`}>
-                    <td className="p-2">{order.id}</td>
-                    <td className="p-2">{order.customer_name}</td>
-                    <td className="p-2">{order.email || "-"}</td>
-                    <td className="p-2">{order.phone || "-"}</td>
-                    <td className="p-2">{order.standard_quantity}</td>
-                    <td className="p-2">{order.low_chol_quantity}</td>
-                    <td className="p-2">{order.pickup_location}</td>
-                    <td className="p-2">{order.pickup_date}</td>
-                    <td className="p-2">
-                      {order.status !== "vyřízená" && order.status !== "zrušená" && (
-                        <button
-                          onClick={() => advanceStatus(order.id)}
-                          className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                        >
-                          Další stav
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+      <div key={status} className={`${sectionColor} shadow p-4 rounded-xl mb-6`}>
+        <h2 className="font-bold text-lg mb-2">
+          {title} ({sectionOrders.length})
+        </h2>
+        {sectionOrders.length > 0 ? renderTable() : <p>Žádné objednávky</p>}
       </div>
     );
   };
@@ -301,8 +267,8 @@ export default function AdminPage() {
         <>
           {renderSection("nová objednávka", "Nové objednávky")}
           {renderSection("zpracovává se", "Zpracovává se")}
-          {renderSection("vyřízená", "Vyřízené objednávky")}
-          {renderSection("zrušená", "Zrušené objednávky")}
+          {renderSection("vyřízená", "Vyřízené")}
+          {renderSection("zrušená", "Zrušené")}
         </>
       )}
     </div>
