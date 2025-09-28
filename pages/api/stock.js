@@ -12,50 +12,45 @@ export default async function handler(req, res) {
       if (error) throw error;
 
       if (!data) {
-        return res.status(200).json({
-          stock: { standard_quantity: 0, low_chol_quantity: 0 },
-        });
+        return res.status(200).json({ standardQuantity: 0, lowCholQuantity: 0 });
       }
 
+      // ✅ sjednocený formát
       return res.status(200).json({
-        stock: {
-          standard_quantity: data.standard_quantity,
-          low_chol_quantity: data.low_chol_quantity,
-        },
+        standardQuantity: data.standard_quantity,
+        lowCholQuantity: data.low_chol_quantity,
       });
     }
 
     if (req.method === "POST") {
-      const { standard_quantity, low_chol_quantity } = req.body;
+      const { standardQuantity, lowCholQuantity } = req.body;
 
       if (
-        standard_quantity === undefined ||
-        low_chol_quantity === undefined
+        standardQuantity === undefined ||
+        lowCholQuantity === undefined
       ) {
         return res.status(400).json({ error: "Chybí hodnoty skladu" });
       }
 
-      if (standard_quantity < 0 || low_chol_quantity < 0) {
+      if (standardQuantity < 0 || lowCholQuantity < 0) {
         return res.status(400).json({ error: "Hodnoty musí být >= 0" });
       }
 
       const { data, error } = await supabaseServer
         .from("eggs_stock")
         .update({
-          standard_quantity,
-          low_chol_quantity,
+          standard_quantity: standardQuantity,
+          low_chol_quantity: lowCholQuantity,
         })
-        .eq("id", 1) // předpoklad: máš jen jeden záznam
+        .eq("id", 1)
         .select("standard_quantity, low_chol_quantity")
         .single();
 
       if (error) throw error;
 
       return res.status(200).json({
-        stock: {
-          standard_quantity: data.standard_quantity,
-          low_chol_quantity: data.low_chol_quantity,
-        },
+        standardQuantity: data.standard_quantity,
+        lowCholQuantity: data.low_chol_quantity,
       });
     }
 
