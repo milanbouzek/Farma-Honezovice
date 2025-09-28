@@ -1,11 +1,11 @@
 // components/StockBox.js
 import { useState } from "react";
 
-export default function StockBox({ stock, editable = false, onSave }) {
+export default function StockBox({ stock = {}, editable = false, onSave }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
-    standardQuantity: stock.standardQuantity || 0,
-    lowCholQuantity: stock.lowCholQuantity || 0,
+    standardQuantity: stock.standardQuantity ?? 0,
+    lowCholQuantity: stock.lowCholQuantity ?? 0,
   });
 
   const handleSave = () => {
@@ -21,14 +21,14 @@ export default function StockBox({ stock, editable = false, onSave }) {
       <p>
         🥚 Standardní vejce:{" "}
         <strong className="text-green-700 text-xl">
-          {stock.standardQuantity}
+          {stock.standardQuantity ?? 0}
         </strong>{" "}
         ks (5 Kč/ks)
       </p>
       <p>
         🥚 Vejce se sníženým cholesterolem:{" "}
         <strong className="text-green-700 text-xl">
-          {stock.lowCholQuantity}
+          {stock.lowCholQuantity ?? 0}
         </strong>{" "}
         ks (7 Kč/ks)
       </p>
