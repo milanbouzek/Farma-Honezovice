@@ -1,27 +1,9 @@
 import Layout from "../components/Layout";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import StockBox from "../components/StockBox";
 
 export default function Home() {
-  const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
   const router = useRouter();
-
-  useEffect(() => {
-    async function fetchStock() {
-      try {
-        const res = await fetch("/api/stock");
-        const data = await res.json();
-        setStock({
-          standardQuantity: data.standardQuantity || 0,
-          lowCholQuantity: data.lowCholQuantity || 0,
-        });
-      } catch {
-        setStock({ standardQuantity: 0, lowCholQuantity: 0 });
-      }
-    }
-    fetchStock();
-  }, []);
 
   return (
     <Layout>
@@ -37,14 +19,9 @@ export default function Home() {
         Maximálně lze prodat <strong>60 vajec jednomu spotřebiteli za týden</strong>.
       </p>
 
-      <div className="mb-4 text-lg text-gray-700">
-        <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>🥚 Standardní vejce: <strong className="text-green-700 text-xl">{stock.standardQuantity}</strong> ks (5 Kč/ks)</p>
-        <p>🥚 Vejce se sníženým cholesterolem: <strong className="text-green-700 text-xl">{stock.lowCholQuantity}</strong> ks (7 Kč/ks)</p>
-      </div>
+      {/* Tady se vykreslí komponenta se stavem skladu */}
+      <StockBox />
 
-p>
-          
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
         <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
@@ -72,7 +49,3 @@ p>
     </Layout>
   );
 }
-
-
-
-
