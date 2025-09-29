@@ -137,7 +137,7 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
         {/* Stock */}
-        <StockBox />
+      <StockBox editable={true} />
 
         {/* Nové */}
         {newOrders.length > 0 && (
