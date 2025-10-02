@@ -3,54 +3,84 @@ import { supabaseServer } from "../../lib/supabaseServerClient";
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      const { data, error } = await supabaseServer
+      // Načtení zásob
+      const { data: stockData, error: stockError } = await supabaseServer
         .from("eggs_stock")
         .select("standard_quantity, low_chol_quantity")
-        .limit(1)
+        .eq("id", 1)
         .maybeSingle();
+      if (stockError) throw stockError;
 
-      if (error) throw error;
+      // Načtení cen
+      const { data: priceData, error: priceError } = await supabaseServer
+        .from("eggs_prices")
+        .select("standard_price, low_chol_price")
+        .eq("id", 1)
+        .maybeSingle();
+      if (priceError) throw priceError;
 
-      if (!data) {
-        return res.status(200).json({ standardQuantity: 0, lowCholQuantity: 0 });
-      }
-
-      // ✅ sjednocený formát
       return res.status(200).json({
-        standardQuantity: data.standard_quantity,
-        lowCholQuantity: data.low_chol_quantity,
+        standardQuantity: stockData?.standard_quantity || 0,
+        lowCholQuantity: stockData?.low_chol_quantity || 0,
+        standardPrice: priceData?.standard_price || 0,
+        lowCholPrice: priceData?.low_chol_price || 0,
       });
     }
 
     if (req.method === "POST") {
-      const { standardQuantity, lowCholQuantity } = req.body;
+      const {
+        standardQuantity,
+        lowCholQuantity,
+        standardPrice,
+        lowCholPrice,
+      } = req.body;
 
+      // Validace
       if (
         standardQuantity === undefined ||
-        lowCholQuantity === undefined
+        lowCholQuantity === undefined ||
+        standardPrice === undefined ||
+        lowCholPrice === undefined
       ) {
-        return res.status(400).json({ error: "Chybí hodnoty skladu" });
+        return res.status(400).json({ error: "Chybí hodnoty skladu nebo ceny" });
       }
 
-      if (standardQuantity < 0 || lowCholQuantity < 0) {
+      if (
+        standardQuantity < 0 || lowCholQuantity < 0 ||
+        standardPrice < 0 || lowCholPrice < 0
+      ) {
         return res.status(400).json({ error: "Hodnoty musí být >= 0" });
       }
 
-      const { data, error } = await supabaseServer
+      // Aktualizace zásob
+      const { data: stockUpdated, error: stockUpdateError } = await supabaseServer
         .from("eggs_stock")
         .update({
           standard_quantity: standardQuantity,
           low_chol_quantity: lowCholQuantity,
         })
         .eq("id", 1)
-        .select("standard_quantity, low_chol_quantity")
+        .select()
         .single();
+      if (stockUpdateError) throw stockUpdateError;
 
-      if (error) throw error;
+      // Aktualizace cen
+      const { data: priceUpdated, error: priceUpdateError } = await supabaseServer
+        .from("eggs_prices")
+        .update({
+          standard_price: standardPrice,
+          low_chol_price: lowCholPrice,
+        })
+        .eq("id", 1)
+        .select()
+        .single();
+      if (priceUpdateError) throw priceUpdateError;
 
       return res.status(200).json({
-        standardQuantity: data.standard_quantity,
-        lowCholQuantity: data.low_chol_quantity,
+        standardQuantity: stockUpdated.standard_quantity,
+        lowCholQuantity: stockUpdated.low_chol_quantity,
+        standardPrice: priceUpdated.standard_price,
+        lowCholPrice: priceUpdated.low_chol_price,
       });
     }
 
