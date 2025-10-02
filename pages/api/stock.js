@@ -22,18 +22,14 @@ export default async function handler(req, res) {
       return res.status(200).json({
         standardQuantity: stockData?.standard_quantity || 0,
         lowCholQuantity: stockData?.low_chol_quantity || 0,
-        standardPrice: priceData?.standard_price || 0,
-        lowCholPrice: priceData?.low_chol_price || 0,
+        standardPrice: priceData?.standard_price ? Number(priceData.standard_price) : 0,
+        lowCholPrice: priceData?.low_chol_price ? Number(priceData.low_chol_price) : 0,
       });
     }
 
     if (req.method === "POST") {
-      const {
-        standardQuantity,
-        lowCholQuantity,
-        standardPrice,
-        lowCholPrice,
-      } = req.body;
+      // TODO: ověření admin práv (např. podle session / tokenu)
+      const { standardQuantity, lowCholQuantity, standardPrice, lowCholPrice } = req.body;
 
       // Validace
       if (
@@ -79,8 +75,8 @@ export default async function handler(req, res) {
       return res.status(200).json({
         standardQuantity: stockUpdated.standard_quantity,
         lowCholQuantity: stockUpdated.low_chol_quantity,
-        standardPrice: priceUpdated.standard_price,
-        lowCholPrice: priceUpdated.low_chol_price,
+        standardPrice: Number(priceUpdated.standard_price),
+        lowCholPrice: Number(priceUpdated.low_chol_price),
       });
     }
 
