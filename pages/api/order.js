@@ -25,7 +25,7 @@ async function sendWhatsAppTemplate({
   standardQty,
   lowCholQty,
   pickupLocation,
-  pickupDate
+  pickupDate,
 }) {
   try {
     const vars = {
@@ -37,8 +37,6 @@ async function sendWhatsAppTemplate({
       "6": String(pickupLocation || "—"),
       "7": String(pickupDate || "—"),
     };
-
-    console.log("Sending WhatsApp template with variables:", vars);
 
     const message = await client.messages.create({
       from: `whatsapp:${TWILIO_WHATSAPP_NUMBER}`,
@@ -74,17 +72,19 @@ export default async function handler(req, res) {
         standardQuantity,
         lowCholQuantity,
         pickupLocation,
-        pickupDate
+        pickupDate,
       } = req.body;
 
       if (!name || !pickupLocation || !pickupDate) {
-        return res.status(400).json({ success: false, error: "Neplatná data." });
+        return res
+          .status(400)
+          .json({ success: false, error: "Neplatná data." });
       }
 
       const standardQty = Number(standardQuantity);
       const lowCholQty = Number(lowCholQuantity);
 
-      // Načtení skladu
+      // 🥚 Načtení skladu
       const { data: stockData, error: stockError } = await supabaseServer
         .from("eggs_stock")
         .select("id, standard_quantity, low_chol_quantity")
@@ -92,16 +92,41 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (stockError) throw stockError;
-      if (!stockData) return res.status(400).json({ success: false, error: "Sklad nenalezen." });
+      if (!stockData)
+        return res
+          .status(400)
+          .json({ success: false, error: "Sklad nenalezen." });
 
-      if (stockData.standard_quantity < standardQty || stockData.low_chol_quantity < lowCholQty) {
-        return res.status(400).json({ success: false, error: "Nedostatek vajec ve skladu." });
+      if (
+        stockData.standard_quantity < standardQty ||
+        stockData.low_chol_quantity < lowCholQty
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Nedostatek vajec ve skladu." });
       }
+
+      // 💰 Načtení aktuálních cen
+      const { data: priceData, error: priceError } = await supabaseServer
+        .from("eggs_prices")
+        .select("standard_price, low_chol_price")
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (priceError) throw priceError;
+      if (!priceData)
+        return res
+          .status(400)
+          .json({ success: false, error: "Ceník nenalezen." });
+
+      const { standard_price, low_chol_price } = priceData;
+      const totalPrice = standardQty * standard_price + lowCholQty * low_chol_price;
 
       const newStandard = stockData.standard_quantity - standardQty;
       const newLowChol = stockData.low_chol_quantity - lowCholQty;
 
-      // Uložení objednávky
+      // 📝 Uložení objednávky
       const { data: newOrder, error: insertError } = await supabaseServer
         .from("orders")
         .insert([
@@ -114,22 +139,26 @@ export default async function handler(req, res) {
             pickup_location: pickupLocation,
             pickup_date: parseCZDate(pickupDate),
             status: STATUSES[0], // nová objednávka
+            payment_total: totalPrice, // ✅ uložíme cenu
           },
         ])
-        .select("id, status")
+        .select("id, status, payment_total")
         .single();
 
       if (insertError) throw insertError;
 
-      // Update skladu
+      // 📦 Update skladu
       const { error: updateError } = await supabaseServer
         .from("eggs_stock")
-        .update({ standard_quantity: newStandard, low_chol_quantity: newLowChol })
+        .update({
+          standard_quantity: newStandard,
+          low_chol_quantity: newLowChol,
+        })
         .eq("id", stockData.id);
 
       if (updateError) throw updateError;
 
-      // WhatsApp notifikace
+      // 📲 WhatsApp notifikace
       await sendWhatsAppTemplate({
         name,
         email,
@@ -143,7 +172,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         orderId: newOrder.id,
-        totalPrice: standardQty * 5 + lowCholQty * 7,
+        totalPrice: newOrder.payment_total,
         remaining: { standard: newStandard, lowChol: newLowChol },
         message: `Objednávka byla úspěšně odeslána.`,
       });
