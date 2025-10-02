@@ -19,11 +19,16 @@ export default async function handler(req, res) {
         .maybeSingle();
       if (priceError) throw priceError;
 
+      // Vrácení ve správné struktuře
       return res.status(200).json({
-        standardQuantity: stockData?.standard_quantity || 0,
-        lowCholQuantity: stockData?.low_chol_quantity || 0,
-        standardPrice: priceData?.standard_price ? Number(priceData.standard_price) : 0,
-        lowCholPrice: priceData?.low_chol_price ? Number(priceData.low_chol_price) : 0,
+        stock: {
+          standard_quantity: stockData?.standard_quantity || 0,
+          low_chol_quantity: stockData?.low_chol_quantity || 0,
+        },
+        prices: {
+          standard_price: priceData?.standard_price ? Number(priceData.standard_price) : 0,
+          low_chol_price: priceData?.low_chol_price ? Number(priceData.low_chol_price) : 0,
+        },
       });
     }
 
@@ -73,10 +78,14 @@ export default async function handler(req, res) {
       if (priceUpdateError) throw priceUpdateError;
 
       return res.status(200).json({
-        standardQuantity: stockUpdated.standard_quantity,
-        lowCholQuantity: stockUpdated.low_chol_quantity,
-        standardPrice: Number(priceUpdated.standard_price),
-        lowCholPrice: Number(priceUpdated.low_chol_price),
+        stock: {
+          standard_quantity: stockUpdated.standard_quantity,
+          low_chol_quantity: stockUpdated.low_chol_quantity,
+        },
+        prices: {
+          standard_price: Number(priceUpdated.standard_price),
+          low_chol_price: Number(priceUpdated.low_chol_price),
+        },
       });
     }
 
