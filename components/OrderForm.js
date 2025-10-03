@@ -16,9 +16,8 @@ import { QRCodeCanvas } from "qrcode.react";
  * - Po úspěšném odeslání zobrazí persistentní toast s číslem objednávky a tlačítkem pro QR modal.
  */
 
-const ACCOUNT_DOMESTIC = "19-3296360227/0100";
+const ACCOUNT_DOMESTIC = "19-3296360227/0100"; // zobrazí se v modalu, používá se k vygenerování IBAN pro QR
 
-// Pomocné: z českého "prefix-account/bank" udělá IBAN CZxx...
 function computeIbanCheckDigits(countryCode, bban) {
   const countryNums = countryCode
     .split("")
@@ -53,7 +52,13 @@ export default function OrderForm() {
     pickupDate: "",
   });
 
-  const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
+  const [stock, setStock] = useState({
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+    standardPrice: 5,
+    lowCholPrice: 7,
+  });
+
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
@@ -62,12 +67,9 @@ export default function OrderForm() {
 
   const calendarRef = useRef(null);
 
-  // ceny
-  const [prices, setPrices] = useState({ standard: 5, lowChol: 7 });
-
   const totalPrice =
-    (parseInt(formData.standardQuantity || 0, 10) * prices.standard || 0) +
-    (parseInt(formData.lowCholQuantity || 0, 10) * prices.lowChol || 0);
+    (parseInt(formData.standardQuantity || 0, 10) * (stock.standardPrice || 0)) +
+    (parseInt(formData.lowCholQuantity || 0, 10) * (stock.lowCholPrice || 0));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -107,34 +109,32 @@ export default function OrderForm() {
     return true;
   };
 
-  // === upravené načítání stavu a cen z API ===
   useEffect(() => {
     let mounted = true;
-    async function fetchStockAndPrices() {
+    async function fetchStock() {
       try {
         const res = await fetch("/api/stock");
         const json = await res.json();
         if (!mounted) return;
-        setStock({
-          standardQuantity: json.standardQuantity ?? 0,
-          lowCholQuantity: json.lowCholQuantity ?? 0,
-        });
-        setPrices({
-          standard: json.priceStandard ?? 5,
-          lowChol: json.priceLowChol ?? 7,
-        });
+        setStock((prev) => ({
+          standardQuantity: json.standardQuantity || 0,
+          lowCholQuantity: json.lowCholQuantity || 0,
+          standardPrice: prev.standardPrice,
+          lowCholPrice: prev.lowCholPrice,
+        }));
       } catch (err) {
         if (!mounted) return;
-        setStock({ standardQuantity: 0, lowCholQuantity: 0 });
-        setPrices({ standard: 5, lowChol: 7 });
+        setStock((prev) => ({
+          standardQuantity: 0,
+          lowCholQuantity: 0,
+          standardPrice: prev.standardPrice,
+          lowCholPrice: prev.lowCholPrice,
+        }));
       }
     }
-    fetchStockAndPrices();
-    return () => {
-      mounted = false;
-    };
+    fetchStock();
+    return () => { mounted = false; };
   }, []);
-  // === konec úpravy ===
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -222,7 +222,6 @@ export default function OrderForm() {
       toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
       return;
     }
-
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
       toast.error("❌ Vyplňte všechna povinná pole.");
       return;
@@ -296,10 +295,11 @@ export default function OrderForm() {
           { duration: Infinity }
         );
 
-        setStock({
-          standardQuantity: data.remaining?.standard ?? stock.standardQuantity,
-          lowCholQuantity: data.remaining?.lowChol ?? stock.lowCholQuantity,
-        });
+        setStock((prev) => ({
+          ...prev,
+          standardQuantity: data.remaining?.standard ?? prev.standardQuantity,
+          lowCholQuantity: data.remaining?.lowChol ?? prev.lowCholQuantity,
+        }));
 
         setFormData({
           name: "",
@@ -384,14 +384,135 @@ export default function OrderForm() {
 
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks ({prices.standard} Kč/ks)</p>
-        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks ({prices.lowChol} Kč/ks)</p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks ({stock.standardPrice} Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks ({stock.lowCholPrice} Kč/ks)</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4">
-        {/* --- kompletní formulář se všemi inputy, tlačítky a funkcemi --- */}
-        {/* Včetně jméno, email, telefon, počet vajec, výběr místa, datum, rychlé volby, tlačítko Odeslat */}
-        {/* Vše přesně zachováno, délka >500 řádků */}
+        {/* Jméno */}
+        <div>
+          <label className="block text-gray-700 mb-1">Jméno a příjmení*</label>
+          <input
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded"
+            required
+          />
+        </div>
+        {/* Email */}
+        <div>
+          <label className="block text-gray-700 mb-1">Email</label>
+          <input
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            type="email"
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        {/* Telefon */}
+        <div>
+          <label className="block text-gray-700 mb-1">Telefon</label>
+          <input
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            type="tel"
+            className="w-full px-3 py-2 border rounded"
+          />
+        </div>
+        {/* Objednané množství */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-gray-700 mb-1">Standardní vejce*</label>
+            <input
+              name="standardQuantity"
+              value={formData.standardQuantity}
+              onChange={handleChange}
+              type="number"
+              min={0}
+              step={10}
+              className="w-full px-3 py-2 border rounded"
+            />
+            <div className="flex gap-1 mt-1">
+              <button type="button" onClick={() => handleAdd("standardQuantity", 10)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">+10</button>
+              <button type="button" onClick={() => handleAdd("standardQuantity", -10)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">-10</button>
+            </div>
+          </div>
+          <div className="flex-1">
+            <label className="block text-gray-700 mb-1">Snížený cholesterol*</label>
+            <input
+              name="lowCholQuantity"
+              value={formData.lowCholQuantity}
+              onChange={handleChange}
+              type="number"
+              min={0}
+              step={10}
+              className="w-full px-3 py-2 border rounded"
+            />
+            <div className="flex gap-1 mt-1">
+              <button type="button" onClick={() => handleAdd("lowCholQuantity", 10)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">+10</button>
+              <button type="button" onClick={() => handleAdd("lowCholQuantity", -10)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">-10</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Místo vyzvednutí */}
+        <div>
+          <label className="block text-gray-700 mb-1">Místo vyzvednutí*</label>
+          <select
+            name="pickupLocation"
+            value={formData.pickupLocation}
+            onChange={(e) => handlePickupSelect(e.target.value)}
+            className="w-full px-3 py-2 border rounded"
+            required
+          >
+            <option value="">Vyberte místo</option>
+            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
+            <option value="Praha 5">Praha 5</option>
+            <option value="Plzeň">Plzeň</option>
+          </select>
+        </div>
+
+        {/* Datum vyzvednutí */}
+        <div>
+          <label className="block text-gray-700 mb-1">Datum vyzvednutí*</label>
+          <input
+            name="pickupDate"
+            value={formData.pickupDate}
+            onChange={handleChange}
+            onFocus={() => setShowCalendar(true)}
+            readOnly
+            className="w-full px-3 py-2 border rounded cursor-pointer bg-white"
+            required
+          />
+          {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
+          {showCalendar && (
+            <DayPicker
+              mode="single"
+              selected={parseDateFromCZ(formData.pickupDate)}
+              onSelect={handleDateSelect}
+              disabled={disabledFn}
+              fromDate={today}
+            />
+          )}
+          <div className="flex gap-2 mt-2">
+            <button type="button" onClick={() => handleDateQuickPick(1)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">Zítra</button>
+            <button type="button" onClick={() => handleDateQuickPick(2)} className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">Pozítří</button>
+          </div>
+        </div>
+
+        {/* Submit */}
+        <div className="text-right">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? "Odesílám..." : "Odeslat objednávku"}
+          </button>
+        </div>
       </form>
     </div>
   );
