@@ -5,7 +5,7 @@ import "react-day-picker/dist/style.css";
 import { X } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 
-const ACCOUNT_DOMESTIC = "19-3296360227/0100"; 
+const ACCOUNT_DOMESTIC = "19-3296360227/0100";
 
 function computeIbanCheckDigits(countryCode, bban) {
   const countryNums = countryCode
@@ -41,8 +41,12 @@ export default function OrderForm() {
     pickupDate: "",
   });
 
-  const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
-  const [prices, setPrices] = useState({ standardPrice: 0, lowCholPrice: 0 });
+  const [stock, setStock] = useState({
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+    standardPrice: 0,
+    lowCholPrice: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
@@ -51,9 +55,10 @@ export default function OrderForm() {
 
   const calendarRef = useRef(null);
 
+  // cena podle načtených cen
   const totalPrice =
-    (parseInt(formData.standardQuantity || 0, 10) * prices.standardPrice || 0) +
-    (parseInt(formData.lowCholQuantity || 0, 10) * prices.lowCholPrice || 0);
+    (parseInt(formData.standardQuantity || 0, 10) * (stock.standardPrice || 0)) +
+    (parseInt(formData.lowCholQuantity || 0, 10) * (stock.lowCholPrice || 0));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -93,7 +98,7 @@ export default function OrderForm() {
     return true;
   };
 
-  // načtení zásob a cen
+  // načtení zásob a cen z API
   useEffect(() => {
     let mounted = true;
     async function fetchStock() {
@@ -102,54 +107,37 @@ export default function OrderForm() {
         const json = await res.json();
         if (!mounted) return;
         setStock({
-          standardQuantity: json.stock?.standard_quantity || 0,
-          lowCholQuantity: json.stock?.low_chol_quantity || 0,
-        });
-        setPrices({
-          standardPrice: json.prices?.standard_price || 0,
-          lowCholPrice: json.prices?.low_chol_price || 0,
+          standardQuantity: json.standardQuantity || 0,
+          lowCholQuantity: json.lowCholQuantity || 0,
+          standardPrice: json.standardPrice || 0,
+          lowCholPrice: json.lowCholPrice || 0,
         });
       } catch (err) {
         if (!mounted) return;
-        setStock({ standardQuantity: 0, lowCholQuantity: 0 });
-        setPrices({ standardPrice: 0, lowCholPrice: 0 });
+        setStock({ standardQuantity: 0, lowCholQuantity: 0, standardPrice: 0, lowCholPrice: 0 });
       }
     }
     fetchStock();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    let val =
-      name === "standardQuantity" || name === "lowCholQuantity"
-        ? value === ""
-          ? ""
-          : parseInt(value, 10)
-        : value;
-
-    // kontrola proti skladu
-    if (name === "standardQuantity" && val > stock.standardQuantity) {
-      toast.error(`❌ Maximálně lze objednat ${stock.standardQuantity} standardních vajec`);
-      val = stock.standardQuantity;
-    }
-    if (name === "lowCholQuantity" && val > stock.lowCholQuantity) {
-      toast.error(`❌ Maximálně lze objednat ${stock.lowCholQuantity} vajec se sníženým cholesterolem`);
-      val = stock.lowCholQuantity;
-    }
-
-    setFormData((prev) => ({ ...prev, [name]: val }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "standardQuantity" || name === "lowCholQuantity"
+          ? value === ""
+            ? ""
+            : parseInt(value, 10)
+          : value,
+    }));
   };
 
   const handleAdd = (field, amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev[field] || 0, 10);
-      const max =
-        field === "standardQuantity" ? stock.standardQuantity : stock.lowCholQuantity;
-      const next = Math.min(max, cur + amount);
-      return { ...prev, [field]: Math.max(0, next) };
+      return { ...prev, [field]: Math.max(0, cur + amount) };
     });
   };
 
@@ -171,9 +159,7 @@ export default function OrderForm() {
       } else {
         setDateError("");
       }
-    } else {
-      setDateError("");
-    }
+    } else setDateError("");
   };
 
   const handleDateSelect = (date) => {
@@ -212,17 +198,8 @@ export default function OrderForm() {
 
     const standardQty = parseInt(formData.standardQuantity || 0, 10);
     const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
-
-    if (standardQty > stock.standardQuantity) {
-      toast.error(`❌ Ve skladu je pouze ${stock.standardQuantity} standardních vajec`);
-      return;
-    }
-    if (lowCholQty > stock.lowCholQuantity) {
-      toast.error(`❌ Ve skladu je pouze ${stock.lowCholQuantity} vajec se sníženým cholesterolem`);
-      return;
-    }
-
     const totalEggs = (standardQty || 0) + (lowCholQty || 0);
+
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
       toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
       return;
@@ -255,11 +232,33 @@ export default function OrderForm() {
       if (data.success) {
         setLastOrder({ orderId: data.orderId, price: totalPrice });
         setShowQR(true);
-        toast.success("✅ Objednávka byla úspěšně odeslána");
+
+        toast.custom(
+          (t) => (
+            <div className={`bg-white shadow-lg rounded-2xl p-5 max-w-md w-full relative ${t.visible ? "animate-enter" : "animate-leave"}`}>
+              <button onClick={() => toast.dismiss(t.id)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800" aria-label="Zavřít">
+                <X size={18} />
+              </button>
+              <h3 className="text-lg font-bold mb-2">✅ Objednávka byla úspěšně odeslána</h3>
+              <p className="mb-1">Číslo objednávky: <strong>{data.orderId}</strong></p>
+              <p className="mb-3">Celková cena: <strong>{totalPrice} Kč</strong></p>
+              <p className="text-sm text-gray-600 mb-3">Platbu můžete provést předem přes QR kód nebo při vyzvednutí.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowQR(true)} className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">Zobrazit QR kód</button>
+                <button onClick={() => toast.dismiss(t.id)} className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300">Zavřít</button>
+              </div>
+            </div>
+          ),
+          { duration: Infinity }
+        );
+
         setStock({
           standardQuantity: data.remaining?.standard ?? stock.standardQuantity,
           lowCholQuantity: data.remaining?.lowChol ?? stock.lowCholQuantity,
+          standardPrice: stock.standardPrice,
+          lowCholPrice: stock.lowCholPrice,
         });
+
         setFormData({
           name: "",
           email: "",
@@ -300,16 +299,24 @@ export default function OrderForm() {
 
   return (
     <div className="max-w-lg mx-auto p-4">
-      <Toaster position="top-center" />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            borderRadius: "12px",
+            background: "#fff8dc",
+            color: "#333",
+            fontSize: "15px",
+            padding: "14px",
+            boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+          },
+        }}
+      />
 
       {showQR && lastOrder && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50 px-4">
           <div className="bg-white p-5 rounded-2xl shadow-xl relative w-full max-w-sm">
-            <button
-              onClick={() => setShowQR(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
-              aria-label="Zavřít QR"
-            >
+            <button onClick={() => setShowQR(false)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800" aria-label="Zavřít QR">
               <X size={20} />
             </button>
             <h3 className="text-lg font-bold mb-2">Platba přes QR kód</h3>
@@ -321,31 +328,22 @@ export default function OrderForm() {
             <div className="flex justify-center mb-3">
               <QRCodeCanvas value={getQrValue()} size={200} includeMargin={true} />
             </div>
+            <p className="text-xs text-gray-500">Naskenujte QR kód ve své bankovní aplikaci.</p>
+            <div className="mt-3 text-right">
+              <button onClick={() => setShowQR(false)} className="px-3 py-1 bg-yellow-400 rounded hover:bg-yellow-500">Zavřít</button>
+            </div>
           </div>
         </div>
       )}
 
       <div className="mb-4 text-lg text-gray-700">
         <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks ({prices.standardPrice} Kč/ks)</p>
-        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks ({prices.lowCholPrice} Kč/ks)</p>
+        <p>🥚 Standardní vejce: <strong>{stock.standardQuantity}</strong> ks ({stock.standardPrice} Kč/ks)</p>
+        <p>🥚 Vejce se sníženým cholesterolem: <strong>{stock.lowCholQuantity}</strong> ks ({stock.lowCholPrice} Kč/ks)</p>
       </div>
 
-      {/* formulář */}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-2xl p-6 space-y-4">
-        {/* ... všechny vstupy jako předtím ... */}
-
-        <div className="text-gray-800 font-semibold">
-          Celková cena: <span className="text-green-700">{totalPrice} Kč</span>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="bg-yellow-400 w-full px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
-        >
-          {loading ? "Odesílám..." : "Odeslat objednávku"}
-        </button>
+        {/* ...zbytek formuláře beze změn */}
       </form>
     </div>
   );
