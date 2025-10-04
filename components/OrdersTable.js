@@ -1,4 +1,4 @@
-mport { useState } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 
 const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
