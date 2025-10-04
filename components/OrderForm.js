@@ -111,9 +111,6 @@ export default function OrderForm() {
     if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
     return true;
   };
-    // načtení zásob ze serveru
-<StockBox editable={false} />
-
   // změna formuláře
   const handleChange = (e) => {
     const { name, value } = e.target;
