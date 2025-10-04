@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
 import {
@@ -15,120 +15,159 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
-  const [timeRange, setTimeRange] = useState("month"); // week / month / year
-  const [startDate, setStartDate] = useState(""); // DD.MM.YYYY
-  const [endDate, setEndDate] = useState("");
 
-  const fetchOrders = async () => {
-    const res = await fetch("/api/admin/orders");
-    const data = await res.json();
-    setOrders(data.orders);
-  };
+  const [timeRange, setTimeRange] = useState("month"); // week / month / year
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber());
 
   useEffect(() => {
-    fetchOrders();
+    fetch("/api/admin/orders")
+      .then(res => res.json())
+      .then(data => setOrders(data.orders))
+      .catch(err => console.error(err));
   }, []);
 
-  // pomocné funkce
-  const parseDateFromCZ = (cz) => {
-    if (!cz) return null;
-    const [dd, mm, yyyy] = cz.split(".");
-    return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+  function getCurrentWeekNumber() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const diff =
+      (now - start + ((start.getDay() + 6) % 7) * 86400000) / 86400000;
+    return Math.floor(diff / 7) + 1;
+  }
+
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
+  const months = [
+    "Leden","Únor","Březen","Duben","Květen","Červen",
+    "Červenec","Srpen","Září","Říjen","Listopad","Prosinec"
+  ];
+
+  const getWeekNumber = (d) => {
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const dayNum = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - dayNum + 3);
+    const firstThursday = new Date(date.getFullYear(), 0, 4);
+    const diff = date - firstThursday;
+    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
   };
 
-  const filterOrdersByDate = (orderList) => {
-    const start = startDate ? parseDateFromCZ(startDate) : null;
-    const end = endDate ? parseDateFromCZ(endDate) : null;
-    return orderList.filter((o) => {
-      const d = parseDateFromCZ(o.pickup_date);
-      if (!d) return false;
-      if (start && d < start) return false;
-      if (end && d > end) return false;
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const d = new Date(order.pickup_date.split(".").reverse().join("-"));
+      if (timeRange === "year") return d.getFullYear() === selectedYear;
+      if (timeRange === "month") return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+      if (timeRange === "week") return d.getFullYear() === selectedYear && getWeekNumber(d) === selectedWeek;
       return true;
     });
-  };
+  }, [orders, timeRange, selectedYear, selectedMonth, selectedWeek]);
 
-  const filteredOrders = filterOrdersByDate(orders);
+  const completedOrders = useMemo(() => filteredOrders.filter(o => o.status === "vyřízená"), [filteredOrders]);
 
-  // skupiny podle statusu
-  const statusCounts = filteredOrders.reduce((acc, order) => {
-    acc[order.status] = (acc[order.status] || 0) + 1;
-    return acc;
-  }, {});
+  const ordersChartData = useMemo(() => {
+    const statusCounts = filteredOrders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      labels: ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"],
+      datasets: [
+        {
+          label: "Počet objednávek",
+          data: ["nová objednávka","zpracovává se","vyřízená","zrušená"].map(
+            s => statusCounts[s] || 0
+          ),
+          backgroundColor: ["#f87171","#facc15","#34d399","#34d399"],
+        },
+      ],
+    };
+  }, [filteredOrders]);
 
-  const revenuePerStatus = filteredOrders.reduce((acc, order) => {
-    const total =
-      (parseInt(order.standard_quantity || 0) * 5 || 0) +
-      (parseInt(order.low_chol_quantity || 0) * 7 || 0);
-    acc[order.status] = (acc[order.status] || 0) + total;
-    return acc;
-  }, {});
-
-  const labels = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
-
-  const ordersChartData = {
-    labels,
-    datasets: [
-      {
-        label: "Počet objednávek",
-        data: labels.map((s) => statusCounts[s] || 0),
-        backgroundColor: ["#f87171", "#facc15", "#34d399", "#34d399"],
-      },
-    ],
-  };
-
-  const revenueChartData = {
-    labels,
-    datasets: [
-      {
-        label: "Tržba (Kč)",
-        data: labels.map((s) => revenuePerStatus[s] || 0),
-        backgroundColor: ["#f87171", "#facc15", "#34d399", "#34d399"],
-      },
-    ],
-  };
+  const revenueChartData = useMemo(() => {
+    const totalRevenue = completedOrders.reduce(
+      (sum, o) => sum + ((o.standard_quantity || 0) * 5 + (o.low_chol_quantity || 0) * 7),
+      0
+    );
+    return {
+      labels: ["Tržby (Kč)"],
+      datasets: [
+        {
+          label: "Celkem vyděláno",
+          data: [totalRevenue],
+          backgroundColor: ["#34d399"],
+        },
+      ],
+    };
+  }, [completedOrders]);
 
   return (
     <AdminLayout>
       <h1 className="text-3xl font-bold mb-6">Statistika objednávek</h1>
 
-      {/* Volba období */}
-      <div className="flex gap-2 mb-4 flex-wrap items-center">
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="week">Týden</option>
-          <option value="month">Měsíc</option>
-          <option value="year">Rok</option>
-        </select>
-        <input
-          type="text"
-          placeholder="DD.MM.YYYY"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
-          placeholder="DD.MM.YYYY"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="border p-2 rounded"
-        />
+      {/* Přepínače a dropdowny */}
+      <div className="flex gap-2 mb-4 items-center flex-wrap">
+        {["week","month","year"].map(range => (
+          <button
+            key={range}
+            onClick={() => setTimeRange(range)}
+            className={`px-4 py-2 rounded font-semibold shadow ${
+              timeRange === range ? "bg-green-500 text-white" : "bg-gray-200 text-gray-800"
+            }`}
+          >
+            {range === "week" ? "Týden" : range === "month" ? "Měsíc" : "Rok"}
+          </button>
+        ))}
+
+        {timeRange === "year" && (
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(parseInt(e.target.value))}
+            className="border p-2 rounded"
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        )}
+
+        {timeRange === "month" && (
+          <>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(parseInt(e.target.value))}
+              className="border p-2 rounded"
+            >
+              {months.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={e => setSelectedYear(parseInt(e.target.value))}
+              className="border p-2 rounded"
+            >
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </>
+        )}
+
+        {timeRange === "week" && (
+          <select
+            value={selectedWeek}
+            onChange={e => setSelectedWeek(parseInt(e.target.value))}
+            className="border p-2 rounded"
+          >
+            {Array.from({length:52}, (_,i)=>i+1).map(w=>(
+              <option key={w} value={w}>Týden {w}</option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {/* Graf: počet objednávek */}
-      <div className="bg-white shadow rounded-xl p-4 mb-6">
-        <h2 className="text-xl font-bold mb-2">Počet objednávek</h2>
-        <Bar data={ordersChartData} />
-      </div>
+      {/* Grafy */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white shadow rounded-xl p-4">
+          <Bar data={ordersChartData} />
+        </div>
 
-      {/* Graf: tržba v Kč */}
-      <div className="bg-white shadow rounded-xl p-4">
-        <h2 className="text-xl font-bold mb-2">Tržba (Kč)</h2>
-        <Bar data={revenueChartData} />
+        <div className="bg-white shadow rounded-xl p-4">
+          <Bar data={revenueChartData} />
+        </div>
       </div>
     </AdminLayout>
   );
