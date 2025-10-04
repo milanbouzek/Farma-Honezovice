@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
 import {
@@ -15,149 +15,168 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
-  const [timeRange, setTimeRange] = useState("month"); // week / month / year
+  const [period, setPeriod] = useState("rok"); // "rok", "měsíc", "týden"
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1); // 1–12
 
-  const months = [
-    "Leden","Únor","Březen","Duben","Květen","Červen",
-    "Červenec","Srpen","Září","Říjen","Listopad","Prosinec"
-  ];
+  const fetchOrders = async () => {
+    const res = await fetch("/api/admin/orders");
+    const data = await res.json();
+    setOrders(data.orders);
+  };
 
   useEffect(() => {
-    fetch("/api/admin/orders")
-      .then(res => res.json())
-      .then(data => setOrders(data.orders))
-      .catch(err => console.error(err));
+    fetchOrders();
   }, []);
 
-  const completedOrders = useMemo(
-    () => orders.filter(o => o.status === "vyřízená"),
-    [orders]
-  );
+  // Filtrované dokončené objednávky pro tržby
+  const completedOrders = orders.filter((o) => o.status === "vyřízená");
 
-  // --- AGREGACE PRO GRAFY ---
-  const chartData = useMemo(() => {
-    if (!completedOrders.length) return { labels: [], datasets: [] };
+  // --- Počet objednávek podle status ---
+  const getOrderCounts = () => {
+    const filtered = orders.filter((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      if (period === "rok") return true;
+      if (period === "měsíc") return d.getFullYear() === selectedYear;
+      if (period === "týden") {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return d >= weekStart && d <= weekEnd;
+      }
+      return true;
+    });
 
-    let labels = [];
-    let ordersData = [];
-    let revenueData = [];
+    const grouped = {};
 
-    if (timeRange === "year") {
-      // roky
-      const years = Array.from(new Set(completedOrders.map(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))).sort();
-      labels = years.map(y => y.toString());
-      ordersData = years.map(y => completedOrders.filter(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear() === y).length);
-      revenueData = years.map(y => completedOrders.filter(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear() === y)
-        .reduce((sum, o) => sum + ((o.standard_quantity || 0)*5 + (o.low_chol_quantity||0)*7), 0)
-      );
-    }
+    filtered.forEach((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      let key;
+      if (period === "rok") key = d.getFullYear();
+      if (period === "měsíc") key = `${d.getMonth() + 1}.${d.getFullYear()}`;
+      if (period === "týden") {
+        const startOfWeek = new Date(d);
+        startOfWeek.setDate(d.getDate() - d.getDay());
+        key = startOfWeek.toLocaleDateString();
+      }
 
-    if (timeRange === "month") {
-      // měsíce vybraného roku
-      labels = months;
-      ordersData = months.map((_, idx) => completedOrders.filter(o => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && d.getMonth() === idx;
-      }).length);
-      revenueData = months.map((_, idx) => completedOrders.filter(o => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && d.getMonth() === idx;
-      }).reduce((sum,o)=>sum+((o.standard_quantity||0)*5+(o.low_chol_quantity||0)*7),0));
-    }
+      if (!grouped[key]) grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+      grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
+    });
 
-    if (timeRange === "week") {
-      // týdny vybraného roku
-      const getWeekNumber = (d) => {
-        const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const dayNum = (date.getDay() + 6) % 7;
-        date.setDate(date.getDate() - dayNum + 3);
-        const firstThursday = new Date(date.getFullYear(),0,4);
-        const diff = date - firstThursday;
-        return 1 + Math.round(diff / (7*24*60*60*1000));
-      };
-      const weeks = Array.from({length:52}, (_,i)=>i+1);
-      labels = weeks.map(w=>`Týden ${w}`);
-      ordersData = weeks.map(w => completedOrders.filter(o => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && getWeekNumber(d) === w;
-      }).length);
-      revenueData = weeks.map(w => completedOrders.filter(o => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && getWeekNumber(d) === w;
-      }).reduce((sum,o)=>sum+((o.standard_quantity||0)*5+(o.low_chol_quantity||0)*7),0));
-    }
+    const labels = Object.keys(grouped).sort((a,b)=>{
+      if(period==="rok") return a-b;
+      if(period==="měsíc") {
+        const [m1,y1] = a.split(".").map(Number);
+        const [m2,y2] = b.split(".").map(Number);
+        return y1!==y2 ? y1-y2 : m1-m2;
+      }
+      return new Date(a) - new Date(b);
+    });
 
-    return {
-      labels,
-      ordersData,
-      revenueData
-    };
-  }, [completedOrders, timeRange, selectedYear]);
+    const datasets = ["nová objednávka","zpracovává se","vyřízená","zrušená"].map((status, i) => ({
+      label: status,
+      data: labels.map((l) => grouped[l][status] || 0),
+      backgroundColor: ["#f87171","#facc15","#34d399","#60a5fa"][i],
+    }));
+
+    return { labels, datasets };
+  };
+
+  // --- Tržby dokončené objednávky ---
+  const getRevenueData = () => {
+    const filtered = completedOrders.filter((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      if (period === "rok") return true;
+      if (period === "měsíc") return d.getFullYear() === selectedYear;
+      if (period === "týden") {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        return d >= weekStart && d <= weekEnd;
+      }
+      return true;
+    });
+
+    const grouped = {};
+
+    filtered.forEach((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      let key;
+      if (period === "rok") key = d.getFullYear();
+      if (period === "měsíc") key = `${d.getMonth() + 1}.${d.getFullYear()}`;
+      if (period === "týden") {
+        const startOfWeek = new Date(d);
+        startOfWeek.setDate(d.getDate() - d.getDay());
+        key = startOfWeek.toLocaleDateString();
+      }
+
+      if (!grouped[key]) grouped[key] = 0;
+      grouped[key] += (o.standard_quantity + o.low_chol_quantity) * (o.standard_quantity * 5 + o.low_chol_quantity * 7 ? 1 : 0); // cena
+    });
+
+    const labels = Object.keys(grouped).sort((a,b)=>{
+      if(period==="rok") return a-b;
+      if(period==="měsíc") {
+        const [m1,y1] = a.split(".").map(Number);
+        const [m2,y2] = b.split(".").map(Number);
+        return y1!==y2 ? y1-y2 : m1-m2;
+      }
+      return new Date(a) - new Date(b);
+    });
+
+    const dataset = [{
+      label: "Tržby (Kč)",
+      data: labels.map((l) => grouped[l] || 0),
+      backgroundColor: "#34d399"
+    }];
+
+    return { labels, datasets: dataset };
+  };
+
+  // --- Unikátní roky pro dropdown ---
+  const years = Array.from(new Set(orders.map((o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))).sort((a,b)=>b-a);
+  const months = Array.from({length:12},(_,i)=>i+1);
 
   return (
     <AdminLayout>
       <h1 className="text-3xl font-bold mb-6">Statistika objednávek</h1>
 
-      {/* Přepínače a výběr období */}
-      <div className="flex gap-2 mb-4 items-center flex-wrap">
-        {["week","month","year"].map(range => (
-          <button
-            key={range}
-            onClick={() => setTimeRange(range)}
-            className={`px-4 py-2 rounded font-semibold shadow ${
-              timeRange === range ? "bg-green-500 text-white" : "bg-gray-200 text-gray-800"
-            }`}
-          >
-            {range === "week" ? "Týden" : range === "month" ? "Měsíc" : "Rok"}
-          </button>
-        ))}
+      {/* Výběr období */}
+      <div className="flex gap-4 mb-6 items-center">
+        <select value={period} onChange={(e)=>setPeriod(e.target.value)} className="border p-2 rounded">
+          <option value="rok">Rok</option>
+          <option value="měsíc">Měsíc</option>
+          <option value="týden">Týden</option>
+        </select>
 
-        {(timeRange === "month" || timeRange === "week") && (
-          <select
-            value={selectedYear}
-            onChange={e => setSelectedYear(parseInt(e.target.value))}
-            className="border p-2 rounded"
-          >
-            {Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+        {(period==="měsíc" || period==="rok") && (
+          <select value={selectedYear} onChange={(e)=>setSelectedYear(Number(e.target.value))} className="border p-2 rounded">
+            {years.map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+        )}
+
+        {period==="měsíc" && (
+          <select value={selectedMonth} onChange={(e)=>setSelectedMonth(Number(e.target.value))} className="border p-2 rounded">
+            {months.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
         )}
       </div>
 
-      {/* Grafy */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white shadow rounded-xl p-4">
-          <Bar
-            data={{
-              labels: chartData.labels,
-              datasets: [
-                {
-                  label: "Počet objednávek",
-                  data: chartData.ordersData,
-                  backgroundColor: "#f87171",
-                },
-              ],
-            }}
-          />
-        </div>
+      {/* Graf: počet objednávek */}
+      <div className="bg-white shadow rounded-xl p-4 mb-6">
+        <h2 className="font-bold mb-2">Počet objednávek podle statusu</h2>
+        <Bar data={getOrderCounts()} options={{ responsive:true, plugins:{legend:{position:"top"}} }} />
+      </div>
 
-        <div className="bg-white shadow rounded-xl p-4">
-          <Bar
-            data={{
-              labels: chartData.labels,
-              datasets: [
-                {
-                  label: "Celkem vyděláno (Kč)",
-                  data: chartData.revenueData,
-                  backgroundColor: "#34d399",
-                },
-              ],
-            }}
-          />
-        </div>
+      {/* Graf: tržby */}
+      <div className="bg-white shadow rounded-xl p-4">
+        <h2 className="font-bold mb-2">Tržby z dokončených objednávek (Kč)</h2>
+        <Bar data={getRevenueData()} options={{ responsive:true, plugins:{legend:{position:"top"}} }} />
       </div>
     </AdminLayout>
   );
