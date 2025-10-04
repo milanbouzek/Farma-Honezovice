@@ -21,6 +21,30 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
+  // 🆕 Nová funkce pro vynulování ceny
+  const resetPrice = async (id) => {
+    if (!confirm("Opravdu chceš vynulovat cenu této objednávky?")) return;
+
+    try {
+      const res = await fetch("/api/admin/reset-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success("💰 Cena objednávky byla vynulována");
+        refreshOrders();
+      } else {
+        toast.error("Chyba při nulování ceny");
+      }
+    } catch (err) {
+      toast.error("Chyba při komunikaci se serverem: " + err.message);
+    }
+  };
+
   const renderRow = (order) => {
     let bgColor = "";
     if (order.status === "nová objednávka") bgColor = "bg-red-100";
@@ -37,7 +61,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
         <td className="p-2">{order.low_chol_quantity}</td>
         <td className="p-2">{order.pickup_location}</td>
         <td className="p-2">{order.pickup_date}</td>
-        <td className="p-2">
+        <td className="p-2 space-x-2">
           {order.status !== STATUSES[STATUSES.length - 1] && (
             <button
               onClick={() => advanceStatus(order.id)}
@@ -46,6 +70,14 @@ export default function OrdersTable({ orders, refreshOrders }) {
               Další stav
             </button>
           )}
+
+          {/* 🆕 Tlačítko na vynulování ceny */}
+          <button
+            onClick={() => resetPrice(order.id)}
+            className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+          >
+            Vynulovat cenu
+          </button>
         </td>
       </tr>
     );
