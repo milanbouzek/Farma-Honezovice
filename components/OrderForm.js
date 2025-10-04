@@ -4,6 +4,7 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { X } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import StockBox from "../components/StockBox";
 
 /**
  * OrderForm.js
@@ -68,18 +69,18 @@ const getDateOffset = (offset) => {
   return d;
 };
 
-const isValidDate = (date, location, today) => {
+const isValidDate = (date, location, today = new Date()) => {
   let d = date instanceof Date ? new Date(date) : parseDateFromCZ(date);
   if (!d) return false;
   d.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
   if (d <= today) return false;
   if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
   return true;
 };
-export default function OrderForm() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
+// --- OrderForm komponenta ---
+export default function OrderForm() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -90,25 +91,20 @@ export default function OrderForm() {
     pickupDate: "",
   });
 
+  const [loading, setLoading] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
   const [showQR, setShowQR] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [stock, setStock] = useState({
     standardQuantity: 0,
     lowCholQuantity: 0,
+    standardPrice: 0,
+    lowCholPrice: 0,
   });
 
-  const parseIntSafe = (val) => {
-    const n = parseInt(val, 10);
-    return Number.isNaN(n) ? 0 : n;
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
+  const calendarRef = useRef(null);
+  const today = new Date();
+    // --- Funkce pro kalendář a blokování dat ---
   const disabledFn = (date) => {
     const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     if (d <= today) return true;
@@ -118,41 +114,56 @@ export default function OrderForm() {
     return false;
   };
 
-  const calculateTotalPrice = () => {
-    const standard = parseIntSafe(formData.standardQuantity);
-    const lowChol = parseIntSafe(formData.lowCholQuantity);
-    const pricePerStandard = 15; // placeholder, může být dynamické
-    const pricePerLowChol = 20; // placeholder, může být dynamické
-    return standard * pricePerStandard + lowChol * pricePerLowChol;
+  const handleDateSelect = (date) => {
+    if (!date) return;
+    setFormData({ ...formData, pickupDate: formatDateCZ(date) });
+    setDateError("");
   };
-    const handleSubmit = async (e) => {
+
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const computeTotalPrice = () => {
+    const standard = parseInt(formData.standardQuantity || 0, 10);
+    const lowChol = parseInt(formData.lowCholQuantity || 0, 10);
+    return (
+      standard * (stock.standardPrice || 0) + lowChol * (stock.lowCholPrice || 0)
+    );
+  };
+
+  const totalPrice = computeTotalPrice();
+
+  // --- Odeslání objednávky ---
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const standardQty = parseIntSafe(formData.standardQuantity);
-    const lowCholQty = parseIntSafe(formData.lowCholQuantity);
+    const standardQty = parseInt(formData.standardQuantity || 0, 10);
+    const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standardQty + lowCholQty;
 
-    // Validace počtu
     if (totalEggs < 10 || totalEggs % 10 !== 0) {
-      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
+      toast.error(
+        "❌ Minimální objednávka je 10 ks a vždy jen násobky 10."
+      );
       return;
     }
 
-    // Validace povinných polí
     if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
       toast.error("❌ Vyplňte všechna povinná pole.");
       return;
     }
 
     const parsedDate = parseDateFromCZ(formData.pickupDate);
-    if (!isValidDate(parsedDate, formData.pickupLocation, today)) {
-      toast.error("❌ Vybrané datum není platné pro zvolené místo vyzvednutí.");
+    if (!isValidDate(parsedDate, formData.pickupLocation)) {
+      toast.error(
+        "❌ Vybrané datum není platné pro zvolené místo vyzvednutí."
+      );
       return;
     }
 
-    const totalPrice = calculateTotalPrice();
-
     setLoading(true);
+
     try {
       const res = await fetch("/api/order", {
         method: "POST",
@@ -183,7 +194,9 @@ export default function OrderForm() {
               >
                 <X size={18} />
               </button>
-              <h3 className="text-lg font-bold mb-2">✅ Objednávka byla úspěšně odeslána</h3>
+              <h3 className="text-lg font-bold mb-2">
+                ✅ Objednávka byla úspěšně odeslána
+              </h3>
               <p className="mb-1">
                 Číslo objednávky: <strong>{data.orderId}</strong>
               </p>
@@ -195,14 +208,14 @@ export default function OrderForm() {
           { duration: Infinity }
         );
 
-        // Aktualizace stavu skladu po objednávce
         setStock((prev) => ({
           ...prev,
-          standardQuantity: data.remaining?.standard ?? prev.standardQuantity,
-          lowCholQuantity: data.remaining?.lowChol ?? prev.lowCholQuantity,
+          standardQuantity:
+            data.remaining?.standard ?? prev.standardQuantity,
+          lowCholQuantity:
+            data.remaining?.lowChol ?? prev.lowCholQuantity,
         }));
 
-        // Reset formuláře
         setFormData({
           name: "",
           email: "",
@@ -214,7 +227,9 @@ export default function OrderForm() {
         });
         setDateError("");
       } else {
-        toast.error("❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku."));
+        toast.error(
+          "❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku.")
+        );
       }
     } catch (err) {
       console.error("Order submit error:", err);
@@ -230,125 +245,293 @@ export default function OrderForm() {
     const amount = Number(lastOrder.price || 0).toFixed(2);
     return `SPD*1.0*ACC:${iban}*AM:${amount}*CC:CZK*X-VS:${lastOrder.orderId}`;
   };
+// --- TŘETÍ ČÁST OrderForm.js ---
+
+import StockBox from "./StockBox";
+
+export default function OrderForm() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    standardQuantity: "",
+    lowCholQuantity: "",
+    pickupLocation: "",
+    pickupDate: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [lastOrder, setLastOrder] = useState(null);
+  const [showQR, setShowQR] = useState(false);
+  const [dateError, setDateError] = useState("");
+  const today = getDateOffset(0);
+
+  const [stock, setStock] = useState({
+    standardQuantity: 0,
+    lowCholQuantity: 0,
+    standardPrice: 0,
+    lowCholPrice: 0,
+  });
+
+  const handleInput = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const standardQty = parseInt(formData.standardQuantity || 0, 10);
+    const lowCholQty = parseInt(formData.lowCholQuantity || 0, 10);
+    const totalEggs = standardQty + lowCholQty;
+
+    if (totalEggs < 10 || totalEggs % 10 !== 0) {
+      toast.error("❌ Minimální objednávka je 10 ks a vždy jen násobky 10.");
+      return;
+    }
+    if (!formData.name || !formData.pickupLocation || !formData.pickupDate) {
+      toast.error("❌ Vyplňte všechna povinná pole.");
+      return;
+    }
+
+    const parsed = parseDateFromCZ(formData.pickupDate);
+    if (!isValidDate(parsed, formData.pickupLocation, today)) {
+      toast.error("❌ Vybrané datum není platné pro zvolené místo vyzvednutí.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          standardQuantity: standardQty,
+          lowCholQuantity: lowCholQty,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const totalPrice =
+          standardQty * stock.standardPrice +
+          lowCholQty * stock.lowCholPrice;
+
+        setLastOrder({ orderId: data.orderId, price: totalPrice });
+        setShowQR(true);
+
+        toast.custom(
+          (t) => (
+            <div
+              className={`bg-white shadow-lg rounded-2xl p-5 max-w-md w-full relative ${
+                t.visible ? "animate-enter" : "animate-leave"
+              }`}
+            >
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+              >
+                <X size={18} />
+              </button>
+              <h3 className="text-lg font-bold mb-2">
+                ✅ Objednávka byla úspěšně odeslána
+              </h3>
+              <p className="mb-1">
+                Číslo objednávky: <strong>{data.orderId}</strong>
+              </p>
+              <p className="mb-3">
+                Celková cena: <strong>{totalPrice} Kč</strong>
+              </p>
+            </div>
+          ),
+          { duration: Infinity }
+        );
+
+        setStock((prev) => ({
+          ...prev,
+          standardQuantity:
+            data.remaining?.standard ?? prev.standardQuantity,
+          lowCholQuantity:
+            data.remaining?.lowChol ?? prev.lowCholQuantity,
+        }));
+
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          standardQuantity: "",
+          lowCholQuantity: "",
+          pickupLocation: "",
+          pickupDate: "",
+        });
+        setDateError("");
+      } else {
+        toast.error(
+          "❌ Chyba: " + (data.error || "Nepodařilo se odeslat objednávku.")
+        );
+      }
+    } catch (err) {
+      console.error("Order submit error:", err);
+      toast.error("❌ Chyba při odesílání objednávky.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getQrValue = () => {
+    if (!lastOrder) return "";
+    const iban = domesticToIBAN(ACCOUNT_DOMESTIC);
+    const amount = Number(lastOrder.price || 0).toFixed(2);
+    return `SPD*1.0*ACC:${iban}*AM:${amount}*CC:CZK*X-VS:${lastOrder.orderId}`;
+  };
+
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <Toaster position="top-right" />
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Jméno a kontakt */}
+      <Toaster />
+      <h1 className="text-2xl font-bold mb-6">Objednávka domácích vajec</h1>
+
+      <StockBox editable={false} initialStock={stock} />
+
+      <form onSubmit={handleSubmit} className="space-y-4 mt-6">
         <div>
-          <label className="block mb-1 font-medium">Jméno*</label>
+          <label className="block font-semibold">Jméno a příjmení*</label>
           <input
             type="text"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="border rounded px-2 py-1 w-full"
+            onChange={(e) => handleInput("name", e.target.value)}
+            className="border px-2 py-1 rounded w-full"
           />
         </div>
+
         <div>
-          <label className="block mb-1 font-medium">Email</label>
+          <label className="block font-semibold">Email</label>
           <input
             type="email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className="border rounded px-2 py-1 w-full"
+            onChange={(e) => handleInput("email", e.target.value)}
+            className="border px-2 py-1 rounded w-full"
           />
         </div>
+
         <div>
-          <label className="block mb-1 font-medium">Telefon</label>
+          <label className="block font-semibold">Telefon</label>
           <input
-            type="tel"
+            type="text"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="border rounded px-2 py-1 w-full"
+            onChange={(e) => handleInput("phone", e.target.value)}
+            className="border px-2 py-1 rounded w-full"
           />
         </div>
 
-        {/* Místo vyzvednutí */}
-        <div>
-          <label className="block mb-1 font-medium">Místo vyzvednutí*</label>
-          <select
-            value={formData.pickupLocation}
-            onChange={(e) =>
-              setFormData({ ...formData, pickupLocation: e.target.value })
-            }
-            className="border rounded px-2 py-1 w-full"
-          >
-            <option value="">Vyberte místo</option>
-            <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
-            <option value="Farma Honezovice">Farma Honezovice</option>
-          </select>
-        </div>
-
-        {/* Datum vyzvednutí */}
-        <div>
-          <label className="block mb-1 font-medium">Datum vyzvednutí*</label>
-          <DayPicker
-            mode="single"
-            selected={parseDateFromCZ(formData.pickupDate)}
-            onSelect={(date) => {
-              setFormData({ ...formData, pickupDate: formatDateCZ(date) });
-              setDateError("");
-            }}
-            disabled={(date) => !isValidDate(date, formData.pickupLocation, today)}
-          />
-          {dateError && <p className="text-red-600">{dateError}</p>}
-        </div>
-
-        {/* Počet vajec */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block mb-1 font-medium">Standardní vejce (ks)</label>
+            <label className="block font-semibold">
+              Standardní vejce (ks)*
+            </label>
             <input
               type="number"
               value={formData.standardQuantity}
               onChange={(e) =>
-                setFormData({ ...formData, standardQuantity: e.target.value })
+                handleInput("standardQuantity", e.target.value)
               }
-              className="border rounded px-2 py-1 w-full"
+              className="border px-2 py-1 rounded w-full"
             />
           </div>
+
           <div>
-            <label className="block mb-1 font-medium">Nízký cholesterol (ks)</label>
+            <label className="block font-semibold">
+              Nízký cholesterol (ks)*
+            </label>
             <input
               type="number"
               value={formData.lowCholQuantity}
               onChange={(e) =>
-                setFormData({ ...formData, lowCholQuantity: e.target.value })
+                handleInput("lowCholQuantity", e.target.value)
               }
-              className="border rounded px-2 py-1 w-full"
+              className="border px-2 py-1 rounded w-full"
             />
           </div>
         </div>
+// --- ČTVRTÁ ČÁST OrderForm.js ---
 
-        {/* Tlačítko odeslat */}
-        <button
-          type="submit"
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          disabled={loading}
-        >
-          {loading ? "Odesílám…" : "Odeslat objednávku"}
-        </button>
+        <div>
+          <label className="block font-semibold">Místo vyzvednutí*</label>
+          <select
+            value={formData.pickupLocation}
+            onChange={(e) => handleInput("pickupLocation", e.target.value)}
+            className="border px-2 py-1 rounded w-full"
+          >
+            <option value="">Vyberte místo</option>
+            <option value="Dematic Ostrov u Stříbra 65">
+              Dematic Ostrov u Stříbra 65
+            </option>
+            <option value="Jiná lokalita">Jiná lokalita</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block font-semibold">Datum vyzvednutí*</label>
+          <DayPicker
+            mode="single"
+            selected={parseDateFromCZ(formData.pickupDate)}
+            onSelect={(date) =>
+              handleInput("pickupDate", formatDateCZ(date))
+            }
+            disabled={(date) => !isValidDate(date, formData.pickupLocation, today)}
+          />
+          {dateError && (
+            <p className="text-red-600 text-sm mt-1">{dateError}</p>
+          )}
+        </div>
+
+        <div className="flex space-x-4 mt-4">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+            disabled={loading}
+          >
+            {loading ? "Odesílám…" : "Odeslat objednávku"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFormData({
+                name: "",
+                email: "",
+                phone: "",
+                standardQuantity: "",
+                lowCholQuantity: "",
+                pickupLocation: "",
+                pickupDate: "",
+              });
+              setDateError("");
+            }}
+            className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+          >
+            Vymazat formulář
+          </button>
+        </div>
       </form>
 
-      {/* QR modal */}
       {showQR && lastOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 relative max-w-sm w-full">
+          <div className="bg-white p-6 rounded-xl relative">
             <button
               onClick={() => setShowQR(false)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
-            <h3 className="text-lg font-bold mb-4">Platba QR kódem</h3>
-            <QRCodeCanvas value={getQrValue()} size={200} />
-            <p className="mt-4">Číslo objednávky: <strong>{lastOrder.orderId}</strong></p>
-            <p>Celková cena: <strong>{lastOrder.price} Kč</strong></p>
+            <h2 className="text-lg font-bold mb-4">QR kód pro platbu</h2>
+            <QRCodeCanvas value={getQrValue()} size={256} />
+            <p className="mt-3 text-center">
+              Číslo objednávky: <strong>{lastOrder.orderId}</strong>
+            </p>
+            <p className="text-center">
+              Celková cena: <strong>{lastOrder.price} Kč</strong>
+            </p>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default OrderForm;
+}
