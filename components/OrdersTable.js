@@ -84,7 +84,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
         <td className="p-2">{order.pickup_location}</td>
         <td className="p-2">{order.pickup_date}</td>
 
-        {/* 🟢 Zaplaceno */}
+        {/* 💰 Zaplaceno */}
         <td className="p-2 text-center">
           <input
             type="checkbox"
@@ -93,7 +93,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
           />
         </td>
 
-        {/* 🧾 Akce */}
+        {/* 🟢 Akce */}
         <td className="p-2 space-x-2">
           {order.status !== STATUSES[STATUSES.length - 1] && (
             <button
@@ -105,7 +105,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
           )}
           <button
             onClick={() => resetPrice(order.id)}
-            className="bg-gray-400 text-white px-2 py-1 rounded hover:bg-gray-500"
+            className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
           >
             Vynulovat cenu
           </button>
@@ -145,7 +145,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
 
       <button
         onClick={() => setExpanded(!expanded)}
-        className="mt-4 px-4 py-1 bg-gray-300 rounded"
+        className="mt-4 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
       >
         {expanded ? "Skrýt vyřízené a zrušené" : "Zobrazit vyřízené a zrušené"}
       </button>
@@ -171,3 +171,4 @@ export default function OrdersTable({ orders, refreshOrders }) {
       )}
     </div>
   );
+}
