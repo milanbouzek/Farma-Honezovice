@@ -36,6 +36,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (authenticated) {
+      fetchOrders();
       const interval = setInterval(fetchOrders, 10000);
       return () => clearInterval(interval);
     }
@@ -66,9 +67,21 @@ export default function OrdersPage() {
   return (
     <AdminLayout>
       <Toaster position="top-center" />
-      <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
-      <StockBox />
-      {loading ? <p>Načítám objednávky…</p> : <OrdersTable orders={orders} refreshOrders={fetchOrders} />}
+      <h1 className="text-3xl font-bold mb-6">📦 Seznam objednávek</h1>
+
+      {/* 🔹 Panel se stavem a cenou vajec (editovatelný) */}
+      <div className="mb-6">
+        <StockBox editable={true} />
+      </div>
+
+      {/* 🔹 Tabulka objednávek */}
+      <div className="bg-white shadow rounded-xl p-4">
+        {loading ? (
+          <p>Načítám objednávky…</p>
+        ) : (
+          <OrdersTable orders={orders} refreshOrders={fetchOrders} />
+        )}
+      </div>
     </AdminLayout>
   );
 }
