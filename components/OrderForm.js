@@ -111,30 +111,28 @@ export default function OrderForm() {
     return true;
   };
     // načtení zásob ze serveru
-  useEffect(() => {
-    let mounted = true;
-    async function fetchStock() {
-      try {
-        const res = await fetch("/api/stock");
-        const json = await res.json();
-        if (!mounted) return;
-        setStock((prev) => ({
-          standardQuantity: json.standardQuantity ?? 0,
-          lowCholQuantity: json.lowCholQuantity ?? 0,
-          standardPrice: prev.standardPrice ?? 5,
-          lowCholPrice: prev.lowCholPrice ?? 7,
-        }));
-      } catch (err) {
-        if (!mounted) return;
-        setStock((prev) => ({
-          standardQuantity: 0,
-          lowCholQuantity: 0,
-          standardPrice: prev.standardPrice ?? 5,
-          lowCholPrice: prev.lowCholPrice ?? 7,
-        }));
-      }
+ useEffect(() => {
+  async function fetchStock() {
+    try {
+      const response = await fetch("/api/stock");
+      const data = await response.json();
+
+      console.log("📦 Načtený stock:", data);
+
+      setStock({
+        standardQuantity: data.standard_quantity ?? 0,
+        lowCholQuantity: data.low_chol_quantity ?? 0,
+        standardPrice: data.standard_price ?? 0,
+        lowCholPrice: data.low_chol_price ?? 0,
+      });
+    } catch (error) {
+      console.error("❌ Chyba při načítání zásob:", error);
+      toast.error("Nepodařilo se načíst stav zásob");
     }
-    fetchStock();
+  }
+
+  fetchStock();
+}, []);
     return () => { mounted = false; };
   }, []);
 
