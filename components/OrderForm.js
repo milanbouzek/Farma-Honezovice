@@ -112,32 +112,7 @@ export default function OrderForm() {
     return true;
   };
     // načtení zásob ze serveru
-  useEffect(() => {
-    let mounted = true;
-    async function fetchStock() {
-      try {
-        const res = await fetch("/api/stock");
-        const json = await res.json();
-        if (!mounted) return;
-        setStock((prev) => ({
-          standardQuantity: json.standardQuantity ?? 0,
-          lowCholQuantity: json.lowCholQuantity ?? 0,
-          standardPrice: prev.standardPrice ?? 5,
-          lowCholPrice: prev.lowCholPrice ?? 7,
-        }));
-      } catch (err) {
-        if (!mounted) return;
-        setStock((prev) => ({
-          standardQuantity: 0,
-          lowCholQuantity: 0,
-          standardPrice: prev.standardPrice ?? 5,
-          lowCholPrice: prev.lowCholPrice ?? 7,
-        }));
-      }
-    }
-    fetchStock();
-    return () => { mounted = false; };
-  }, []);
+<StockBox editable={false} />
 
   // změna formuláře
   const handleChange = (e) => {
