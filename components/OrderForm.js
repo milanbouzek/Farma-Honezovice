@@ -133,8 +133,6 @@ export default function OrderForm() {
 
   fetchStock();
 }, []);
-    return () => { mounted = false; };
-  }, []);
 
   // změna formuláře
   const handleChange = (e) => {
