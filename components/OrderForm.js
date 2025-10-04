@@ -332,20 +332,7 @@ export default function OrderForm() {
       )}
 
       {/* === STAV ZÁSOB === */}
-      <div className="mb-4 text-lg text-gray-700">
-        <h2 className="font-bold mb-1 text-red-600">Aktuální dostupné množství</h2>
-        <p>
-          🥚 Standardní vejce:{" "}
-          <strong>{stock.standardQuantity}</strong> ks (
-          {stock.standardPrice} Kč/ks)
-        </p>
-        <p>
-          🥚 Vejce se sníženým cholesterolem:{" "}
-          <strong>{stock.lowCholQuantity}</strong> ks (
-          {stock.lowCholPrice} Kč/ks)
-        </p>
-      </div>
-
+      <StockBox editable={false} />
       {/* === FORMULÁŘ === */}
       <form
         onSubmit={handleSubmit}
