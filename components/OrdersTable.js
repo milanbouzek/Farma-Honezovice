@@ -21,7 +21,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // 🆕 Nová funkce pro vynulování ceny
+  // 🆕 Vynulování ceny objednávky
   const resetPrice = async (id) => {
     if (!confirm("Opravdu chceš vynulovat cenu této objednávky?")) return;
 
@@ -61,7 +61,15 @@ export default function OrdersTable({ orders, refreshOrders }) {
         <td className="p-2">{order.low_chol_quantity}</td>
         <td className="p-2">{order.pickup_location}</td>
         <td className="p-2">{order.pickup_date}</td>
-        <td className="p-2 space-x-2">
+
+        {/* 🧾 Nový sloupec s cenou */}
+        <td className="p-2 font-semibold text-right">
+          {order.total_price !== null && order.total_price !== undefined
+            ? `${order.total_price} Kč`
+            : "-"}
+        </td>
+
+        <td className="p-2 space-x-2 text-right">
           {order.status !== STATUSES[STATUSES.length - 1] && (
             <button
               onClick={() => advanceStatus(order.id)}
@@ -71,7 +79,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
             </button>
           )}
 
-          {/* 🆕 Tlačítko na vynulování ceny */}
           <button
             onClick={() => resetPrice(order.id)}
             className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
@@ -104,7 +111,8 @@ export default function OrdersTable({ orders, refreshOrders }) {
             <th className="p-2">LowChol</th>
             <th className="p-2">Místo</th>
             <th className="p-2">Datum</th>
-            <th className="p-2">Akce</th>
+            <th className="p-2 text-right">Cena (Kč)</th>
+            <th className="p-2 text-right">Akce</th>
           </tr>
         </thead>
         <tbody>{activeOrders.map(renderRow)}</tbody>
@@ -129,7 +137,8 @@ export default function OrdersTable({ orders, refreshOrders }) {
               <th className="p-2">LowChol</th>
               <th className="p-2">Místo</th>
               <th className="p-2">Datum</th>
-              <th className="p-2">Akce</th>
+              <th className="p-2 text-right">Cena (Kč)</th>
+              <th className="p-2 text-right">Akce</th>
             </tr>
           </thead>
           <tbody>{finishedOrders.map(renderRow)}</tbody>
