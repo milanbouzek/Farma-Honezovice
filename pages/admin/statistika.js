@@ -17,6 +17,7 @@ export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
   const [period, setPeriod] = useState("rok"); // "rok" | "měsíc" | "týden"
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -29,12 +30,11 @@ export default function StatistikaPage() {
 
   const completedOrders = orders.filter((o) => o.status === "vyřízená");
 
-  // --- Barvy pro jednotlivé statusy ---
   const STATUS_COLORS = {
-    "nová objednávka": "#f87171", // červená
-    "zpracovává se": "#facc15",   // žlutá
-    "vyřízená": "#34d399",        // zelená
-    "zrušená": "#9ca3af",         // šedá
+    "nová objednávka": "#f87171",
+    "zpracovává se": "#facc15",
+    "vyřízená": "#34d399",
+    "zrušená": "#9ca3af",
   };
 
   // --- Počet objednávek ---
@@ -46,7 +46,8 @@ export default function StatistikaPage() {
       filtered.forEach((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
         const y = d.getFullYear();
-        if (!grouped[y]) grouped[y] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+        if (!grouped[y])
+          grouped[y] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
         grouped[y][o.status] = (grouped[y][o.status] || 0) + 1;
       });
       const labels = Object.keys(grouped).sort();
@@ -67,7 +68,8 @@ export default function StatistikaPage() {
       filtered.forEach((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
         const m = d.getMonth() + 1;
-        if (!grouped[m]) grouped[m] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+        if (!grouped[m])
+          grouped[m] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
         grouped[m][o.status] = (grouped[m][o.status] || 0) + 1;
       });
       const labels = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -80,21 +82,24 @@ export default function StatistikaPage() {
     }
 
     if (period === "týden") {
-      const today = new Date();
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 7);
       filtered = orders.filter((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d >= weekAgo && d <= today;
+        return (
+          d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth
+        );
       });
+
       const grouped = {};
       filtered.forEach((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const day = d.toISOString().slice(0, 10);
-        if (!grouped[day]) grouped[day] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+        const day = d.getDate();
+        if (!grouped[day])
+          grouped[day] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
         grouped[day][o.status] = (grouped[day][o.status] || 0) + 1;
       });
-      const labels = Object.keys(grouped).sort();
+
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
       const datasets = Object.keys(STATUS_COLORS).map((status) => ({
         label: status,
         data: labels.map((d) => grouped[d]?.[status] || 0),
@@ -137,9 +142,9 @@ export default function StatistikaPage() {
       const grouped = {};
       filtered.forEach((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const month = d.getMonth() + 1;
-        if (!grouped[month]) grouped[month] = 0;
-        grouped[month] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
+        const m = d.getMonth() + 1;
+        if (!grouped[m]) grouped[m] = 0;
+        grouped[m] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
       });
       const labels = Array.from({ length: 12 }, (_, i) => i + 1);
       return {
@@ -155,21 +160,21 @@ export default function StatistikaPage() {
     }
 
     if (period === "týden") {
-      const today = new Date();
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 7);
       filtered = filtered.filter((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d >= weekAgo && d <= today;
+        return (
+          d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth
+        );
       });
       const grouped = {};
       filtered.forEach((o) => {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const day = d.toISOString().slice(0, 10);
+        const day = d.getDate();
         if (!grouped[day]) grouped[day] = 0;
         grouped[day] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
       });
-      const labels = Object.keys(grouped).sort();
+      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
       return {
         labels,
         datasets: [
@@ -184,10 +189,13 @@ export default function StatistikaPage() {
   };
 
   const years = Array.from(
-    new Set(orders.map((o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))
+    new Set(
+      orders.map(
+        (o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()
+      )
+    )
   ).sort();
 
-  // --- Společné nastavení grafů ---
   const chartOptions = {
     responsive: true,
     plugins: {
@@ -196,7 +204,9 @@ export default function StatistikaPage() {
         callbacks: {
           label: (context) => {
             const value = context.parsed.y || 0;
-            return `${context.dataset.label}: ${value}${context.dataset.label.includes("Kč") ? " Kč" : ""}`;
+            return `${context.dataset.label}: ${value}${
+              context.dataset.label.includes("Kč") ? " Kč" : ""
+            }`;
           },
         },
       },
@@ -211,16 +221,35 @@ export default function StatistikaPage() {
       {/* Přepínač období */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
         <label className="flex items-center gap-1">
-          <input type="radio" value="rok" checked={period==="rok"} onChange={() => setPeriod("rok")} /> Rok
+          <input
+            type="radio"
+            value="rok"
+            checked={period === "rok"}
+            onChange={() => setPeriod("rok")}
+          />{" "}
+          Rok
         </label>
         <label className="flex items-center gap-1">
-          <input type="radio" value="měsíc" checked={period==="měsíc"} onChange={() => setPeriod("měsíc")} /> Měsíc
+          <input
+            type="radio"
+            value="měsíc"
+            checked={period === "měsíc"}
+            onChange={() => setPeriod("měsíc")}
+          />{" "}
+          Měsíc
         </label>
         <label className="flex items-center gap-1">
-          <input type="radio" value="týden" checked={period==="týden"} onChange={() => setPeriod("týden")} /> Týden
+          <input
+            type="radio"
+            value="týden"
+            checked={period === "týden"}
+            onChange={() => setPeriod("týden")}
+          />{" "}
+          Týden
         </label>
 
-        {period === "měsíc" && (
+        {/* výběr roku */}
+        {(period === "měsíc" || period === "týden") && (
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -233,15 +262,28 @@ export default function StatistikaPage() {
             ))}
           </select>
         )}
+
+        {/* výběr měsíce */}
+        {period === "týden" && (
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="border rounded p-1 ml-2"
+          >
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={m}>
+                {m}. měsíc
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {/* Graf počtu objednávek */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <h2 className="text-xl font-bold mb-2">📦 Počet objednávek podle stavu</h2>
         <Bar data={getOrderCounts()} options={chartOptions} />
       </div>
 
-      {/* Graf tržeb */}
       <div className="bg-white shadow rounded-xl p-4">
         <h2 className="text-xl font-bold mb-2">💰 Tržby z dokončených objednávek</h2>
         <Bar data={getRevenueData()} options={chartOptions} />
