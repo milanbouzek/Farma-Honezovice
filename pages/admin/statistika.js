@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { supabase } from "../../lib/supabaseClient";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -21,9 +22,16 @@ export default function StatistikaPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const res = await fetch("/api/admin/orders");
-      const data = await res.json();
-      setOrders(data.orders);
+      // Vytáhneme všechny objednávky z databáze včetně payment_total
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
+
+      if (error) {
+        console.error(error);
+      } else {
+        setOrders(data);
+      }
     };
     fetchOrders();
   }, []);
@@ -109,7 +117,7 @@ export default function StatistikaPage() {
     }
   };
 
-  // --- Tržby z dokončených objednávek ---
+  // --- Tržby z dokončených objednávek (přímo z payment_total) ---
   const getRevenueData = () => {
     let filtered = completedOrders;
 
@@ -119,7 +127,7 @@ export default function StatistikaPage() {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
         const y = d.getFullYear();
         if (!grouped[y]) grouped[y] = 0;
-        grouped[y] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
+        grouped[y] += o.payment_total || 0;
       });
       const labels = Object.keys(grouped).sort();
       return {
@@ -144,7 +152,7 @@ export default function StatistikaPage() {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
         const m = d.getMonth() + 1;
         if (!grouped[m]) grouped[m] = 0;
-        grouped[m] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
+        grouped[m] += o.payment_total || 0;
       });
       const labels = Array.from({ length: 12 }, (_, i) => i + 1);
       return {
@@ -171,7 +179,7 @@ export default function StatistikaPage() {
         const d = new Date(o.pickup_date.split(".").reverse().join("-"));
         const day = d.getDate();
         if (!grouped[day]) grouped[day] = 0;
-        grouped[day] += o.standard_quantity * 5 + o.low_chol_quantity * 7;
+        grouped[day] += o.payment_total || 0;
       });
       const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
       const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -248,7 +256,6 @@ export default function StatistikaPage() {
           Týden
         </label>
 
-        {/* výběr roku */}
         {(period === "měsíc" || period === "týden") && (
           <select
             value={selectedYear}
@@ -263,7 +270,6 @@ export default function StatistikaPage() {
           </select>
         )}
 
-        {/* výběr měsíce */}
         {period === "týden" && (
           <select
             value={selectedMonth}
