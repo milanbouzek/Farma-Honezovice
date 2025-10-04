@@ -15,11 +15,14 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
-
   const [timeRange, setTimeRange] = useState("month"); // week / month / year
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedWeek, setSelectedWeek] = useState(getCurrentWeekNumber());
+
+  const months = [
+    "Leden","Únor","Březen","Duben","Květen","Červen",
+    "Červenec","Srpen","Září","Říjen","Listopad","Prosinec"
+  ];
 
   useEffect(() => {
     fetch("/api/admin/orders")
@@ -28,82 +31,76 @@ export default function StatistikaPage() {
       .catch(err => console.error(err));
   }, []);
 
-  function getCurrentWeekNumber() {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 1);
-    const diff =
-      (now - start + ((start.getDay() + 6) % 7) * 86400000) / 86400000;
-    return Math.floor(diff / 7) + 1;
-  }
+  const completedOrders = useMemo(
+    () => orders.filter(o => o.status === "vyřízená"),
+    [orders]
+  );
 
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
-  const months = [
-    "Leden","Únor","Březen","Duben","Květen","Červen",
-    "Červenec","Srpen","Září","Říjen","Listopad","Prosinec"
-  ];
+  // --- AGREGACE PRO GRAFY ---
+  const chartData = useMemo(() => {
+    if (!completedOrders.length) return { labels: [], datasets: [] };
 
-  const getWeekNumber = (d) => {
-    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const dayNum = (date.getDay() + 6) % 7;
-    date.setDate(date.getDate() - dayNum + 3);
-    const firstThursday = new Date(date.getFullYear(), 0, 4);
-    const diff = date - firstThursday;
-    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
-  };
+    let labels = [];
+    let ordersData = [];
+    let revenueData = [];
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order => {
-      const d = new Date(order.pickup_date.split(".").reverse().join("-"));
-      if (timeRange === "year") return d.getFullYear() === selectedYear;
-      if (timeRange === "month") return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
-      if (timeRange === "week") return d.getFullYear() === selectedYear && getWeekNumber(d) === selectedWeek;
-      return true;
-    });
-  }, [orders, timeRange, selectedYear, selectedMonth, selectedWeek]);
+    if (timeRange === "year") {
+      // roky
+      const years = Array.from(new Set(completedOrders.map(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))).sort();
+      labels = years.map(y => y.toString());
+      ordersData = years.map(y => completedOrders.filter(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear() === y).length);
+      revenueData = years.map(y => completedOrders.filter(o => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear() === y)
+        .reduce((sum, o) => sum + ((o.standard_quantity || 0)*5 + (o.low_chol_quantity||0)*7), 0)
+      );
+    }
 
-  const completedOrders = useMemo(() => filteredOrders.filter(o => o.status === "vyřízená"), [filteredOrders]);
+    if (timeRange === "month") {
+      // měsíce vybraného roku
+      labels = months;
+      ordersData = months.map((_, idx) => completedOrders.filter(o => {
+        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+        return d.getFullYear() === selectedYear && d.getMonth() === idx;
+      }).length);
+      revenueData = months.map((_, idx) => completedOrders.filter(o => {
+        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+        return d.getFullYear() === selectedYear && d.getMonth() === idx;
+      }).reduce((sum,o)=>sum+((o.standard_quantity||0)*5+(o.low_chol_quantity||0)*7),0));
+    }
 
-  const ordersChartData = useMemo(() => {
-    const statusCounts = filteredOrders.reduce((acc, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    }, {});
+    if (timeRange === "week") {
+      // týdny vybraného roku
+      const getWeekNumber = (d) => {
+        const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const dayNum = (date.getDay() + 6) % 7;
+        date.setDate(date.getDate() - dayNum + 3);
+        const firstThursday = new Date(date.getFullYear(),0,4);
+        const diff = date - firstThursday;
+        return 1 + Math.round(diff / (7*24*60*60*1000));
+      };
+      const weeks = Array.from({length:52}, (_,i)=>i+1);
+      labels = weeks.map(w=>`Týden ${w}`);
+      ordersData = weeks.map(w => completedOrders.filter(o => {
+        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+        return d.getFullYear() === selectedYear && getWeekNumber(d) === w;
+      }).length);
+      revenueData = weeks.map(w => completedOrders.filter(o => {
+        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+        return d.getFullYear() === selectedYear && getWeekNumber(d) === w;
+      }).reduce((sum,o)=>sum+((o.standard_quantity||0)*5+(o.low_chol_quantity||0)*7),0));
+    }
+
     return {
-      labels: ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"],
-      datasets: [
-        {
-          label: "Počet objednávek",
-          data: ["nová objednávka","zpracovává se","vyřízená","zrušená"].map(
-            s => statusCounts[s] || 0
-          ),
-          backgroundColor: ["#f87171","#facc15","#34d399","#34d399"],
-        },
-      ],
+      labels,
+      ordersData,
+      revenueData
     };
-  }, [filteredOrders]);
-
-  const revenueChartData = useMemo(() => {
-    const totalRevenue = completedOrders.reduce(
-      (sum, o) => sum + ((o.standard_quantity || 0) * 5 + (o.low_chol_quantity || 0) * 7),
-      0
-    );
-    return {
-      labels: ["Tržby (Kč)"],
-      datasets: [
-        {
-          label: "Celkem vyděláno",
-          data: [totalRevenue],
-          backgroundColor: ["#34d399"],
-        },
-      ],
-    };
-  }, [completedOrders]);
+  }, [completedOrders, timeRange, selectedYear]);
 
   return (
     <AdminLayout>
       <h1 className="text-3xl font-bold mb-6">Statistika objednávek</h1>
 
-      {/* Přepínače a dropdowny */}
+      {/* Přepínače a výběr období */}
       <div className="flex gap-2 mb-4 items-center flex-wrap">
         {["week","month","year"].map(range => (
           <button
@@ -117,43 +114,14 @@ export default function StatistikaPage() {
           </button>
         ))}
 
-        {timeRange === "year" && (
+        {(timeRange === "month" || timeRange === "week") && (
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(parseInt(e.target.value))}
             className="border p-2 rounded"
           >
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        )}
-
-        {timeRange === "month" && (
-          <>
-            <select
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(parseInt(e.target.value))}
-              className="border p-2 rounded"
-            >
-              {months.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
-            </select>
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(parseInt(e.target.value))}
-              className="border p-2 rounded"
-            >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </>
-        )}
-
-        {timeRange === "week" && (
-          <select
-            value={selectedWeek}
-            onChange={e => setSelectedWeek(parseInt(e.target.value))}
-            className="border p-2 rounded"
-          >
-            {Array.from({length:52}, (_,i)=>i+1).map(w=>(
-              <option key={w} value={w}>Týden {w}</option>
+            {Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y => (
+              <option key={y} value={y}>{y}</option>
             ))}
           </select>
         )}
@@ -162,11 +130,33 @@ export default function StatistikaPage() {
       {/* Grafy */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white shadow rounded-xl p-4">
-          <Bar data={ordersChartData} />
+          <Bar
+            data={{
+              labels: chartData.labels,
+              datasets: [
+                {
+                  label: "Počet objednávek",
+                  data: chartData.ordersData,
+                  backgroundColor: "#f87171",
+                },
+              ],
+            }}
+          />
         </div>
 
         <div className="bg-white shadow rounded-xl p-4">
-          <Bar data={revenueChartData} />
+          <Bar
+            data={{
+              labels: chartData.labels,
+              datasets: [
+                {
+                  label: "Celkem vyděláno (Kč)",
+                  data: chartData.revenueData,
+                  backgroundColor: "#34d399",
+                },
+              ],
+            }}
+          />
         </div>
       </div>
     </AdminLayout>
