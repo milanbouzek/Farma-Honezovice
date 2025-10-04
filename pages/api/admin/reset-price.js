@@ -1,25 +1,25 @@
 import { supabase } from '../../../lib/supabaseClient';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'POST') {
+    const { id } = req.body;
 
-  const { orderId } = req.body;
-  if (!orderId) return res.status(400).json({ error: 'Chybí orderId' });
+    if (!id) {
+      return res.status(400).json({ success: false, error: 'Chybí ID objednávky' });
+    }
 
-  try {
     const { data, error } = await supabase
       .from('orders')
       .update({ total_price: 0 })
-      .eq('id', orderId)
-      .select();
+      .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
 
-    res.status(200).json({ success: true, orderId: data[0].id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Chyba při resetování ceny' });
+    return res.status(200).json({ success: true, data });
+  } else {
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).end(`Metoda ${req.method} není povolena`);
   }
 }
