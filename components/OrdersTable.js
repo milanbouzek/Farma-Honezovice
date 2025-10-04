@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
 const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
@@ -6,7 +6,19 @@ const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zruše
 export default function OrdersTable({ orders, refreshOrders }) {
   const [expanded, setExpanded] = useState(false);
 
-  // 🟦 Změna stavu objednávky
+  // Načtení stavu z localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("ordersExpanded");
+    if (stored === "true") setExpanded(true);
+  }, []);
+
+  // Uložení stavu do localStorage při změně
+  const toggleExpanded = () => {
+    const newState = !expanded;
+    setExpanded(newState);
+    localStorage.setItem("ordersExpanded", newState);
+  };
+
   const advanceStatus = async (id) => {
     try {
       const res = await fetch("/api/admin/orders", {
@@ -22,7 +34,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // 💰 Přepínání zaplaceno / nezaplaceno
   const togglePaid = async (id, currentState) => {
     try {
       const res = await fetch("/api/admin/toggle-paid", {
@@ -31,7 +42,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
         body: JSON.stringify({ id, paid: !currentState }),
       });
       const data = await res.json();
-
       if (data.success) {
         toast.success(data.paid ? "💰 Objednávka označena jako zaplacená" : "❌ Platba zrušena");
         refreshOrders();
@@ -43,7 +53,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // 🧾 Nulování ceny
   const resetPrice = async (id) => {
     try {
       const res = await fetch("/api/admin/reset-price", {
@@ -52,7 +61,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-
       if (data.success) {
         toast.success("💸 Cena objednávky byla vynulována");
         refreshOrders();
@@ -69,7 +77,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
     if (order.status === "nová objednávka") bgColor = "bg-red-100";
     if (order.status === "zpracovává se") bgColor = "bg-yellow-100";
     if (["vyřízená", "zrušená"].includes(order.status)) bgColor = "bg-green-100";
-    if (order.paid) bgColor = "bg-green-200"; // 💰 zvýraznění zaplacených
+    if (order.paid) bgColor = "bg-green-200";
 
     return (
       <tr key={order.id} className={`${bgColor} border-b`}>
@@ -84,7 +92,6 @@ export default function OrdersTable({ orders, refreshOrders }) {
         <td className="p-2">{order.pickup_location}</td>
         <td className="p-2">{order.pickup_date}</td>
 
-        {/* 💰 Zaplaceno */}
         <td className="p-2 text-center">
           <input
             type="checkbox"
@@ -93,19 +100,18 @@ export default function OrdersTable({ orders, refreshOrders }) {
           />
         </td>
 
-        {/* 🟢 Akce */}
-        <td className="p-2 space-x-2">
+        <td className="p-2 flex space-x-2 justify-center">
           {order.status !== STATUSES[STATUSES.length - 1] && (
             <button
               onClick={() => advanceStatus(order.id)}
-              className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
               Další stav
             </button>
           )}
           <button
             onClick={() => resetPrice(order.id)}
-            className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
           >
             Vynulovat cenu
           </button>
@@ -144,8 +150,8 @@ export default function OrdersTable({ orders, refreshOrders }) {
       </table>
 
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="mt-4 px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+        onClick={toggleExpanded}
+        className="mt-4 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
       >
         {expanded ? "Skrýt vyřízené a zrušené" : "Zobrazit vyřízené a zrušené"}
       </button>
