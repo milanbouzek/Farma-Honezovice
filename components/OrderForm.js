@@ -4,6 +4,7 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { X } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
+import StockBox from "./StockBox";
 
 /**
  * OrderForm.js
