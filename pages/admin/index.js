@@ -3,9 +3,6 @@ import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
 import AdminLayout from "../../components/AdminLayout";
 
-// --- STATUSES přímo zde ---
-const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
-
 export default function AdminPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,7 +72,7 @@ export default function AdminPage() {
               <td className="p-2">{order.pickup_location}</td>
               <td className="p-2">{order.pickup_date}</td>
               <td className="p-2">
-                {order.status !== STATUSES[STATUSES.length - 1] && (
+                {order.status !== "vyřízená" && order.status !== "zrušená" && (
                   <button
                     onClick={() => advanceStatus(order.id)}
                     className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
