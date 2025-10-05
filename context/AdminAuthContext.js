@@ -1,10 +1,11 @@
-import { createContext, useState, useContext, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AdminAuthContext = createContext();
 
 export function AdminAuthProvider({ children }) {
   const [authenticated, setAuthenticated] = useState(false);
 
+  // Při načtení stránky zkontrolujeme localStorage
   useEffect(() => {
     const saved = localStorage.getItem("admin_authenticated");
     if (saved === "true") setAuthenticated(true);
@@ -15,9 +16,10 @@ export function AdminAuthProvider({ children }) {
     if (password === ADMIN_PASSWORD) {
       setAuthenticated(true);
       localStorage.setItem("admin_authenticated", "true");
-      return true;
+      return { success: true };
+    } else {
+      return { success: false };
     }
-    return false;
   };
 
   const logout = () => {
