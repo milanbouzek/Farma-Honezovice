@@ -46,37 +46,30 @@ export default function AdminLayout({ children }) {
     );
   }
 
+  // Dynamické menu – pokud přidáš další stránku, stačí přidat do pole
+  const menuItems = [
+    { href: "/admin", label: "Objednávky", color: "blue" },
+    { href: "/admin/statistika", label: "Statistika", color: "green" },
+    { href: "/admin/naklady", label: "Náklady", color: "red" },
+    { href: "/admin/produkcevajec", label: "Produkce vajec", color: "purple" },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <Toaster position="top-center" />
-      
-      {/* Menu se zobrazí až po přihlášení */}
       <header className="mb-6">
         <nav className="flex gap-4 flex-wrap">
-          <Link href="/admin">
-            <a className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-              Objednávky
-            </a>
-          </Link>
-          <Link href="/admin/statistika">
-            <a className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600">
-              Statistika
-            </a>
-          </Link>
-          <Link href="/admin/naklady">
-            <a className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">
-              Náklady
-            </a>
-          </Link>
-          <Link href="/admin/produkcevajec">
-            <a className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">
-              Produkce vajec
-            </a>
-          </Link>
+          {menuItems.map((item) => (
+            <Link key={item.href} href={item.href}>
+              <a
+                className={`px-3 py-1 bg-${item.color}-500 text-white rounded hover:bg-${item.color}-600`}
+              >
+                {item.label}
+              </a>
+            </Link>
+          ))}
         </nav>
       </header>
-
-      {/* Obsah stránky */}
       <main>{children}</main>
     </div>
   );
