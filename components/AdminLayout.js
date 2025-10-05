@@ -4,16 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function AdminLayout({ children }) {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(null); // null = loading
   const [password, setPassword] = useState("");
-
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
   const router = useRouter();
 
-  // Kontrola přihlášení při načtení stránky
   useEffect(() => {
     const saved = localStorage.getItem("admin_authenticated");
     if (saved === "true") setAuthenticated(true);
+    else setAuthenticated(false);
   }, []);
 
   const handleLogin = () => {
@@ -26,10 +25,12 @@ export default function AdminLayout({ children }) {
     }
   };
 
-  // Přihlašovací obrazovka
+  // Prevence flashu: zatím nic nerenderujeme
+  if (authenticated === null) return null;
+
   if (!authenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <Toaster position="top-center" />
         <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
         <input
@@ -41,7 +42,7 @@ export default function AdminLayout({ children }) {
         />
         <button
           onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
         >
           Přihlásit se
         </button>
@@ -49,7 +50,6 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  // Menu položky
   const menuItems = [
     { name: "🏠 Dashboard", path: "/admin" },
     { name: "📦 Objednávky", path: "/admin/objednavky" },
@@ -59,22 +59,28 @@ export default function AdminLayout({ children }) {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       <Toaster position="top-center" />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md p-6">
-        <h1 className="text-2xl font-bold mb-8 text-green-900 tracking-tight">
-          Farma Honezovice
-        </h1>
+      <aside className="w-64 bg-white shadow-md p-6 flex flex-col">
+        {/* Logo farmy */}
+        <div className="mb-8 flex items-center justify-center">
+          <img
+            src="/logo-farmy.png" // uprav cestu dle svého loga
+            alt="Farma Honezovice"
+            className="h-16 w-auto"
+          />
+        </div>
+
         <nav className="flex flex-col space-y-2">
           {menuItems.map((item) => (
             <Link key={item.path} href={item.path}>
               <a
-                className={`p-2 rounded-md transition block ${
+                className={`p-2 rounded-md transition block text-left ${
                   router.pathname === item.path
-                    ? "bg-green-500 text-white font-semibold"
-                    : "text-gray-700 hover:bg-gray-200"
+                    ? "bg-green-600 text-white font-semibold"
+                    : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 {item.name}
@@ -84,7 +90,7 @@ export default function AdminLayout({ children }) {
         </nav>
       </aside>
 
-      {/* Obsah */}
+      {/* Hlavní obsah */}
       <main className="flex-1 p-6 bg-gray-50">{children}</main>
     </div>
   );
