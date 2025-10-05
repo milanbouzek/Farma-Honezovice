@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
-import NavMenu from "../../components/NavMenu";
+import AdminLayout from "../../components/AdminLayout";
 
 const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
 const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
@@ -43,7 +43,9 @@ export default function AdminPage() {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      setOrders((prev) => prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o)));
+      setOrders((prev) =>
+        prev.map((o) => (o.id === data.id ? { ...o, status: data.status } : o))
+      );
       toast.success("✅ Status změněn na: " + data.status);
     } catch (err) {
       toast.error("Chyba při změně statusu: " + err.message);
@@ -80,10 +82,11 @@ export default function AdminPage() {
     );
   }
 
-  // Filtrace sekcí
   const newOrders = orders.filter((o) => o.status === "nová objednávka");
   const processingOrders = orders.filter((o) => o.status === "zpracovává se");
-  const completedOrders = orders.filter((o) => o.status === "vyřízená" || o.status === "zrušená");
+  const completedOrders = orders.filter(
+    (o) => o.status === "vyřízená" || o.status === "zrušená"
+  );
 
   const renderTable = (data, color) => (
     <div className="overflow-x-auto">
@@ -103,7 +106,11 @@ export default function AdminPage() {
         </thead>
         <tbody>
           {data.map((order) => (
-            <tr key={order.id} style={{ backgroundColor: color }} className="border-b hover:bg-gray-50">
+            <tr
+              key={order.id}
+              style={{ backgroundColor: color }}
+              className="border-b hover:bg-gray-50"
+            >
               <td className="p-2">{order.id}</td>
               <td className="p-2">{order.customer_name}</td>
               <td className="p-2">{order.email || "-"}</td>
@@ -130,47 +137,46 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <NavMenu />
-      <div className="p-6">
-        <Toaster position="top-center" />
-        <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
+    <AdminLayout>
+      <Toaster position="top-center" />
+      <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-        {/* Stock */}
+      {/* Stock */}
       <StockBox editable={true} />
 
-        {/* Nové */}
-        {newOrders.length > 0 && (
-          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-            <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
-            {renderTable(newOrders, "#fee2e2")}
-          </div>
-        )}
-
-        {/* Zpracovává se */}
-        {processingOrders.length > 0 && (
-          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-            <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
-            {renderTable(processingOrders, "#fef9c3")}
-          </div>
-        )}
-
-        {/* Vyřízené / zrušené */}
+      {/* Nové */}
+      {newOrders.length > 0 && (
         <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="text-left w-full font-bold text-green-700"
-          >
-            {showCompleted
-              ? "▼ Dokončené a zrušené objednávky"
-              : "► Dokončené a zrušené objednávky"}
-          </button>
-          {showCompleted && completedOrders.length > 0 && renderTable(completedOrders, "#d1fae5")}
-          {showCompleted && completedOrders.length === 0 && (
-            <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
-          )}
+          <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
+          {renderTable(newOrders, "#fee2e2")}
         </div>
+      )}
+
+      {/* Zpracovává se */}
+      {processingOrders.length > 0 && (
+        <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+          <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
+          {renderTable(processingOrders, "#fef9c3")}
+        </div>
+      )}
+
+      {/* Vyřízené / zrušené */}
+      <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+        <button
+          onClick={() => setShowCompleted(!showCompleted)}
+          className="text-left w-full font-bold text-green-700"
+        >
+          {showCompleted
+            ? "▼ Dokončené a zrušené objednávky"
+            : "► Dokončené a zrušené objednávky"}
+        </button>
+        {showCompleted &&
+          completedOrders.length > 0 &&
+          renderTable(completedOrders, "#d1fae5")}
+        {showCompleted && completedOrders.length === 0 && (
+          <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
+        )}
       </div>
-    </div>
+    </AdminLayout>
   );
 }
