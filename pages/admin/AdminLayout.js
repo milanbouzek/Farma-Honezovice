@@ -49,6 +49,8 @@ export default function AdminLayout({ children }) {
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <Toaster position="top-center" />
+      
+      {/* Menu se zobrazí až po přihlášení */}
       <header className="mb-6">
         <nav className="flex gap-4 flex-wrap">
           <Link href="/admin">
@@ -73,6 +75,8 @@ export default function AdminLayout({ children }) {
           </Link>
         </nav>
       </header>
+
+      {/* Obsah stránky */}
       <main>{children}</main>
     </div>
   );
