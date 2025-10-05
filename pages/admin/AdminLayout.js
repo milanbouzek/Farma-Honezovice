@@ -2,13 +2,18 @@ import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Link from "next/link";
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-
 export default function AdminLayout({ children }) {
+  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
 
   const handleLogin = () => {
+    if (!ADMIN_PASSWORD) {
+      toast.error("❌ Admin heslo není nastavené v environment variables!");
+      return;
+    }
+
     if (password === ADMIN_PASSWORD) {
       setAuthenticated(true);
       toast.success("✅ Přihlášeno!");
