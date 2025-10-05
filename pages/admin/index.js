@@ -1,14 +1,10 @@
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
-import AdminLayout from "../../components/AdminLayout";
-
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
+import AdminLayout from "../../components/AdminLayout"; // místo NavMenu
+import { STATUSES } from "../../lib/constants"; // pokud máš
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authenticated, setAuthenticated] = useState(false);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -23,15 +19,6 @@ export default function AdminPage() {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      fetchOrders();
-    } else {
-      toast.error("❌ Špatné heslo");
     }
   };
 
@@ -53,40 +40,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (authenticated) {
-      fetchOrders();
-      const interval = setInterval(fetchOrders, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [authenticated]);
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
-
-  const newOrders = orders.filter((o) => o.status === "nová objednávka");
-  const processingOrders = orders.filter((o) => o.status === "zpracovává se");
-  const completedOrders = orders.filter(
-    (o) => o.status === "vyřízená" || o.status === "zrušená"
-  );
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const renderTable = (data, color) => (
     <div className="overflow-x-auto">
@@ -106,11 +63,7 @@ export default function AdminPage() {
         </thead>
         <tbody>
           {data.map((order) => (
-            <tr
-              key={order.id}
-              style={{ backgroundColor: color }}
-              className="border-b hover:bg-gray-50"
-            >
+            <tr key={order.id} style={{ backgroundColor: color }} className="border-b hover:bg-gray-50">
               <td className="p-2">{order.id}</td>
               <td className="p-2">{order.customer_name}</td>
               <td className="p-2">{order.email || "-"}</td>
@@ -136,15 +89,17 @@ export default function AdminPage() {
     </div>
   );
 
+  const newOrders = orders.filter((o) => o.status === "nová objednávka");
+  const processingOrders = orders.filter((o) => o.status === "zpracovává se");
+  const completedOrders = orders.filter((o) => o.status === "vyřízená" || o.status === "zrušená");
+
   return (
     <AdminLayout>
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">Seznam objednávek</h1>
 
-      {/* Stock */}
       <StockBox editable={true} />
 
-      {/* Nové */}
       {newOrders.length > 0 && (
         <div className="mb-6 border rounded-xl p-4 bg-white shadow">
           <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
@@ -152,7 +107,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Zpracovává se */}
       {processingOrders.length > 0 && (
         <div className="mb-6 border rounded-xl p-4 bg-white shadow">
           <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
@@ -160,7 +114,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Vyřízené / zrušené */}
       <div className="mb-6 border rounded-xl p-4 bg-white shadow">
         <button
           onClick={() => setShowCompleted(!showCompleted)}
@@ -170,9 +123,7 @@ export default function AdminPage() {
             ? "▼ Dokončené a zrušené objednávky"
             : "► Dokončené a zrušené objednávky"}
         </button>
-        {showCompleted &&
-          completedOrders.length > 0 &&
-          renderTable(completedOrders, "#d1fae5")}
+        {showCompleted && completedOrders.length > 0 && renderTable(completedOrders, "#d1fae5")}
         {showCompleted && completedOrders.length === 0 && (
           <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
         )}
