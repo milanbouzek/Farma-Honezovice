@@ -1,16 +1,15 @@
 import "../styles/globals.css";
 import { Toaster } from "react-hot-toast";
-import { AdminAuthProvider } from "../context/AdminAuthContext"; // <- přidej tento soubor
+import { AdminAuthProvider } from "../components/AdminAuthContext";
 
 export default function App({ Component, pageProps }) {
   return (
     <AdminAuthProvider>
       <Component {...pageProps} />
-      {/* Toaster pro toast notifikace */}
       <Toaster
         position="top-center"
         toastOptions={{
-          icon: null, // odstraní fajfku nebo jinou ikonu
+          icon: null,
           style: {
             borderRadius: "16px",
             background: "#fff8dc",
@@ -25,12 +24,8 @@ export default function App({ Component, pageProps }) {
             alignItems: "center",
             textAlign: "center",
           },
-          success: {
-            duration: 5000,
-          },
-          error: {
-            duration: 6000,
-          },
+          success: { duration: 5000 },
+          error: { duration: 6000 },
         }}
       />
     </AdminAuthProvider>
