@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
-import AdminLayout from "../../components/AdminLayout"; // místo NavMenu
-import { STATUSES } from "../../lib/constants"; // pokud máš
+import AdminLayout from "../../components/AdminLayout";
+import { STATUSES } from "../../lib/constants";
 
 export default function AdminPage() {
   const [orders, setOrders] = useState([]);
@@ -14,7 +14,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/orders");
       const data = await res.json();
-      setOrders(data.orders);
+      setOrders(data.orders || []);
     } catch (err) {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
