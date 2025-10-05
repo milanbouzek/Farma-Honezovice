@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
 import {
@@ -14,23 +15,27 @@ import { supabase } from "../../lib/supabaseClient";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
+
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  const [period, setPeriod] = useState("rok"); // "rok" | "měsíc" | "týden"
+  const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
 
+  // --- Načtení dat ---
   useEffect(() => {
+    if (!authenticated) return;
     const fetchData = async () => {
-      // Objednávky
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
       if (orderError) console.error(orderError);
       else setOrders(orderData || []);
 
-      // Náklady
       const { data: expenseData, error: expenseError } = await supabase
         .from("expenses")
         .select("id, description, amount, date");
@@ -38,7 +43,7 @@ export default function StatistikaPage() {
       else setExpenses(expenseData || []);
     };
     fetchData();
-  }, []);
+  }, [authenticated]);
 
   const completedOrders = orders.filter((o) => o.status === "vyřízená");
 
@@ -52,142 +57,83 @@ export default function StatistikaPage() {
   // --- Počet objednávek ---
   const getOrderCounts = () => {
     let filtered = orders;
-    if (period === "rok") {
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const y = d.getFullYear();
-        if (!grouped[y])
-          grouped[y] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
-        grouped[y][o.status] = (grouped[y][o.status] || 0) + 1;
-      });
-      const labels = Object.keys(grouped).sort();
-      const datasets = Object.keys(STATUS_COLORS).map((status) => ({
-        label: status,
-        data: labels.map((y) => grouped[y]?.[status] || 0),
-        backgroundColor: STATUS_COLORS[status],
-      }));
-      return { labels, datasets };
-    }
+    const grouped = {};
 
-    if (period === "měsíc") {
-      filtered = orders.filter((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear;
-      });
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const m = d.getMonth() + 1;
-        if (!grouped[m])
-          grouped[m] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
-        grouped[m][o.status] = (grouped[m][o.status] || 0) + 1;
-      });
-      const labels = Array.from({ length: 12 }, (_, i) => i + 1);
-      const datasets = Object.keys(STATUS_COLORS).map((status) => ({
-        label: status,
-        data: labels.map((m) => grouped[m]?.[status] || 0),
-        backgroundColor: STATUS_COLORS[status],
-      }));
-      return { labels, datasets };
-    }
+    filtered.forEach((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      let key;
+      if (period === "rok") key = d.getFullYear();
+      if (period === "měsíc") key = d.getMonth() + 1;
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
+      if (key === undefined) return;
+      if (!grouped[key])
+        grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+      grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
+    });
 
-    if (period === "týden") {
-      filtered = orders.filter((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth;
-      });
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const day = d.getDate();
-        if (!grouped[day])
-          grouped[day] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
-        grouped[day][o.status] = (grouped[day][o.status] || 0) + 1;
-      });
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-      const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-      const datasets = Object.keys(STATUS_COLORS).map((status) => ({
-        label: status,
-        data: labels.map((d) => grouped[d]?.[status] || 0),
-        backgroundColor: STATUS_COLORS[status],
-      }));
-      return { labels, datasets };
-    }
+    let labels = [];
+    if (period === "rok") labels = Object.keys(grouped).sort();
+    if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+
+    const datasets = Object.keys(STATUS_COLORS).map((status) => ({
+      label: status,
+      data: labels.map((l) => grouped[l]?.[status] || 0),
+      backgroundColor: STATUS_COLORS[status],
+    }));
+
+    return { labels, datasets };
   };
 
   // --- Tržby z dokončených objednávek ---
   const getRevenueData = () => {
     let filtered = completedOrders;
+    const grouped = {};
 
-    if (period === "rok") {
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const y = d.getFullYear();
-        if (!grouped[y]) grouped[y] = 0;
-        grouped[y] += o.payment_total || 0;
-      });
-      const labels = Object.keys(grouped).sort();
-      return { labels, datasets: [{ label: "Tržby (Kč)", data: labels.map((y) => grouped[y]), backgroundColor: "#34d399" }] };
-    }
+    filtered.forEach((o) => {
+      const d = new Date(o.pickup_date.split(".").reverse().join("-"));
+      let key;
+      if (period === "rok") key = d.getFullYear();
+      if (period === "měsíc") key = d.getMonth() + 1;
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
+      if (key === undefined) return;
+      grouped[key] = (grouped[key] || 0) + (o.payment_total || 0);
+    });
 
-    if (period === "měsíc") {
-      filtered = filtered.filter((o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear() === selectedYear);
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const m = d.getMonth() + 1;
-        if (!grouped[m]) grouped[m] = 0;
-        grouped[m] += o.payment_total || 0;
-      });
-      const labels = Array.from({ length: 12 }, (_, i) => i + 1);
-      return { labels, datasets: [{ label: "Tržby (Kč)", data: labels.map((m) => grouped[m] || 0), backgroundColor: "#34d399" }] };
-    }
+    let labels = [];
+    if (period === "rok") labels = Object.keys(grouped).sort();
+    if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
-    if (period === "týden") {
-      filtered = filtered.filter((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        return d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth;
-      });
-      const grouped = {};
-      filtered.forEach((o) => {
-        const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-        const day = d.getDate();
-        if (!grouped[day]) grouped[day] = 0;
-        grouped[day] += o.payment_total || 0;
-      });
-      const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
-      const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-      return { labels, datasets: [{ label: "Tržby (Kč)", data: labels.map((d) => grouped[d] || 0), backgroundColor: "#34d399" }] };
-    }
+    const data = labels.map((l) => grouped[l] || 0);
+    return { labels, datasets: [{ label: "Tržby (Kč)", data, backgroundColor: "#34d399" }] };
   };
 
   // --- Kombinovaný graf náklady vs zisk ---
   const getProfitChartData = () => {
     let labels = [];
-    let revenueGrouped = {};
-    let expenseGrouped = {};
+    const revenueGrouped = {};
+    const expenseGrouped = {};
 
-    const getKey = (d, source) => {
+    const getKey = (d) => {
       if (period === "rok") return d.getFullYear();
-      if (period === "měsíc") return d.getFullYear() === selectedYear ? d.getMonth() + 1 : null;
-      if (period === "týden") return d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth ? (source === "order" ? d.getDate() : d.getDate()) : null;
+      if (period === "měsíc") return d.getMonth() + 1;
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) return d.getDate();
     };
 
     completedOrders.forEach((o) => {
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
-      const key = getKey(d, "order");
-      if (key !== null) revenueGrouped[key] = (revenueGrouped[key] || 0) + (o.payment_total || 0);
+      const key = getKey(d);
+      if (key !== undefined) revenueGrouped[key] = (revenueGrouped[key] || 0) + (o.payment_total || 0);
     });
 
     expenses.forEach((e) => {
       const d = new Date(e.date);
-      const key = getKey(d, "expense");
-      if (key !== null) expenseGrouped[key] = (expenseGrouped[key] || 0) + (Number(e.amount) || 0);
+      const key = getKey(d);
+      if (key !== undefined) expenseGrouped[key] = (expenseGrouped[key] || 0) + (Number(e.amount) || 0);
     });
 
-    if (period === "rok") labels = Object.keys({...revenueGrouped, ...expenseGrouped}).sort();
+    if (period === "rok") labels = Object.keys({ ...revenueGrouped, ...expenseGrouped }).sort();
     else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
     else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
@@ -218,10 +164,7 @@ export default function StatistikaPage() {
         callbacks: {
           label: (context) => {
             const value = context.parsed.y || 0;
-            if (context.dataset.label === "Čistý zisk") {
-              return `${context.dataset.label}: ${value >= 0 ? value + " Kč" : value + " Kč"}`;
-            }
-            return `${context.dataset.label}: ${value}${context.dataset.label.includes("Kč") ? " Kč" : ""}`;
+            return `${context.dataset.label}: ${value} Kč`;
           },
         },
       },
@@ -229,8 +172,36 @@ export default function StatistikaPage() {
     scales: { y: { beginAtZero: true } },
   };
 
+  const handleLogin = () => {
+    if (password === ADMIN_PASSWORD) setAuthenticated(true);
+    else toast.error("❌ Špatné heslo");
+  };
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Toaster position="top-center" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
+
   return (
     <AdminLayout>
+      <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
 
       {/* Finanční přehled */}
