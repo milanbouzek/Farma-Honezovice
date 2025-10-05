@@ -6,14 +6,14 @@ import { useRouter } from "next/router";
 export default function AdminLayout({ children }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
-  const [loadingAuth, setLoadingAuth] = useState(true); // kontrola načtení
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
   const router = useRouter();
 
+  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
+  // Kontrola přihlášení při načtení
   useEffect(() => {
     const saved = localStorage.getItem("admin_authenticated");
     if (saved === "true") setAuthenticated(true);
-    setLoadingAuth(false);
   }, []);
 
   const handleLogin = () => {
@@ -26,11 +26,9 @@ export default function AdminLayout({ children }) {
     }
   };
 
-  if (loadingAuth) return null; // počkej, než se načte auth stav
-
   if (!authenticated) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 font-sans">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <Toaster position="top-center" />
         <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
         <input
@@ -38,11 +36,11 @@ export default function AdminLayout({ children }) {
           placeholder="Zadejte heslo"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border border-gray-300 p-2 rounded mb-2 w-64 focus:outline-none focus:ring-2 focus:ring-green-400"
+          className="border p-2 rounded mb-2 w-64 focus:outline-none focus:ring-2 focus:ring-green-400"
         />
         <button
           onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition"
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
         >
           Přihlásit se
         </button>
@@ -59,30 +57,26 @@ export default function AdminLayout({ children }) {
   ];
 
   return (
-    <div className="flex min-h-screen font-sans bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       <Toaster position="top-center" />
 
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg rounded-r-lg p-6 flex flex-col">
-        {/* Logo farmy */}
-        <div className="mb-8 flex items-center justify-center">
-          <img
-            src="/logo-farmy.png"
-            alt="Farma Honezovice"
-            className="h-16 w-auto"
-          />
+      <aside className="w-64 bg-white shadow-lg flex flex-col">
+        {/* Logo */}
+        <div className="flex justify-center items-center py-6 border-b border-gray-200">
+          <img src="/logo.png" alt="Farma" className="h-16 w-auto" />
         </div>
 
-        <nav className="flex flex-col space-y-2">
+        {/* Navigace */}
+        <nav className="flex flex-col mt-4 px-2 flex-1">
           {menuItems.map((item) => (
             <Link key={item.path} href={item.path}>
               <a
-                className={`p-3 rounded-md transition block text-left text-gray-700 font-medium
-                  ${
-                    router.pathname === item.path
-                      ? "bg-green-600 text-white font-semibold shadow"
-                      : "hover:bg-green-100 hover:text-green-700"
-                  }`}
+                className={`flex items-center p-3 mb-2 rounded-lg transition-all ${
+                  router.pathname === item.path
+                    ? "bg-green-600 text-white font-semibold shadow-md"
+                    : "text-gray-700 hover:bg-green-100 hover:text-green-800"
+                }`}
               >
                 {item.name}
               </a>
