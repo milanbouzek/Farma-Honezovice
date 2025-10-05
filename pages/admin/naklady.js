@@ -3,12 +3,7 @@ import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-
 export default function NakladyPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-
   const [expenses, setExpenses] = useState([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -20,7 +15,7 @@ export default function NakladyPage() {
       .select("*")
       .order("date", { ascending: false });
     if (error) toast.error("Chyba při načítání nákladů");
-    else setExpenses(data);
+    else setExpenses(data || []);
   };
 
   const addExpense = async () => {
@@ -52,42 +47,16 @@ export default function NakladyPage() {
     }
   };
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) setAuthenticated(true);
-    else toast.error("❌ Špatné heslo");
-  };
-
   useEffect(() => {
-    if (authenticated) fetchExpenses();
-  }, [authenticated]);
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
+    fetchExpenses();
+  }, []);
 
   return (
     <AdminLayout>
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📉 Náklady</h1>
 
+      {/* Přidání nového nákladu */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <h2 className="text-xl font-semibold mb-4">Přidat nový náklad</h2>
         <div className="flex flex-wrap gap-2 items-center mb-4">
@@ -120,6 +89,7 @@ export default function NakladyPage() {
         </div>
       </div>
 
+      {/* Seznam nákladů */}
       <div className="bg-white shadow rounded-xl p-4">
         <h2 className="text-xl font-semibold mb-4">Seznam nákladů</h2>
         <table className="min-w-full">
