@@ -46,12 +46,11 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  // Dynamické menu – pokud přidáš další stránku, stačí přidat do pole
   const menuItems = [
-    { href: "/admin", label: "Objednávky", color: "blue" },
-    { href: "/admin/statistika", label: "Statistika", color: "green" },
-    { href: "/admin/naklady", label: "Náklady", color: "red" },
-    { href: "/admin/produkcevajec", label: "Produkce vajec", color: "purple" },
+    { href: "/admin", label: "Objednávky", className: "bg-blue-500 hover:bg-blue-600" },
+    { href: "/admin/statistika", label: "Statistika", className: "bg-green-500 hover:bg-green-600" },
+    { href: "/admin/naklady", label: "Náklady", className: "bg-red-500 hover:bg-red-600" },
+    { href: "/admin/produkcevajec", label: "Produkce vajec", className: "bg-purple-500 hover:bg-purple-600" },
   ];
 
   return (
@@ -61,9 +60,7 @@ export default function AdminLayout({ children }) {
         <nav className="flex gap-4 flex-wrap">
           {menuItems.map((item) => (
             <Link key={item.href} href={item.href}>
-              <a
-                className={`px-3 py-1 bg-${item.color}-500 text-white rounded hover:bg-${item.color}-600`}
-              >
+              <a className={`px-3 py-1 text-white rounded ${item.className}`}>
                 {item.label}
               </a>
             </Link>
