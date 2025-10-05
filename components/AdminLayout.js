@@ -1,52 +1,13 @@
-import { useState, useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
-import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
+import { useAdminAuth } from "../context/AdminAuthContext";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function AdminLayout({ children }) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
   const router = useRouter();
-
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-
-  // Kontrola přihlášení při načtení
-  useEffect(() => {
-    const saved = localStorage.getItem("admin_authenticated");
-    if (saved === "true") setAuthenticated(true);
-  }, []);
-
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      localStorage.setItem("admin_authenticated", "true");
-      toast.success("✅ Přihlášeno!");
-    } else {
-      toast.error("❌ Špatné heslo");
-    }
-  };
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64 focus:outline-none focus:ring-2 focus:ring-green-400"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
+  const { authenticated, login } = useAdminAuth();
+  const [password, setPassword] = useState("");
 
   const menuItems = [
     { name: "🏠 Dashboard", path: "/admin" },
@@ -56,26 +17,51 @@ export default function AdminLayout({ children }) {
     { name: "🥚 Produkce vajec", path: "/admin/produkcevajec" },
   ];
 
+  const handleLogin = () => {
+    if (login(password)) {
+      toast.success("✅ Přihlášeno!");
+      setPassword("");
+    } else {
+      toast.error("❌ Špatné heslo");
+    }
+  };
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <Toaster position="top-center" />
+        <img src="/logo.png" alt="Farma" className="w-32 mb-4" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Toaster position="top-center" />
-
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg flex flex-col">
-        {/* Logo */}
-        <div className="flex justify-center items-center py-6 border-b border-gray-200">
-          <img src="/logo.png" alt="Farma" className="h-16 w-auto" />
-        </div>
-
-        {/* Navigace */}
-        <nav className="flex flex-col mt-4 px-2 flex-1">
+      <aside className="w-64 bg-white shadow-md p-6 flex flex-col">
+        <img src="/logo.png" alt="Farma" className="w-32 mb-6 mx-auto" />
+        <nav className="flex flex-col gap-2">
           {menuItems.map((item) => (
             <Link key={item.path} href={item.path}>
               <a
-                className={`flex items-center p-3 mb-2 rounded-lg transition-all ${
+                className={`p-2 rounded-md transition text-gray-700 ${
                   router.pathname === item.path
-                    ? "bg-green-600 text-white font-semibold shadow-md"
-                    : "text-gray-700 hover:bg-green-100 hover:text-green-800"
+                    ? "bg-green-500 text-white font-semibold"
+                    : "hover:bg-gray-100"
                 }`}
               >
                 {item.name}
@@ -85,8 +71,8 @@ export default function AdminLayout({ children }) {
         </nav>
       </aside>
 
-      {/* Hlavní obsah */}
-      <main className="flex-1 p-6 bg-gray-50">{children}</main>
+      {/* Obsah */}
+      <main className="flex-1 p-6">{children}</main>
     </div>
   );
 }
