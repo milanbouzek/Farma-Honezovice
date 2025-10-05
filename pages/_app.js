@@ -1,9 +1,10 @@
 import "../styles/globals.css";
 import { Toaster } from "react-hot-toast";
+import { AdminAuthProvider } from "../context/AdminAuthContext"; // <- přidej tento soubor
 
 export default function App({ Component, pageProps }) {
   return (
-    <>
+    <AdminAuthProvider>
       <Component {...pageProps} />
       {/* Toaster pro toast notifikace */}
       <Toaster
@@ -32,6 +33,6 @@ export default function App({ Component, pageProps }) {
           },
         }}
       />
-    </>
+    </AdminAuthProvider>
   );
 }
