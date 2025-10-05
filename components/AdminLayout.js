@@ -4,51 +4,29 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function AdminLayout({ children }) {
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
 
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+  const router = useRouter();
 
+  // Kontrola přihlášení při načtení stránky
   useEffect(() => {
-    setMounted(true);
-    try {
-      const ok = typeof window !== "undefined" && sessionStorage.getItem("admin_authenticated") === "true";
-      setAuthenticated(Boolean(ok));
-    } catch {
-      setAuthenticated(false);
-    }
+    const saved = localStorage.getItem("admin_authenticated");
+    if (saved === "true") setAuthenticated(true);
   }, []);
 
   const handleLogin = () => {
-    if (!ADMIN_PASSWORD) {
-      toast.error("❌ Chybí proměnná NEXT_PUBLIC_ADMIN_PASSWORD!");
-      return;
-    }
-
     if (password === ADMIN_PASSWORD) {
-      try {
-        sessionStorage.setItem("admin_authenticated", "true");
-      } catch {}
       setAuthenticated(true);
+      localStorage.setItem("admin_authenticated", "true");
       toast.success("✅ Přihlášeno!");
     } else {
       toast.error("❌ Špatné heslo");
     }
   };
 
-  const handleLogout = () => {
-    try {
-      sessionStorage.removeItem("admin_authenticated");
-    } catch {}
-    setAuthenticated(false);
-    toast("👋 Odhlášeno");
-    router.push("/admin");
-  };
-
-  if (!mounted) return null;
-
+  // Přihlašovací obrazovka
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -71,42 +49,43 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  const navLink = (href, label, color) => {
-    const active = router.pathname === href;
-    return (
-      <Link href={href} key={href}>
-        <a
-          className={`px-3 py-1 rounded text-white ${
-            active ? "bg-black" : `${color} hover:opacity-80`
-          }`}
-        >
-          {label}
-        </a>
-      </Link>
-    );
-  };
+  // Menu položky
+  const menuItems = [
+    { name: "🏠 Dashboard", path: "/admin" },
+    { name: "📦 Objednávky", path: "/admin/objednavky" },
+    { name: "📊 Statistika", path: "/admin/statistika" },
+    { name: "📉 Náklady", path: "/admin/naklady" },
+    { name: "🥚 Produkce vajec", path: "/admin/produkcevajec" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen flex bg-gray-50">
       <Toaster position="top-center" />
-      <header className="mb-6 flex justify-between items-center flex-wrap">
-        <nav className="flex gap-4 flex-wrap">
-          {navLink("/admin", "Dashboard", "bg-blue-500")}
-          {navLink("/admin/objednavky", "Objednávky", "bg-blue-500")}
-          {navLink("/admin/statistika", "Statistika", "bg-green-500")}
-          {navLink("/admin/naklady", "Náklady", "bg-red-500")}
-          {navLink("/admin/produkcevajec", "Produkce vajec", "bg-purple-500")}
+
+      {/* Sidebar */}
+      <aside className="w-64 bg-white shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-8 text-green-900 tracking-tight">
+          Farma Honezovice
+        </h1>
+        <nav className="flex flex-col space-y-2">
+          {menuItems.map((item) => (
+            <Link key={item.path} href={item.path}>
+              <a
+                className={`p-2 rounded-md transition block ${
+                  router.pathname === item.path
+                    ? "bg-green-500 text-white font-semibold"
+                    : "text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {item.name}
+              </a>
+            </Link>
+          ))}
         </nav>
+      </aside>
 
-        <button
-          onClick={handleLogout}
-          className="bg-gray-400 text-white px-3 py-1 rounded hover:bg-gray-500"
-        >
-          Odhlásit se
-        </button>
-      </header>
-
-      <main>{children}</main>
+      {/* Obsah */}
+      <main className="flex-1 p-6 bg-gray-50">{children}</main>
     </div>
   );
 }
