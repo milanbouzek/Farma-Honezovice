@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
 import {
@@ -15,35 +14,28 @@ import { supabase } from "../../lib/supabaseClient";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
 
   // --- Načtení dat ---
   useEffect(() => {
-    if (!authenticated) return;
     const fetchData = async () => {
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
-      if (orderError) console.error(orderError);
-      else setOrders(orderData || []);
+      if (!orderError) setOrders(orderData || []);
 
       const { data: expenseData, error: expenseError } = await supabase
         .from("expenses")
         .select("id, description, amount, date");
-      if (expenseError) console.error(expenseError);
-      else setExpenses(expenseData || []);
+      if (!expenseError) setExpenses(expenseData || []);
     };
     fetchData();
-  }, [authenticated]);
+  }, []);
 
   const completedOrders = orders.filter((o) => o.status === "vyřízená");
 
@@ -87,10 +79,8 @@ export default function StatistikaPage() {
 
   // --- Tržby z dokončených objednávek ---
   const getRevenueData = () => {
-    let filtered = completedOrders;
     const grouped = {};
-
-    filtered.forEach((o) => {
+    completedOrders.forEach((o) => {
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
       let key;
       if (period === "rok") key = d.getFullYear();
@@ -172,36 +162,8 @@ export default function StatistikaPage() {
     scales: { y: { beginAtZero: true } },
   };
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) setAuthenticated(true);
-    else toast.error("❌ Špatné heslo");
-  };
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
-
   return (
     <AdminLayout>
-      <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
 
       {/* Finanční přehled */}
