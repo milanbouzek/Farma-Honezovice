@@ -1,44 +1,22 @@
 import { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
 import { supabase } from "../../lib/supabaseClient";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function StatistikaPage() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
-  // --- Načtení dat ---
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
-      if (!orderError) setOrders(orderData || []);
-
-      const { data: expenseData, error: expenseError } = await supabase
-        .from("expenses")
-        .select("id, description, amount, date");
-      if (!expenseError) setExpenses(expenseData || []);
-    };
-    fetchData();
-  }, []);
-
-  const completedOrders = orders.filter((o) => o.status === "vyřízená");
-
+  const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
   const STATUS_COLORS = {
     "nová objednávka": "#f87171",
     "zpracovává se": "#facc15",
@@ -46,20 +24,69 @@ export default function StatistikaPage() {
     "zrušená": "#9ca3af",
   };
 
-  // --- Počet objednávek ---
-  const getOrderCounts = () => {
-    let filtered = orders;
-    const grouped = {};
+  const handleLogin = () => {
+    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) setAuthenticated(true);
+    else toast.error("❌ Špatné heslo");
+  };
 
-    filtered.forEach((o) => {
+  useEffect(() => {
+    if (!authenticated) return;
+
+    const fetchData = async () => {
+      try {
+        const { data: orderData, error: orderError } = await supabase
+          .from("orders")
+          .select("id,status,payment_total,standard_quantity,low_chol_quantity,pickup_date");
+        if (orderError) console.error(orderError);
+        else setOrders(orderData || []);
+
+        const { data: expenseData, error: expenseError } = await supabase
+          .from("expenses")
+          .select("id,description,amount,date");
+        if (expenseError) console.error(expenseError);
+        else setExpenses(expenseData || []);
+      } catch (err) {
+        toast.error("Chyba při načítání dat: " + err.message);
+      }
+    };
+
+    fetchData();
+  }, [authenticated]);
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Toaster position="top-center" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
+
+  // --- Počet objednávek podle stavu ---
+  const getOrderCounts = () => {
+    const grouped = {};
+    orders.forEach((o) => {
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
       let key;
       if (period === "rok") key = d.getFullYear();
       if (period === "měsíc") key = d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
-      if (key === undefined) return;
-      if (!grouped[key])
-        grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
+        key = d.getDate();
+      if (!key) return;
+      if (!grouped[key]) grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
       grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
     });
 
@@ -68,7 +95,7 @@ export default function StatistikaPage() {
     if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
     if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
-    const datasets = Object.keys(STATUS_COLORS).map((status) => ({
+    const datasets = STATUSES.map((status) => ({
       label: status,
       data: labels.map((l) => grouped[l]?.[status] || 0),
       backgroundColor: STATUS_COLORS[status],
@@ -78,6 +105,8 @@ export default function StatistikaPage() {
   };
 
   // --- Tržby z dokončených objednávek ---
+  const completedOrders = orders.filter((o) => o.status === "vyřízená");
+
   const getRevenueData = () => {
     const grouped = {};
     completedOrders.forEach((o) => {
@@ -85,8 +114,9 @@ export default function StatistikaPage() {
       let key;
       if (period === "rok") key = d.getFullYear();
       if (period === "měsíc") key = d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
-      if (key === undefined) return;
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
+        key = d.getDate();
+      if (!key) return;
       grouped[key] = (grouped[key] || 0) + (o.payment_total || 0);
     });
 
@@ -99,16 +129,16 @@ export default function StatistikaPage() {
     return { labels, datasets: [{ label: "Tržby (Kč)", data, backgroundColor: "#34d399" }] };
   };
 
-  // --- Kombinovaný graf náklady vs zisk ---
+  // --- Náklady vs zisk ---
   const getProfitChartData = () => {
-    let labels = [];
     const revenueGrouped = {};
     const expenseGrouped = {};
 
     const getKey = (d) => {
       if (period === "rok") return d.getFullYear();
       if (period === "měsíc") return d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) return d.getDate();
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
+        return d.getDate();
     };
 
     completedOrders.forEach((o) => {
@@ -123,6 +153,7 @@ export default function StatistikaPage() {
       if (key !== undefined) expenseGrouped[key] = (expenseGrouped[key] || 0) + (Number(e.amount) || 0);
     });
 
+    let labels = [];
     if (period === "rok") labels = Object.keys({ ...revenueGrouped, ...expenseGrouped }).sort();
     else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
     else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
@@ -150,20 +181,14 @@ export default function StatistikaPage() {
     responsive: true,
     plugins: {
       legend: { position: "bottom" },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            const value = context.parsed.y || 0;
-            return `${context.dataset.label}: ${value} Kč`;
-          },
-        },
-      },
+      tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y || 0} Kč` } },
     },
     scales: { y: { beginAtZero: true } },
   };
 
   return (
     <AdminLayout>
+      <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
 
       {/* Finanční přehled */}
