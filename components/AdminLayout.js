@@ -4,15 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 
 export default function AdminLayout({ children }) {
-  const [authenticated, setAuthenticated] = useState(null);
+  const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
+  const [loadingAuth, setLoadingAuth] = useState(true); // kontrola načtení
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
   const router = useRouter();
 
   useEffect(() => {
     const saved = localStorage.getItem("admin_authenticated");
     if (saved === "true") setAuthenticated(true);
-    else setAuthenticated(false);
+    setLoadingAuth(false);
   }, []);
 
   const handleLogin = () => {
@@ -25,7 +26,7 @@ export default function AdminLayout({ children }) {
     }
   };
 
-  if (authenticated === null) return null;
+  if (loadingAuth) return null; // počkej, než se načte auth stav
 
   if (!authenticated) {
     return (
