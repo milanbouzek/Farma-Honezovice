@@ -16,24 +16,30 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function StatistikaPage() {
   const [orders, setOrders] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [period, setPeriod] = useState("rok"); // "rok" | "měsíc" | "týden"
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      // Vytáhneme všechny objednávky z databáze včetně payment_total
-      const { data, error } = await supabase
+    const fetchData = async () => {
+      // Objednávky
+      const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
 
-      if (error) {
-        console.error(error);
-      } else {
-        setOrders(data);
-      }
+      if (orderError) console.error(orderError);
+      else setOrders(orderData || []);
+
+      // Náklady
+      const { data: expenseData, error: expenseError } = await supabase
+        .from("expenses")
+        .select("id, description, amount, date");
+
+      if (expenseError) console.error(expenseError);
+      else setExpenses(expenseData || []);
     };
-    fetchOrders();
+    fetchData();
   }, []);
 
   const completedOrders = orders.filter((o) => o.status === "vyřízená");
@@ -117,7 +123,7 @@ export default function StatistikaPage() {
     }
   };
 
-  // --- Tržby z dokončených objednávek (přímo z payment_total) ---
+  // --- Tržby z dokončených objednávek (z payment_total) ---
   const getRevenueData = () => {
     let filtered = completedOrders;
 
@@ -196,6 +202,11 @@ export default function StatistikaPage() {
     }
   };
 
+  // === Přehled tržeb, nákladů, zisku ===
+  const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.payment_total || 0), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalProfit = totalRevenue - totalExpenses;
+
   const years = Array.from(
     new Set(
       orders.map(
@@ -225,6 +236,35 @@ export default function StatistikaPage() {
   return (
     <AdminLayout>
       <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
+
+      {/* Finanční přehled */}
+      <div className="bg-white shadow rounded-xl p-4 mb-6">
+        <h2 className="text-xl font-bold mb-4">💰 Finanční přehled</h2>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-gray-500">Tržby</p>
+            <p className="text-2xl font-bold text-green-600">
+              {totalRevenue.toLocaleString()} Kč
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500">Náklady</p>
+            <p className="text-2xl font-bold text-red-500">
+              {totalExpenses.toLocaleString()} Kč
+            </p>
+          </div>
+          <div>
+            <p className="text-gray-500">Čistý zisk</p>
+            <p
+              className={`text-2xl font-bold ${
+                totalProfit >= 0 ? "text-green-700" : "text-red-700"
+              }`}
+            >
+              {totalProfit.toLocaleString()} Kč
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Přepínač období */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
@@ -285,6 +325,7 @@ export default function StatistikaPage() {
         )}
       </div>
 
+      {/* Grafy */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <h2 className="text-xl font-bold mb-2">📦 Počet objednávek podle stavu</h2>
         <Bar data={getOrderCounts()} options={chartOptions} />
