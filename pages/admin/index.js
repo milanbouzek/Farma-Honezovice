@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
 import AdminLayout from "../../components/AdminLayout";
-import { STATUSES } from "../../lib/constants";
+
+// --- STATUSES přímo zde ---
+const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
 
 export default function AdminPage() {
   const [orders, setOrders] = useState([]);
