@@ -50,7 +50,7 @@ export default function AdminLayout({ children }) {
     <div className="min-h-screen bg-gray-100 p-6">
       <Toaster position="top-center" />
       <header className="mb-6">
-        <nav className="flex gap-4">
+        <nav className="flex gap-4 flex-wrap">
           <Link href="/admin">
             <a className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">Objednávky</a>
           </Link>
@@ -59,6 +59,9 @@ export default function AdminLayout({ children }) {
           </Link>
           <Link href="/admin/naklady">
             <a className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600">Náklady</a>
+          </Link>
+          <Link href="/admin/produkcevajec">
+            <a className="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600">Produkce vajec</a>
           </Link>
         </nav>
       </header>
