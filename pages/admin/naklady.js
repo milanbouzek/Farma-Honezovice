@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { supabase } from "../../lib/supabaseClient";
-import toast from "react-hot-toast";
+
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
 
 export default function NakladyPage() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+
   const [expenses, setExpenses] = useState([]);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -14,11 +19,8 @@ export default function NakladyPage() {
       .from("expenses")
       .select("*")
       .order("date", { ascending: false });
-    if (error) {
-      toast.error("Chyba při načítání nákladů");
-    } else {
-      setExpenses(data);
-    }
+    if (error) toast.error("Chyba při načítání nákladů");
+    else setExpenses(data);
   };
 
   const addExpense = async () => {
@@ -31,9 +33,8 @@ export default function NakladyPage() {
       .from("expenses")
       .insert([{ amount: parseFloat(amount), description, date }]);
 
-    if (error) {
-      toast.error("Nepodařilo se přidat náklad");
-    } else {
+    if (error) toast.error("Nepodařilo se přidat náklad");
+    else {
       toast.success("✅ Náklad přidán");
       setAmount("");
       setDescription("");
@@ -44,20 +45,47 @@ export default function NakladyPage() {
 
   const deleteExpense = async (id) => {
     const { error } = await supabase.from("expenses").delete().eq("id", id);
-    if (error) {
-      toast.error("Nepodařilo se smazat náklad");
-    } else {
+    if (error) toast.error("Nepodařilo se smazat náklad");
+    else {
       toast.success("🗑️ Náklad odstraněn");
       fetchExpenses();
     }
   };
 
+  const handleLogin = () => {
+    if (password === ADMIN_PASSWORD) setAuthenticated(true);
+    else toast.error("❌ Špatné heslo");
+  };
+
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    if (authenticated) fetchExpenses();
+  }, [authenticated]);
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Toaster position="top-center" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
 
   return (
     <AdminLayout>
+      <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📉 Náklady</h1>
 
       <div className="bg-white shadow rounded-xl p-4 mb-6">
