@@ -3,12 +3,26 @@ import toast, { Toaster } from "react-hot-toast";
 import StockBox from "../../components/StockBox";
 import AdminLayout from "../../components/AdminLayout";
 
+const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
 export default function AdminPage() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
 
+  const handleLogin = () => {
+    if (password === ADMIN_PASSWORD) {
+      setAuthenticated(true);
+      toast.success("✅ Přihlášeno!");
+    } else {
+      toast.error("❌ Špatné heslo");
+    }
+  };
+
   const fetchOrders = async () => {
+    if (!authenticated) return;
     setLoading(true);
     try {
       const res = await fetch("/api/admin/orders");
@@ -39,10 +53,34 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    if (authenticated) {
+      fetchOrders();
+      const interval = setInterval(fetchOrders, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [authenticated]);
+
+  if (!authenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+        <Toaster position="top-center" />
+        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
+        <input
+          type="password"
+          placeholder="Zadejte heslo"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="border p-2 rounded mb-2 w-64"
+        />
+        <button
+          onClick={handleLogin}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        >
+          Přihlásit se
+        </button>
+      </div>
+    );
+  }
 
   const renderTable = (data, color) => (
     <div className="overflow-x-auto">
