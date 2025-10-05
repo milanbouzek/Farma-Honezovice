@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Link from "next/link";
 
@@ -8,9 +8,16 @@ export default function AdminLayout({ children }) {
 
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
+  // Při načtení stránky zkontrolujeme, zda už je uživatel přihlášen
+  useEffect(() => {
+    const saved = localStorage.getItem("admin_authenticated");
+    if (saved === "true") setAuthenticated(true);
+  }, []);
+
   const handleLogin = () => {
     if (password === ADMIN_PASSWORD) {
       setAuthenticated(true);
+      localStorage.setItem("admin_authenticated", "true");
       toast.success("✅ Přihlášeno!");
     } else {
       toast.error("❌ Špatné heslo");
