@@ -6,16 +6,18 @@ import toast, { Toaster } from "react-hot-toast";
 export default function AdminLayout({ children }) {
   const router = useRouter();
   const [authenticated, setAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true); // ⬅️ nový stav
   const [password, setPassword] = useState("");
 
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
 
-  // ✅ Zkontroluje uložené přihlášení
+  // ✅ Ověření uloženého přihlášení
   useEffect(() => {
     const saved = localStorage.getItem("admin_authenticated");
     if (saved === "true") {
       setAuthenticated(true);
     }
+    setCheckingAuth(false); // dokončeno ověřování
   }, []);
 
   const handleLogin = () => {
@@ -33,6 +35,15 @@ export default function AdminLayout({ children }) {
     localStorage.removeItem("admin_authenticated");
     toast("👋 Odhlášeno");
   };
+
+  // ⏳ Zobrazení pouze po načtení ověření
+  if (checkingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 text-gray-600">
+        Načítání...
+      </div>
+    );
+  }
 
   // 🔒 Přihlašovací obrazovka
   if (!authenticated) {
