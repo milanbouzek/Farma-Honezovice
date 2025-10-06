@@ -1,14 +1,16 @@
+// pages/admin/produkcevajec.js
 import AdminLayout from "../../components/AdminLayout";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import toast from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function ProdukceVajec() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [standardEggs, setStandardEggs] = useState("");
-  const [lowCholEggs, setLowCholEggs] = useState("");
+  const [standard, setStandard] = useState("");
+  const [lowChol, setLowChol] = useState("");
   const [records, setRecords] = useState([]);
 
+  // Načtení dat
   const fetchRecords = async () => {
     const { data, error } = await supabase
       .from("daily_eggs")
@@ -18,23 +20,55 @@ export default function ProdukceVajec() {
     else setRecords(data || []);
   };
 
+  // Přidání nového záznamu
   const addRecord = async () => {
-    if ((!standardEggs && !lowCholEggs) || isNaN(standardEggs) || isNaN(lowCholEggs) || standardEggs < 0 || lowCholEggs < 0) {
-      toast.error("Zadej platné počty vajec");
+    if (
+      (!standard || isNaN(standard) || standard < 0) &&
+      (!lowChol || isNaN(lowChol) || lowChol < 0)
+    ) {
+      toast.error("Zadej platný počet vajec");
       return;
     }
 
-    const { error } = await supabase.from("daily_eggs").insert([{
-      date,
-      standard_eggs: parseInt(standardEggs, 10),
-      low_chol_eggs: parseInt(lowCholEggs, 10)
-    }]);
+    const { error } = await supabase.from("daily_eggs").insert([
+      {
+        date,
+        standard_eggs: parseInt(standard || 0, 10),
+        lowchol_eggs: parseInt(lowChol || 0, 10),
+      },
+    ]);
 
     if (error) toast.error("Nepodařilo se uložit");
     else {
       toast.success("✅ Uloženo");
-      setStandardEggs("");
-      setLowCholEggs("");
+      setStandard("");
+      setLowChol("");
+      fetchRecords();
+    }
+  };
+
+  // Smazání záznamu
+  const deleteRecord = async (id) => {
+    const { error } = await supabase.from("daily_eggs").delete().eq("id", id);
+    if (error) toast.error("Nepodařilo se smazat");
+    else {
+      toast.success("🗑️ Záznam odstraněn");
+      fetchRecords();
+    }
+  };
+
+  // Editace záznamu
+  const editRecord = async (id, newStandard, newLowChol) => {
+    const { error } = await supabase
+      .from("daily_eggs")
+      .update({
+        standard_eggs: parseInt(newStandard || 0, 10),
+        lowchol_eggs: parseInt(newLowChol || 0, 10),
+      })
+      .eq("id", id);
+    if (error) toast.error("Nepodařilo se upravit záznam");
+    else {
+      toast.success("✏️ Záznam upraven");
       fetchRecords();
     }
   };
@@ -45,6 +79,7 @@ export default function ProdukceVajec() {
 
   return (
     <AdminLayout>
+      <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📊 Produkce vajec</h1>
 
       <div className="bg-white shadow rounded-xl p-4 mb-6">
@@ -58,17 +93,17 @@ export default function ProdukceVajec() {
           />
           <input
             type="number"
-            placeholder="Počet standardních vajec"
-            value={standardEggs}
-            onChange={(e) => setStandardEggs(e.target.value)}
-            className="border p-2 rounded w-40"
+            placeholder="Standardní vejce"
+            value={standard}
+            onChange={(e) => setStandard(e.target.value)}
+            className="border p-2 rounded w-36"
           />
           <input
             type="number"
-            placeholder="Počet vajec s nízkým cholesterolem"
-            value={lowCholEggs}
-            onChange={(e) => setLowCholEggs(e.target.value)}
-            className="border p-2 rounded w-40"
+            placeholder="LowChol vejce"
+            value={lowChol}
+            onChange={(e) => setLowChol(e.target.value)}
+            className="border p-2 rounded w-36"
           />
           <button
             onClick={addRecord}
@@ -85,18 +120,39 @@ export default function ProdukceVajec() {
           <thead className="bg-gray-200">
             <tr>
               <th className="p-2 text-left">Datum</th>
-              <th className="p-2 text-left">Standardní</th>
-              <th className="p-2 text-left">Nízký cholesterol</th>
-              <th className="p-2 text-left">Celkem</th>
+              <th className="p-2 text-left">Standardní vejce</th>
+              <th className="p-2 text-left">LowChol vejce</th>
+              <th className="p-2"></th>
             </tr>
           </thead>
           <tbody>
             {records.map((r) => (
               <tr key={r.id} className="border-b">
                 <td className="p-2">{r.date}</td>
-                <td className="p-2">{r.standard_eggs}</td>
-                <td className="p-2">{r.low_chol_eggs}</td>
-                <td className="p-2">{(r.standard_eggs || 0) + (r.low_chol_eggs || 0)}</td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    defaultValue={r.standard_eggs}
+                    onBlur={(e) => editRecord(r.id, e.target.value, r.lowchol_eggs)}
+                    className="border p-1 rounded w-24"
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    defaultValue={r.lowchol_eggs}
+                    onBlur={(e) => editRecord(r.id, r.standard_eggs, e.target.value)}
+                    className="border p-1 rounded w-24"
+                  />
+                </td>
+                <td className="p-2 text-right">
+                  <button
+                    onClick={() => deleteRecord(r.id)}
+                    className="text-red-500 hover:underline"
+                  >
+                    Smazat
+                  </button>
+                </td>
               </tr>
             ))}
             {records.length === 0 && (
