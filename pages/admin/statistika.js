@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// pages/admin/statistika.js
+import { useEffect, useState, useContext } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import { Bar } from "react-chartjs-2";
@@ -12,20 +13,19 @@ import {
   Legend,
 } from "chart.js";
 import { supabase } from "../../lib/supabaseClient";
+import { AdminAuthContext } from "../../components/AdminAuthContext";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "tajneheslo";
-
 export default function StatistikaPage() {
+  const { authenticated } = useContext(AdminAuthContext);
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [eggsProduction, setEggsProduction] = useState([]);
   const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
+  const [charts, setCharts] = useState([]);
 
   // --- Načtení dat ---
   useEffect(() => {
@@ -60,6 +60,7 @@ export default function StatistikaPage() {
     "zrušená": "#9ca3af",
   };
 
+  // --- Funkce pro data do grafů ---
   const getOrderCounts = () => {
     const grouped = {};
     orders.forEach((o) => {
@@ -75,8 +76,8 @@ export default function StatistikaPage() {
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
-    if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const datasets = Object.keys(STATUS_COLORS).map((status) => ({
       label: status,
@@ -101,8 +102,8 @@ export default function StatistikaPage() {
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
-    if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const data = labels.map((l) => grouped[l] || 0);
     return { labels, datasets: [{ label: "Tržby (Kč)", data, backgroundColor: "#34d399" }] };
@@ -156,10 +157,10 @@ export default function StatistikaPage() {
       if (period === "měsíc") key = d.getMonth() + 1;
       if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
       if (!key) return;
-
-      grouped[key] = grouped[key] || { standard: 0, low: 0 };
-      grouped[key].standard += e.standard_eggs || 0;
-      grouped[key].low += e.low_cholesterol_eggs || 0;
+      grouped[key] = {
+        standard: (grouped[key]?.standard || 0) + (e.standard_eggs || 0),
+        lowChol: (grouped[key]?.lowChol || 0) + (e.low_cholesterol_eggs || 0),
+      };
     });
 
     let labels = [];
@@ -168,13 +169,13 @@ export default function StatistikaPage() {
     else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const standardData = labels.map((l) => grouped[l]?.standard || 0);
-    const lowData = labels.map((l) => grouped[l]?.low || 0);
+    const lowCholData = labels.map((l) => grouped[l]?.lowChol || 0);
 
     return {
       labels,
       datasets: [
-        { label: "Standardní vejce", data: standardData, backgroundColor: "#3b82f6" },
-        { label: "Nízký cholesterol", data: lowData, backgroundColor: "#f97316" },
+        { label: "Standardní vejce", data: standardData, backgroundColor: "#fbbf24" },
+        { label: "Nízký cholesterol", data: lowCholData, backgroundColor: "#fde68a" },
       ],
     };
   };
@@ -182,67 +183,27 @@ export default function StatistikaPage() {
   const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.payment_total || 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalEggs = eggsProduction.reduce((sum, e) => sum + (Number(e.standard_eggs || 0) + Number(e.low_cholesterol_eggs || 0)), 0);
+  const totalEggs = eggsProduction.reduce(
+    (sum, e) => sum + (Number(e.standard_eggs) || 0) + (Number(e.low_cholesterol_eggs) || 0),
+    0
+  );
 
   const years = Array.from(new Set(orders.map((o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))).sort();
 
   const chartOptions = {
     responsive: true,
-    plugins: {
-      legend: { position: "bottom" },
-      tooltip: {
-        callbacks: {
-          label: (context) => {
-            const value = context.parsed.y || 0;
-            return `${context.dataset.label}: ${value}`;
-          },
-        },
-      },
-    },
+    plugins: { legend: { position: "bottom" }, tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y || 0}` } } },
     scales: { y: { beginAtZero: true } },
   };
 
-  const [charts, setCharts] = useState([
-    { id: "orders", title: "Počet objednávek", getData: getOrderCounts },
-    { id: "revenue", title: "Tržby", getData: getRevenueData },
-    { id: "profit", title: "Náklady a čistý zisk", getData: getProfitChartData },
-    { id: "eggs", title: "Produkce vajec", getData: getEggsData },
-  ]);
-
-  const moveChart = (index, direction) => {
-    const newCharts = [...charts];
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= newCharts.length) return;
-    [newCharts[index], newCharts[targetIndex]] = [newCharts[targetIndex], newCharts[index]];
-    setCharts(newCharts);
-  };
-
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) setAuthenticated(true);
-    else toast.error("❌ Špatné heslo");
-  };
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
-      </div>
-    );
-  }
+  useEffect(() => {
+    setCharts([
+      { id: "orders", title: "Počet objednávek", getData: getOrderCounts },
+      { id: "revenue", title: "Tržby", getData: getRevenueData },
+      { id: "profit", title: "Náklady a čistý zisk", getData: getProfitChartData },
+      { id: "eggs", title: "Produkce vajec", getData: getEggsData },
+    ]);
+  }, [orders, expenses, eggsProduction, period, selectedYear, selectedMonth]);
 
   return (
     <AdminLayout>
@@ -273,15 +234,9 @@ export default function StatistikaPage() {
 
       {/* Přepínač období */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
-        <label className="flex items-center gap-1">
-          <input type="radio" value="rok" checked={period === "rok"} onChange={() => setPeriod("rok")} /> Rok
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="radio" value="měsíc" checked={period === "měsíc"} onChange={() => setPeriod("měsíc")} /> Měsíc
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="radio" value="týden" checked={period === "týden"} onChange={() => setPeriod("týden")} /> Týden
-        </label>
+        <label className="flex items-center gap-1"><input type="radio" value="rok" checked={period === "rok"} onChange={() => setPeriod("rok")} /> Rok</label>
+        <label className="flex items-center gap-1"><input type="radio" value="měsíc" checked={period === "měsíc"} onChange={() => setPeriod("měsíc")} /> Měsíc</label>
+        <label className="flex items-center gap-1"><input type="radio" value="týden" checked={period === "týden"} onChange={() => setPeriod("týden")} /> Týden</label>
         {(period === "měsíc" || period === "týden") && (
           <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="border rounded p-1 ml-2">
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
@@ -301,19 +256,27 @@ export default function StatistikaPage() {
             <h2 className="text-xl font-bold">{chart.title}</h2>
             <div className="flex gap-1">
               <button
-                onClick={() => moveChart(index, -1)}
+                onClick={() => {
+                  const newCharts = [...charts];
+                  const target = index - 1;
+                  if (target < 0) return;
+                  [newCharts[index], newCharts[target]] = [newCharts[target], newCharts[index]];
+                  setCharts(newCharts);
+                }}
                 disabled={index === 0}
                 className="px-2 py-1 bg-gray-200 rounded"
-              >
-                ↑
-              </button>
+              >↑</button>
               <button
-                onClick={() => moveChart(index, 1)}
+                onClick={() => {
+                  const newCharts = [...charts];
+                  const target = index + 1;
+                  if (target >= charts.length) return;
+                  [newCharts[index], newCharts[target]] = [newCharts[target], newCharts[index]];
+                  setCharts(newCharts);
+                }}
                 disabled={index === charts.length - 1}
                 className="px-2 py-1 bg-gray-200 rounded"
-              >
-                ↓
-              </button>
+              >↓</button>
             </div>
           </div>
           <Bar data={chart.getData()} options={chartOptions} />
