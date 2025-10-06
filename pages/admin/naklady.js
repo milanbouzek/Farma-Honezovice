@@ -1,96 +1,50 @@
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
-import { supabase } from "../../lib/supabaseClient";
+import StockBox from "../../components/StockBox";
+import OrdersTable from "../../components/OrdersTable";
 
-export default function NakladyPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [expenses, setExpenses] = useState([]);
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
+export default function OrdersPage() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchExpenses = async () => {
-    const { data, error } = await supabase.from("expenses").select("*").order("date", { ascending: false });
-    if (error) toast.error("Chyba při načítání nákladů");
-    else setExpenses(data);
-  };
+  const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
 
-  const addExpense = async () => {
-    if (!amount || !date) return toast.error("Vyplň částku a datum");
-    const { error } = await supabase.from("expenses").insert([{ amount: parseFloat(amount), description, date }]);
-    if (error) toast.error("Nepodařilo se přidat náklad");
-    else {
-      toast.success("✅ Náklad přidán");
-      setAmount(""); setDescription(""); setDate("");
-      fetchExpenses();
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/orders");
+      const data = await res.json();
+      setOrders(data.orders || []);
+    } catch (err) {
+      toast.error("Chyba při načítání objednávek: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteExpense = async (id) => {
-    const { error } = await supabase.from("expenses").delete().eq("id", id);
-    if (error) toast.error("Nepodařilo se smazat náklad");
-    else { toast.success("🗑️ Náklad odstraněn"); fetchExpenses(); }
-  };
-
-  const handleLogin = () => {
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) setAuthenticated(true);
-    else toast.error("❌ Špatné heslo");
-  };
-
-  useEffect(() => { if (authenticated) fetchExpenses(); }, [authenticated]);
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input type="password" placeholder="Zadejte heslo" value={password} onChange={(e) => setPassword(e.target.value)} className="border p-2 rounded mb-2 w-64" />
-        <button onClick={handleLogin} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Přihlásit se</button>
-      </div>
-    );
-  }
+  // obnovuje seznam objednávek každých 10 sekund
+  useEffect(() => {
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AdminLayout>
       <Toaster position="top-center" />
-      <h1 className="text-3xl font-bold mb-6">📉 Náklady</h1>
+      <h1 className="text-3xl font-bold mb-6">📦 Seznam objednávek</h1>
 
-      <div className="bg-white shadow rounded-xl p-4 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Přidat nový náklad</h2>
-        <div className="flex flex-wrap gap-2 items-center mb-4">
-          <input type="number" placeholder="Částka (Kč)" value={amount} onChange={(e) => setAmount(e.target.value)} className="border p-2 rounded w-32" />
-          <input type="text" placeholder="Popis" value={description} onChange={(e) => setDescription(e.target.value)} className="border p-2 rounded flex-1" />
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border p-2 rounded" />
-          <button onClick={addExpense} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">💾 Uložit</button>
-        </div>
-      </div>
+      {/* Box se stavem skladu */}
+      <StockBox editable={true} />
 
-      <div className="bg-white shadow rounded-xl p-4">
-        <h2 className="text-xl font-semibold mb-4">Seznam nákladů</h2>
-        <table className="min-w-full">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="p-2 text-left">Datum</th>
-              <th className="p-2 text-left">Popis</th>
-              <th className="p-2 text-right">Částka (Kč)</th>
-              <th className="p-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenses.map((e) => (
-              <tr key={e.id} className="border-b">
-                <td className="p-2">{e.date}</td>
-                <td className="p-2">{e.description || "-"}</td>
-                <td className="p-2 text-right">{e.amount}</td>
-                <td className="p-2 text-right">
-                  <button onClick={() => deleteExpense(e.id)} className="text-red-500 hover:underline">Smazat</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Tabulka objednávek */}
+      <div className="bg-white shadow rounded-xl p-4 mt-4">
+        {loading ? (
+          <p>Načítám objednávky…</p>
+        ) : (
+          <OrdersTable orders={orders} refreshOrders={fetchOrders} />
+        )}
       </div>
     </AdminLayout>
   );
