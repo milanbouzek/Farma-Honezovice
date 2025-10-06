@@ -8,6 +8,8 @@ export default function NakladyPage() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [records, setRecords] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editingData, setEditingData] = useState({});
 
   const fetchRecords = async () => {
     const { data, error } = await supabase
@@ -50,6 +52,48 @@ export default function NakladyPage() {
     }
   };
 
+  const startEdit = (record) => {
+    setEditingId(record.id);
+    setEditingData({
+      date: record.date,
+      amount: record.amount,
+      description: record.description,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingData({});
+  };
+
+  const saveEdit = async (id) => {
+    if (!editingData.amount || isNaN(editingData.amount) || editingData.amount <= 0) {
+      toast.error("Zadej platnou částku");
+      return;
+    }
+    if (!editingData.description.trim()) {
+      toast.error("Zadej popis nákladu");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("expenses")
+      .update({
+        date: editingData.date,
+        amount: parseFloat(editingData.amount),
+        description: editingData.description,
+      })
+      .eq("id", id);
+
+    if (error) toast.error("Nepodařilo se upravit záznam");
+    else {
+      toast.success("✅ Záznam upraven");
+      setEditingId(null);
+      setEditingData({});
+      fetchRecords();
+    }
+  };
+
   useEffect(() => {
     fetchRecords();
   }, []);
@@ -59,6 +103,7 @@ export default function NakladyPage() {
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📉 Náklady</h1>
 
+      {/* Přidat záznam */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <h2 className="text-xl font-semibold mb-4">Přidat náklad</h2>
         <div className="flex flex-wrap gap-2 items-center mb-4">
@@ -91,6 +136,7 @@ export default function NakladyPage() {
         </div>
       </div>
 
+      {/* Historie záznamů */}
       <div className="bg-white shadow rounded-xl p-4">
         <h2 className="text-xl font-semibold mb-4">Historie nákladů</h2>
         <table className="min-w-full">
@@ -105,16 +151,76 @@ export default function NakladyPage() {
           <tbody>
             {records.map((r) => (
               <tr key={r.id} className="border-b">
-                <td className="p-2">{r.date}</td>
-                <td className="p-2">{r.amount}</td>
-                <td className="p-2">{r.description}</td>
+                <td className="p-2">
+                  {editingId === r.id ? (
+                    <input
+                      type="date"
+                      value={editingData.date}
+                      onChange={(e) => setEditingData({ ...editingData, date: e.target.value })}
+                      className="border p-1 rounded w-32"
+                    />
+                  ) : (
+                    r.date
+                  )}
+                </td>
+                <td className="p-2">
+                  {editingId === r.id ? (
+                    <input
+                      type="number"
+                      value={editingData.amount}
+                      onChange={(e) => setEditingData({ ...editingData, amount: e.target.value })}
+                      className="border p-1 rounded w-32"
+                    />
+                  ) : (
+                    r.amount
+                  )}
+                </td>
+                <td className="p-2">
+                  {editingId === r.id ? (
+                    <input
+                      type="text"
+                      value={editingData.description}
+                      onChange={(e) =>
+                        setEditingData({ ...editingData, description: e.target.value })
+                      }
+                      className="border p-1 rounded w-full"
+                    />
+                  ) : (
+                    r.description
+                  )}
+                </td>
                 <td className="p-2 text-right">
-                  <button
-                    onClick={() => deleteRecord(r.id)}
-                    className="text-red-500 hover:underline"
-                  >
-                    Smazat
-                  </button>
+                  {editingId === r.id ? (
+                    <>
+                      <button
+                        onClick={() => saveEdit(r.id)}
+                        className="bg-blue-500 text-white px-2 py-1 rounded mr-2 hover:bg-blue-600"
+                      >
+                        💾 Uložit
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="bg-gray-300 px-2 py-1 rounded hover:bg-gray-400"
+                      >
+                        ❌ Zrušit
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startEdit(r)}
+                        className="text-blue-500 hover:underline mr-2"
+                      >
+                        ✏️ Upravit
+                      </button>
+                      <button
+                        onClick={() => deleteRecord(r.id)}
+                        className="text-red-500 hover:underline"
+                      >
+                        Smazat
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
