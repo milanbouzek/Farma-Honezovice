@@ -1,23 +1,22 @@
-import { useState, useEffect } from "react";
+import { useEffect, useContext, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import StockBox from "../../components/StockBox";
 import OrdersTable from "../../components/OrdersTable";
+import { AdminAuthContext } from "../../components/AdminAuthContext";
 
 export default function OrdersPage() {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
+  const { authenticated } = useContext(AdminAuthContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
-
   const fetchOrders = async () => {
+    if (!authenticated) return;
     setLoading(true);
     try {
       const res = await fetch("/api/admin/orders");
       const data = await res.json();
-      setOrders(data.orders);
+      setOrders(data.orders || []);
     } catch (err) {
       toast.error("Chyba při načítání objednávek: " + err.message);
     } finally {
@@ -25,18 +24,10 @@ export default function OrdersPage() {
     }
   };
 
-  const handleLogin = () => {
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      fetchOrders();
-    } else {
-      toast.error("❌ Špatné heslo");
-    }
-  };
-
   useEffect(() => {
     if (authenticated) {
-      const interval = setInterval(fetchOrders, 10000);
+      fetchOrders();
+      const interval = setInterval(fetchOrders, 10000); // každých 10s
       return () => clearInterval(interval);
     }
   }, [authenticated]);
@@ -45,20 +36,7 @@ export default function OrdersPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
         <Toaster position="top-center" />
-        <h1 className="text-2xl font-bold mb-4">Admin přihlášení</h1>
-        <input
-          type="password"
-          placeholder="Zadejte heslo"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded mb-2 w-64"
-        />
-        <button
-          onClick={handleLogin}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Přihlásit se
-        </button>
+        <p className="text-xl text-gray-600">Pro zobrazení této stránky se musíte přihlásit v admin panelu.</p>
       </div>
     );
   }
@@ -67,9 +45,15 @@ export default function OrdersPage() {
     <AdminLayout>
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📦 Seznam objednávek</h1>
+
       <StockBox editable={true} />
-      <div className="bg-white shadow rounded-xl p-4">
-        {loading ? <p>Načítám objednávky…</p> : <OrdersTable orders={orders} refreshOrders={fetchOrders} />}
+
+      <div className="bg-white shadow rounded-xl p-4 mt-4">
+        {loading ? (
+          <p>Načítám objednávky…</p>
+        ) : (
+          <OrdersTable orders={orders} refreshOrders={fetchOrders} />
+        )}
       </div>
     </AdminLayout>
   );
