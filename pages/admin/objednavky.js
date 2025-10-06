@@ -1,17 +1,14 @@
-import { useEffect, useContext, useState } from "react";
+import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import StockBox from "../../components/StockBox";
 import OrdersTable from "../../components/OrdersTable";
-import { AdminAuthContext } from "../../components/AdminAuthContext";
 
 export default function OrdersPage() {
-  const { authenticated } = useContext(AdminAuthContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const fetchOrders = async () => {
-    if (!authenticated) return;
     setLoading(true);
     try {
       const res = await fetch("/api/admin/orders");
@@ -25,21 +22,10 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
-    if (authenticated) {
-      fetchOrders();
-      const interval = setInterval(fetchOrders, 10000); // každých 10s
-      return () => clearInterval(interval);
-    }
-  }, [authenticated]);
-
-  if (!authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <Toaster position="top-center" />
-        <p className="text-xl text-gray-600">Pro zobrazení této stránky se musíte přihlásit v admin panelu.</p>
-      </div>
-    );
-  }
+    fetchOrders();
+    const interval = setInterval(fetchOrders, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <AdminLayout>
