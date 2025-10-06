@@ -24,37 +24,27 @@ export default function StatistikaPage() {
   const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-
-  // 🔐 zapamatování přihlášení
-  const [authenticated, setAuthenticated] = useState(
-    typeof window !== "undefined" && localStorage.getItem("auth") === "true"
-  );
+  const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
 
-  // --- Načtení dat ze Supabase ---
+  // --- Načtení dat ---
   useEffect(() => {
     if (!authenticated) return;
 
     const fetchData = async () => {
-      const { data: orderData, error: orderError } = await supabase
+      const { data: orderData } = await supabase
         .from("orders")
         .select("id, status, payment_total, standard_quantity, low_chol_quantity, pickup_date");
-      if (orderError) console.error("❌ Chyba při načítání objednávek:", orderError);
-      else console.log("✅ Orders:", orderData);
       setOrders(orderData || []);
 
-      const { data: expenseData, error: expenseError } = await supabase
+      const { data: expenseData } = await supabase
         .from("expenses")
         .select("id, description, amount, date");
-      if (expenseError) console.error("❌ Chyba při načítání nákladů:", expenseError);
-      else console.log("✅ Expenses:", expenseData);
       setExpenses(expenseData || []);
 
-      const { data: eggsData, error: eggsError } = await supabase
+      const { data: eggsData } = await supabase
         .from("daily_eggs")
         .select("id, standard_eggs, low_cholesterol_eggs, date");
-      if (eggsError) console.error("❌ Chyba při načítání vajec:", eggsError);
-      else console.log("✅ Eggs:", eggsData);
       setEggsProduction(eggsData || []);
     };
 
@@ -70,28 +60,23 @@ export default function StatistikaPage() {
     "zrušená": "#9ca3af",
   };
 
-  // 📊 Počet objednávek
   const getOrderCounts = () => {
     const grouped = {};
     orders.forEach((o) => {
-      if (!o.pickup_date) return;
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
       let key;
       if (period === "rok") key = d.getFullYear();
       if (period === "měsíc") key = d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
-        key = d.getDate();
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
       if (!key) return;
-      if (!grouped[key])
-        grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
+      if (!grouped[key]) grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
       grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
     });
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
     if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    if (period === "týden")
-      labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const datasets = Object.keys(STATUS_COLORS).map((status) => ({
       label: status,
@@ -102,17 +87,14 @@ export default function StatistikaPage() {
     return { labels, datasets };
   };
 
-  // 💰 Tržby
   const getRevenueData = () => {
     const grouped = {};
     completedOrders.forEach((o) => {
-      if (!o.pickup_date) return;
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
       let key;
       if (period === "rok") key = d.getFullYear();
       if (period === "měsíc") key = d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
-        key = d.getDate();
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
       if (!key) return;
       grouped[key] = (grouped[key] || 0) + (o.payment_total || 0);
     });
@@ -120,33 +102,28 @@ export default function StatistikaPage() {
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
     if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    if (period === "týden")
-      labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    if (period === "týden") labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const data = labels.map((l) => grouped[l] || 0);
     return { labels, datasets: [{ label: "Tržby (Kč)", data, backgroundColor: "#34d399" }] };
   };
 
-  // 💵 Náklady a zisk
   const getProfitChartData = () => {
     const revenueGrouped = {};
     const expenseGrouped = {};
     const getKey = (d) => {
       if (period === "rok") return d.getFullYear();
       if (period === "měsíc") return d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
-        return d.getDate();
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) return d.getDate();
     };
 
     completedOrders.forEach((o) => {
-      if (!o.pickup_date) return;
       const d = new Date(o.pickup_date.split(".").reverse().join("-"));
       const key = getKey(d);
       if (key !== undefined) revenueGrouped[key] = (revenueGrouped[key] || 0) + (o.payment_total || 0);
     });
 
     expenses.forEach((e) => {
-      if (!e.date) return;
       const d = new Date(e.date);
       const key = getKey(d);
       if (key !== undefined) expenseGrouped[key] = (expenseGrouped[key] || 0) + (Number(e.amount) || 0);
@@ -170,19 +147,19 @@ export default function StatistikaPage() {
     };
   };
 
-  // 🥚 Produkce vajec
   const getEggsData = () => {
     const grouped = {};
     eggsProduction.forEach((e) => {
-      if (!e.date) return;
       const d = new Date(e.date);
       let key;
       if (period === "rok") key = d.getFullYear();
       if (period === "měsíc") key = d.getMonth() + 1;
-      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth)
-        key = d.getDate();
+      if (period === "týden" && d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth) key = d.getDate();
       if (!key) return;
-      grouped[key] = (grouped[key] || 0) + (Number(e.standard_eggs) + Number(e.low_cholesterol_eggs) || 0);
+
+      grouped[key] = grouped[key] || { standard: 0, low: 0 };
+      grouped[key].standard += e.standard_eggs || 0;
+      grouped[key].low += e.low_cholesterol_eggs || 0;
     });
 
     let labels = [];
@@ -190,22 +167,24 @@ export default function StatistikaPage() {
     else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
     else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
-    const data = labels.map((l) => grouped[l] || 0);
-    return { labels, datasets: [{ label: "Počet vajec", data, backgroundColor: "#fbbf24" }] };
+    const standardData = labels.map((l) => grouped[l]?.standard || 0);
+    const lowData = labels.map((l) => grouped[l]?.low || 0);
+
+    return {
+      labels,
+      datasets: [
+        { label: "Standardní vejce", data: standardData, backgroundColor: "#3b82f6" },
+        { label: "Nízký cholesterol", data: lowData, backgroundColor: "#f97316" },
+      ],
+    };
   };
 
-  // 📦 Přehled
   const totalRevenue = completedOrders.reduce((sum, o) => sum + (o.payment_total || 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalEggs = eggsProduction.reduce(
-    (sum, e) => sum + (Number(e.standard_eggs) + Number(e.low_cholesterol_eggs) || 0),
-    0
-  );
+  const totalEggs = eggsProduction.reduce((sum, e) => sum + (Number(e.standard_eggs || 0) + Number(e.low_cholesterol_eggs || 0)), 0);
 
-  const years = Array.from(
-    new Set(orders.map((o) => new Date(o.pickup_date?.split(".").reverse().join("-")).getFullYear()))
-  ).sort();
+  const years = Array.from(new Set(orders.map((o) => new Date(o.pickup_date.split(".").reverse().join("-")).getFullYear()))).sort();
 
   const chartOptions = {
     responsive: true,
@@ -213,7 +192,10 @@ export default function StatistikaPage() {
       legend: { position: "bottom" },
       tooltip: {
         callbacks: {
-          label: (context) => `${context.dataset.label}: ${context.parsed.y || 0}`,
+          label: (context) => {
+            const value = context.parsed.y || 0;
+            return `${context.dataset.label}: ${value}`;
+          },
         },
       },
     },
@@ -236,10 +218,8 @@ export default function StatistikaPage() {
   };
 
   const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
-      localStorage.setItem("auth", "true");
-      setAuthenticated(true);
-    } else toast.error("❌ Špatné heslo");
+    if (password === ADMIN_PASSWORD) setAuthenticated(true);
+    else toast.error("❌ Špatné heslo");
   };
 
   if (!authenticated) {
@@ -267,18 +247,7 @@ export default function StatistikaPage() {
   return (
     <AdminLayout>
       <Toaster position="top-center" />
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">📊 Statistika</h1>
-        <button
-          onClick={() => {
-            localStorage.removeItem("auth");
-            setAuthenticated(false);
-          }}
-          className="text-sm text-gray-500 hover:underline"
-        >
-          Odhlásit se
-        </button>
-      </div>
+      <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
 
       {/* Finanční přehled */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
@@ -293,19 +262,11 @@ export default function StatistikaPage() {
           </div>
           <div>
             <p className="text-gray-500">Čistý zisk</p>
-            <p
-              className={`text-2xl font-bold ${
-                totalProfit >= 0 ? "text-green-700" : "text-red-700"
-              }`}
-            >
-              {totalProfit.toLocaleString()} Kč
-            </p>
+            <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-700"}`}>{totalProfit.toLocaleString()} Kč</p>
           </div>
           <div>
             <p className="text-gray-500">Vejce celkem</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {totalEggs.toLocaleString()}
-            </p>
+            <p className="text-2xl font-bold text-yellow-600">{totalEggs.toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -323,21 +284,17 @@ export default function StatistikaPage() {
         </label>
         {(period === "měsíc" || period === "týden") && (
           <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="border rounded p-1 ml-2">
-            {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         )}
         {period === "týden" && (
           <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value))} className="border rounded p-1 ml-2">
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>{m}. měsíc</option>
-            ))}
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{m}. měsíc</option>)}
           </select>
         )}
       </div>
 
-      {/* Grafy */}
+      {/* Grafy s možností přesouvání */}
       {charts.map((chart, index) => (
         <div key={chart.id} className="mb-6 bg-white shadow rounded-xl p-4">
           <div className="flex justify-between items-center mb-2">
