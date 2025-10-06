@@ -9,7 +9,6 @@ export default function App({ Component, pageProps }) {
       <Toaster
         position="top-center"
         toastOptions={{
-          icon: null,
           style: {
             borderRadius: "16px",
             background: "#fff8dc",
