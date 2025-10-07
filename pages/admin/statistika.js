@@ -18,16 +18,32 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 export default function StatistikaPage() {
   const { authenticated, ready, login } = useAdminAuth();
-
   const [password, setPassword] = useState("");
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [dailyEggs, setDailyEggs] = useState([]);
-  const [period, setPeriod] = useState("rok"); // "rok" | "měsíc" | "týden"
+  const [period, setPeriod] = useState("rok");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(false);
+  const [charts, setCharts] = useState([]);
+  const [columns, setColumns] = useState(1);
 
+  // --- Safe fetch function ---
+  const fetchJsonSafe = async (url) => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const text = await res.text();
+      if (!text) return {};
+      return JSON.parse(text);
+    } catch (err) {
+      console.error(`Error fetching ${url}:`, err);
+      return {};
+    }
+  };
+
+  // --- default charts ---
   const defaultCharts = [
     { id: "orders", title: "Počet objednávek", getData: () => getOrderCounts() },
     { id: "revenue", title: "Tržby", getData: () => getRevenueData() },
@@ -35,44 +51,39 @@ export default function StatistikaPage() {
     { id: "eggs", title: "Produkce vajec", getData: () => getEggsData() },
   ];
 
-  // --- inicializace stavů bez localStorage (SSR safe) ---
-  const [charts, setCharts] = useState(defaultCharts);
-  const [columns, setColumns] = useState(1);
-
-  // --- načtení uložených hodnot localStorage až na klientovi ---
+  // --- Load persisted layout/charts on client ---
   useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("stats_charts_order");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setCharts(
-          parsed
+      const rawCharts = localStorage.getItem("stats_charts_order");
+      const savedCharts = rawCharts
+        ? JSON.parse(rawCharts)
             .map((id) => defaultCharts.find((c) => c.id === id))
             .filter(Boolean)
-            .concat(defaultCharts.filter((c) => !parsed.includes(c.id)))
-        );
-      }
-    } catch (e) {}
+            .concat(defaultCharts.filter((c) => !JSON.parse(rawCharts).includes(c.id)))
+        : defaultCharts;
+      setCharts(savedCharts);
 
-    const savedColumns = localStorage.getItem("stats_layout_columns");
-    if (savedColumns) setColumns(Number(savedColumns));
+      const savedColumns = localStorage.getItem("stats_layout_columns");
+      setColumns(savedColumns ? Number(savedColumns) : 1);
+    } catch (e) {
+      setCharts(defaultCharts);
+      setColumns(1);
+    }
   }, []);
 
-  // --- Loading data from API ---
+  // --- fetch data ---
   const fetchData = async () => {
     if (!authenticated) return;
     setLoading(true);
     try {
-      const resOrders = await fetch("/api/admin/orders");
-      const jsonOrders = await resOrders.json();
+      const jsonOrders = await fetchJsonSafe("/api/admin/orders");
       setOrders(jsonOrders.orders || []);
 
-      const resExpenses = await fetch("/api/admin/expenses");
-      const jsonExpenses = await resExpenses.json();
+      const jsonExpenses = await fetchJsonSafe("/api/admin/expenses");
       setExpenses(jsonExpenses.expenses || jsonExpenses || []);
 
-      const resEggs = await fetch("/api/admin/daily-eggs");
-      const jsonEggs = await resEggs.json();
+      const jsonEggs = await fetchJsonSafe("/api/admin/daily-eggs");
       setDailyEggs(jsonEggs.data || jsonEggs.records || jsonEggs.dailyEggs || jsonEggs || []);
     } catch (err) {
       console.error(err);
@@ -128,15 +139,15 @@ export default function StatistikaPage() {
         if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
         key = d.getDate();
       }
-      if (key === undefined) return;
       if (!grouped[key]) grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
       grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
     });
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys(grouped).sort();
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    let labels = period === "rok"
+      ? Object.keys(grouped).sort()
+      : period === "měsíc"
+      ? Array.from({ length: 12 }, (_, i) => i + 1)
+      : Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const datasets = Object.keys(STATUS_COLORS).map((status) => ({
       label: status,
@@ -148,26 +159,19 @@ export default function StatistikaPage() {
   };
 
   const getRevenueData = () => {
-    const filtered = (orders || []).filter((o) => o.status === "vyřízená");
     const grouped = {};
-    filtered.forEach((o) => {
+    (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
       const d = parseDate(o.pickup_date);
       if (!d) return;
-      let key;
-      if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
-      else if (period === "týden") {
-        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
-        key = d.getDate();
-      }
-      if (key === undefined) return;
+      let key = period === "rok" ? d.getFullYear() : period === "měsíc" ? d.getMonth() + 1 : d.getDate();
       grouped[key] = (grouped[key] || 0) + Number(o.payment_total || 0);
     });
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys(grouped).sort();
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    let labels = period === "rok"
+      ? Object.keys(grouped).sort()
+      : period === "měsíc"
+      ? Array.from({ length: 12 }, (_, i) => i + 1)
+      : Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     return {
       labels,
@@ -178,33 +182,29 @@ export default function StatistikaPage() {
   const getProfitChartData = () => {
     const revenueGrouped = {};
     const expenseGrouped = {};
-
-    const getKey = (d) => {
-      if (period === "rok") return d.getFullYear();
-      if (period === "měsíc") return d.getMonth() + 1;
-      if (period === "týden") {
-        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return undefined;
-        return d.getDate();
-      }
-      return undefined;
-    };
+    const getKey = (d) => (period === "rok" ? d.getFullYear() : period === "měsíc" ? d.getMonth() + 1 : d.getDate());
 
     (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
-      const k = getKey(parseDate(o.pickup_date));
+      const d = parseDate(o.pickup_date);
+      if (!d) return;
+      const k = getKey(d);
       if (k === undefined) return;
       revenueGrouped[k] = (revenueGrouped[k] || 0) + Number(o.payment_total || 0);
     });
 
     (expenses || []).forEach((e) => {
-      const k = getKey(parseDate(e.date));
+      const d = parseDate(e.date);
+      if (!d) return;
+      const k = getKey(d);
       if (k === undefined) return;
       expenseGrouped[k] = (expenseGrouped[k] || 0) + Number(e.amount || 0);
     });
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys({ ...revenueGrouped, ...expenseGrouped }).sort();
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    const labels = period === "rok"
+      ? Object.keys({ ...revenueGrouped, ...expenseGrouped }).sort()
+      : period === "měsíc"
+      ? Array.from({ length: 12 }, (_, i) => i + 1)
+      : Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     const revenueData = labels.map((l) => revenueGrouped[l] || 0);
     const expenseData = labels.map((l) => expenseGrouped[l] || 0);
@@ -224,23 +224,17 @@ export default function StatistikaPage() {
     (dailyEggs || []).forEach((rec) => {
       const d = parseDate(rec.date);
       if (!d) return;
-      let key;
-      if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
-      else if (period === "týden") {
-        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
-        key = d.getDate();
-      }
-      if (key === undefined) return;
+      const key = period === "rok" ? d.getFullYear() : period === "měsíc" ? d.getMonth() + 1 : d.getDate();
       const s = Number(rec.standard_eggs || rec.standard || 0);
       const l = Number(rec.low_cholesterol_eggs || rec.low_chol || 0);
       grouped[key] = (grouped[key] || 0) + s + l;
     });
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys(grouped).sort();
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+    const labels = period === "rok"
+      ? Object.keys(grouped).sort()
+      : period === "měsíc"
+      ? Array.from({ length: 12 }, (_, i) => i + 1)
+      : Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
     return { labels, datasets: [{ label: "Počet vajec", data: labels.map((l) => grouped[l] || 0), backgroundColor: "#fbbf24" }] };
   };
@@ -288,9 +282,7 @@ export default function StatistikaPage() {
 
   const saveLayoutColumns = (n) => {
     setColumns(n);
-    try {
-      localStorage.setItem("stats_layout_columns", String(n));
-    } catch (e) {}
+    try { localStorage.setItem("stats_layout_columns", String(n)); } catch (e) {}
   };
 
   if (!authenticated) {
@@ -319,35 +311,17 @@ export default function StatistikaPage() {
 
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <div className="grid grid-cols-4 gap-4 text-center">
-          <div>
-            <p className="text-gray-500">Tržby</p>
-            <p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Kč</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Náklady</p>
-            <p className="text-2xl font-bold text-red-500">{totalExpenses.toLocaleString()} Kč</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Čistý zisk</p>
-            <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-700"}`}>{totalProfit.toLocaleString()} Kč</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Vejce celkem</p>
-            <p className="text-2xl font-bold text-yellow-600">{totalEggs.toLocaleString()}</p>
-          </div>
+          <div><p className="text-gray-500">Tržby</p><p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Kč</p></div>
+          <div><p className="text-gray-500">Náklady</p><p className="text-2xl font-bold text-red-500">{totalExpenses.toLocaleString()} Kč</p></div>
+          <div><p className="text-gray-500">Čistý zisk</p><p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-700"}`}>{totalProfit.toLocaleString()} Kč</p></div>
+          <div><p className="text-gray-500">Vejce celkem</p><p className="text-2xl font-bold text-yellow-600">{totalEggs.toLocaleString()}</p></div>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-4 mb-4 items-center">
-        <label className="flex items-center gap-1">
-          <input type="radio" value="rok" checked={period === "rok"} onChange={() => setPeriod("rok")} /> Rok
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="radio" value="měsíc" checked={period === "měsíc"} onChange={() => setPeriod("měsíc")} /> Měsíc
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="radio" value="týden" checked={period === "týden"} onChange={() => setPeriod("týden")} /> Týden
-        </label>
+        <label className="flex items-center gap-1"><input type="radio" value="rok" checked={period === "rok"} onChange={() => setPeriod("rok")} /> Rok</label>
+        <label className="flex items-center gap-1"><input type="radio" value="měsíc" checked={period === "měsíc"} onChange={() => setPeriod("měsíc")} /> Měsíc</label>
+        <label className="flex items-center gap-1"><input type="radio" value="týden" checked={period === "týden"} onChange={() => setPeriod("týden")} /> Týden</label>
 
         {(period === "měsíc" || period === "týden") && (
           <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))} className="border rounded p-1 ml-2">
