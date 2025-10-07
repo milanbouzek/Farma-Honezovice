@@ -8,17 +8,23 @@ export function AdminAuthProvider({ children }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // při startu zkontrolujeme localStorage
-    const saved = typeof window !== "undefined" && localStorage.getItem("admin_authenticated");
-    setAuthenticated(saved === "true");
+    // Kontrola localStorage jen v prohlížeči
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("admin_authenticated");
+      setAuthenticated(saved === "true");
+    }
     setReady(true);
   }, []);
 
   const login = (password) => {
     const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-    if (!ADMIN_PASSWORD) return { success: false, message: "No admin password set in env." };
+    if (!ADMIN_PASSWORD) {
+      return { success: false, message: "No admin password set in env." };
+    }
     if (password === ADMIN_PASSWORD) {
-      localStorage.setItem("admin_authenticated", "true");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("admin_authenticated", "true");
+      }
       setAuthenticated(true);
       return { success: true };
     }
@@ -26,7 +32,9 @@ export function AdminAuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem("admin_authenticated");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("admin_authenticated");
+    }
     setAuthenticated(false);
   };
 
