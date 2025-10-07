@@ -1,186 +1,245 @@
-import { useEffect, useState } from "react";
-import { Bar } from "react-chartjs-2";
+import { useState, useEffect } from "react";
+import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
+  ArcElement,
+  PointElement,
+  LineElement,
   Tooltip,
   Legend,
+  Title,
 } from "chart.js";
-import { useAdminAuth } from "../../components/AdminAuthContext";
+import { supabase } from "../../lib/supabaseClient";
 import AdminLayout from "../../components/AdminLayout";
+import { useAdminAuth } from "../../components/AdminAuthContext";
+import toast, { Toaster } from "react-hot-toast";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+  Title
+);
 
-// 📊 Mock funkce – nahraď později reálnými daty
-const getOrdersData = () => ({
-  labels: ["Leden", "Únor", "Březen", "Duben"],
-  datasets: [{ label: "Počet objednávek", data: [30, 45, 40, 60], backgroundColor: "#3b82f6" }],
-});
-
-const getRevenueData = () => ({
-  labels: ["Leden", "Únor", "Březen", "Duben"],
-  datasets: [{ label: "Tržby (Kč)", data: [12000, 15000, 13000, 20000], backgroundColor: "#22c55e" }],
-});
-
-const getProfitData = () => ({
-  labels: ["Leden", "Únor", "Březen", "Duben"],
-  datasets: [{ label: "Zisk (Kč)", data: [4000, 6000, 5500, 9000], backgroundColor: "#eab308" }],
-});
-
-const getEggsData = () => ({
-  labels: ["Leden", "Únor", "Březen", "Duben"],
-  datasets: [{ label: "Produkce vajec", data: [1200, 1450, 1320, 1800], backgroundColor: "#ef4444" }],
-});
-
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: "top" },
-  },
-  scales: {
-    y: {
-      beginAtZero: true,
-      ticks: { stepSize: 10 },
-    },
-  },
-};
-
-export default function Statistika() {
+export default function StatistikaPage() {
   const { authenticated, ready } = useAdminAuth();
-  const [charts, setCharts] = useState([]);
-  const [layout, setLayout] = useState("1");
-  const [period, setPeriod] = useState("rok");
+  const [layout, setLayout] = useState("grid");
+  const [order, setOrder] = useState([]);
+  const [data, setData] = useState({
+    orders: [],
+    eggs: [],
+    expenses: [],
+  });
+  const [loading, setLoading] = useState(true);
 
-  // 🧠 Načtení uloženého pořadí a layoutu
-  useEffect(() => {
-    if (!ready) return;
+  // === Fetch reálných dat ze Supabase ===
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [{ data: orders }, { data: eggs }, { data: expenses }] = await Promise.all([
+        supabase.from("orders").select("id, pickup_date, standard_quantity, low_chol_quantity, total_price"),
+        supabase.from("daily_eggs").select("date, standard_eggs, low_cholesterol_eggs"),
+        supabase.from("expenses").select("date, amount"),
+      ]);
 
-    const savedOrder = JSON.parse(localStorage.getItem("charts_order"));
-    const savedLayout = localStorage.getItem("charts_layout") || "1";
-
-    const defaultCharts = [
-      { id: "orders", title: "Počet objednávek", getData: getOrdersData },
-      { id: "revenue", title: "Tržby", getData: getRevenueData },
-      { id: "profit", title: "Zisk", getData: getProfitData },
-      { id: "eggs", title: "Produkce vajec", getData: getEggsData },
-    ];
-
-    if (savedOrder) {
-      const ordered = savedOrder
-        .map((id) => defaultCharts.find((ch) => ch.id === id))
-        .filter(Boolean);
-      const missing = defaultCharts.filter((ch) => !savedOrder.includes(ch.id));
-      setCharts([...ordered, ...missing]);
-    } else {
-      setCharts(defaultCharts);
+      setData({
+        orders: orders || [],
+        eggs: eggs || [],
+        expenses: expenses || [],
+      });
+    } catch (err) {
+      toast.error("Nepodařilo se načíst data: " + err.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLayout(savedLayout);
-  }, [ready]);
-
-  // 🔼🔽 Přesun grafů a uložení pořadí
-  const moveChart = (idx, dir) => {
-    const newCharts = [...charts];
-    const targetIdx = idx + dir;
-    if (targetIdx < 0 || targetIdx >= newCharts.length) return;
-    [newCharts[idx], newCharts[targetIdx]] = [newCharts[targetIdx], newCharts[idx]];
-    setCharts(newCharts);
-    localStorage.setItem("charts_order", JSON.stringify(newCharts.map((ch) => ch.id)));
   };
 
-  // ⚙️ Změna layoutu
-  const changeLayout = (newLayout) => {
-    setLayout(newLayout);
-    localStorage.setItem("charts_layout", newLayout);
+  // === Uložit a načíst rozložení z localStorage ===
+  useEffect(() => {
+    const savedOrder = localStorage.getItem("statsOrder");
+    const savedLayout = localStorage.getItem("statsLayout");
+    if (savedOrder) setOrder(JSON.parse(savedOrder));
+    if (savedLayout) setLayout(savedLayout);
+    fetchData();
+  }, []);
+
+  const handleReorder = (newOrder) => {
+    setOrder(newOrder);
+    localStorage.setItem("statsOrder", JSON.stringify(newOrder));
   };
+
+  const handleLayoutChange = (type) => {
+    setLayout(type);
+    localStorage.setItem("statsLayout", type);
+  };
+
+  // === Grafy ===
+  const charts = {
+    orders: {
+      title: "📦 Počet objednávek podle dne",
+      component: (
+        <Bar
+          data={{
+            labels: aggregateByDay(data.orders, "pickup_date").labels,
+            datasets: [
+              {
+                label: "Objednávky",
+                data: aggregateByDay(data.orders, "pickup_date").values,
+                backgroundColor: "#60a5fa",
+              },
+            ],
+          }}
+        />
+      ),
+    },
+    eggs: {
+      title: "🥚 Denní produkce vajec",
+      component: (
+        <Line
+          data={{
+            labels: data.eggs.map((e) => e.date),
+            datasets: [
+              {
+                label: "Standardní vejce",
+                data: data.eggs.map((e) => e.standard_eggs),
+                borderColor: "#10b981",
+                tension: 0.3,
+              },
+              {
+                label: "Nízký cholesterol",
+                data: data.eggs.map((e) => e.low_cholesterol_eggs),
+                borderColor: "#f59e0b",
+                tension: 0.3,
+              },
+            ],
+          }}
+        />
+      ),
+    },
+    revenue: {
+      title: "💰 Tržby",
+      component: (
+        <Bar
+          data={{
+            labels: aggregateByDay(data.orders, "pickup_date").labels,
+            datasets: [
+              {
+                label: "Tržby (Kč)",
+                data: aggregateByDay(data.orders, "pickup_date", "total_price").values,
+                backgroundColor: "#34d399",
+              },
+            ],
+          }}
+        />
+      ),
+    },
+    expenses: {
+      title: "💸 Náklady",
+      component: (
+        <Line
+          data={{
+            labels: data.expenses.map((e) => e.date),
+            datasets: [
+              {
+                label: "Náklady (Kč)",
+                data: data.expenses.map((e) => e.amount),
+                borderColor: "#ef4444",
+                tension: 0.3,
+              },
+            ],
+          }}
+        />
+      ),
+    },
+  };
+
+  // === Pomocná funkce na seskupení objednávek podle dne ===
+  function aggregateByDay(items, dateField, valueField) {
+    const map = {};
+    items.forEach((i) => {
+      const d = i[dateField]?.split("T")[0];
+      if (!d) return;
+      map[d] = (map[d] || 0) + (valueField ? i[valueField] || 0 : 1);
+    });
+    const labels = Object.keys(map).sort();
+    const values = labels.map((l) => map[l]);
+    return { labels, values };
+  }
 
   if (!ready) return null;
   if (!authenticated)
-    return <div className="text-center mt-10">Nejdříve se přihlas do administrace.</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <p className="text-lg">Přístup odepřen</p>
+      </div>
+    );
 
-  const gridCols = {
-    "1": "grid-cols-1",
-    "2": "sm:grid-cols-2 grid-cols-1",
-    "4": "xl:grid-cols-4 md:grid-cols-2 grid-cols-1",
-  }[layout];
+  const chartOrder = order.length ? order : Object.keys(charts);
 
   return (
     <AdminLayout>
-      <h1 className="text-3xl font-bold mb-6">📊 Statistiky</h1>
+      <Toaster position="top-center" />
+      <h1 className="text-3xl font-bold mb-6">📊 Statistika</h1>
 
-      {/* 🔧 Přepínač rozložení */}
-      <div className="flex flex-wrap items-center mb-6 gap-4">
-        <div className="flex items-center">
-          <span className="mr-2">Rozložení:</span>
-          <select
-            value={layout}
-            onChange={(e) => changeLayout(e.target.value)}
-            className="border rounded p-1"
-          >
-            <option value="1">1 sloupec</option>
-            <option value="2">2 sloupce</option>
-            <option value="4">4 sloupce</option>
-          </select>
-        </div>
-
-        {/* ⏱️ Přepínač období */}
-        <div>
-          <label className="mr-4">
-            <input
-              type="radio"
-              name="period"
-              value="rok"
-              checked={period === "rok"}
-              onChange={() => setPeriod("rok")}
-            />{" "}
-            Rok
-          </label>
-          <label className="mr-4">
-            <input
-              type="radio"
-              name="period"
-              value="měsíc"
-              checked={period === "měsíc"}
-              onChange={() => setPeriod("měsíc")}
-            />{" "}
-            Měsíc
-          </label>
-          <label>
-            <input
-              type="radio"
-              name="period"
-              value="týden"
-              checked={period === "týden"}
-              onChange={() => setPeriod("týden")}
-            />{" "}
-            Týden
-          </label>
-        </div>
+      {/* Ovládací panel */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <button
+          onClick={() => handleLayoutChange("grid")}
+          className={`px-3 py-1 rounded ${layout === "grid" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+        >
+          Mřížka 2×2
+        </button>
+        <button
+          onClick={() => handleLayoutChange("list")}
+          className={`px-3 py-1 rounded ${layout === "list" ? "bg-blue-500 text-white" : "bg-gray-200"}`}
+        >
+          Sloupec (1×4)
+        </button>
+        <p className="text-sm text-gray-500">Pořadí se uloží automaticky</p>
       </div>
 
-      {/* 📈 Grafy */}
-      <div className={`grid ${gridCols} gap-6`}>
-        {charts.map((chart, idx) => (
-          <div key={chart.id} className="bg-white shadow rounded-xl p-4 h-[400px]">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-xl font-bold">{chart.title}</h2>
-              <div>
-                <button onClick={() => moveChart(idx, -1)} className="mr-2">
-                  ⬆️
-                </button>
-                <button onClick={() => moveChart(idx, 1)}>⬇️</button>
-              </div>
+      {loading ? (
+        <p>Načítám data…</p>
+      ) : (
+        <div
+          className={
+            layout === "grid"
+              ? "grid grid-cols-1 md:grid-cols-2 gap-6"
+              : "flex flex-col gap-6"
+          }
+        >
+          {chartOrder.map((key) => (
+            <div
+              key={key}
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("chart", key)}
+              onDrop={(e) => {
+                e.preventDefault();
+                const dragged = e.dataTransfer.getData("chart");
+                const newOrder = [...chartOrder];
+                const from = newOrder.indexOf(dragged);
+                const to = newOrder.indexOf(key);
+                newOrder.splice(from, 1);
+                newOrder.splice(to, 0, dragged);
+                handleReorder(newOrder);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              className="bg-white p-4 rounded-xl shadow hover:shadow-lg transition-shadow cursor-move"
+            >
+              <h2 className="text-xl font-semibold mb-2">{charts[key].title}</h2>
+              {charts[key].component}
             </div>
-            <div className="h-[320px]">
-              <Bar data={chart.getData()} options={chartOptions} />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </AdminLayout>
   );
 }
