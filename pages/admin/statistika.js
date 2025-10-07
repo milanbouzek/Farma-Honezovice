@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import AdminLayout from "../../components/AdminLayout";
 import { useAdminAuth } from "../../components/AdminAuthContext";
 
-// Chart.js komponenta bude importována dynamicky, jen na klientovi
-const Bar = dynamic(() => import("react-chartjs-2").then((mod) => mod.Bar), { ssr: false });
+// import grafu jen na klientovi (vyhneme se SSR chybám)
+const Bar = dynamic(() => import("react-chartjs-2").then((m) => m.Bar), { ssr: false });
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,7 +17,6 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 export default function StatistikaPage() {
@@ -30,19 +30,47 @@ export default function StatistikaPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(false);
+
+  // klient-only stav pro pořadí grafů / layout
   const [charts, setCharts] = useState([]);
   const [columns, setColumns] = useState(1);
 
-  // --- parse date utility ---
+  // ----- pomocné utility -----
   const parseDate = (d) => {
     if (!d) return null;
-    const dt = new Date(d);
-    if (isNaN(dt)) {
-      const parts = String(d).split(".");
-      if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-      return null;
+    // pokud je už JS Date
+    if (d instanceof Date && !isNaN(d)) return d;
+    // pokud přijde číslo (timestamp)
+    if (typeof d === "number") {
+      const dt = new Date(d);
+      return isNaN(dt) ? null : dt;
     }
-    return dt;
+    // pokud přijde objekt (supabase může vracet Date jako string nebo objekt), zkusíme string
+    const s = String(d).trim();
+
+    // běžné ISO (YYYY-MM-DD nebo s časem)
+    const isoCandidate = s.replace(/\s+/, "T");
+    const dtIso = new Date(isoCandidate);
+    if (!isNaN(dtIso)) return dtIso;
+
+    // český formát DD.MM.YYYY
+    const parts = s.split(".");
+    if (parts.length === 3) {
+      const [dd, mm, yyyy] = parts;
+      const iso = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+      const dt = new Date(iso);
+      return isNaN(dt) ? null : dt;
+    }
+
+    // někdy Supabase vrací "/Date(165...)/" nebo jiné dziady -> zkusíme fallback že jsou YYYY-MM-DD
+    const maybeMatch = s.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (maybeMatch) {
+      const iso = `${maybeMatch[1]}-${maybeMatch[2].padStart(2, "0")}-${maybeMatch[3].padStart(2, "0")}`;
+      const dt = new Date(iso);
+      return isNaN(dt) ? null : dt;
+    }
+
+    return null;
   };
 
   const STATUS_COLORS = {
@@ -52,81 +80,17 @@ export default function StatistikaPage() {
     "zrušená": "#9ca3af",
   };
 
-  // --- default charts ---
-  const defaultCharts = [
-    { id: "orders", title: "Počet objednávek", getData: () => getOrderCounts() },
-    { id: "revenue", title: "Tržby", getData: () => getRevenueData() },
-    { id: "profit", title: "Náklady a čistý zisk", getData: () => getProfitChartData() },
-    { id: "eggs", title: "Produkce vajec", getData: () => getEggsData() },
-  ];
-
-  // --- initialize charts and columns only on client ---
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const rawCharts = localStorage.getItem("stats_charts_order");
-        const savedCharts = rawCharts
-          ? JSON.parse(rawCharts)
-              .map((id) => defaultCharts.find((c) => c.id === id))
-              .filter(Boolean)
-              .concat(defaultCharts.filter((c) => !JSON.parse(rawCharts).includes(c.id)))
-          : defaultCharts;
-        setCharts(savedCharts);
-
-        const savedColumns = localStorage.getItem("stats_layout_columns");
-        setColumns(savedColumns ? Number(savedColumns) : 1);
-      } catch (e) {
-        setCharts(defaultCharts);
-        setColumns(1);
-      }
-    }
-  }, []);
-
-  // --- fetch data ---
-  const fetchData = async () => {
-    if (!authenticated) return;
-    setLoading(true);
-    try {
-      const resOrders = await fetch("/api/admin/orders");
-      const jsonOrders = await resOrders.json();
-      setOrders(jsonOrders.orders || []);
-
-      const resExpenses = await fetch("/api/admin/expenses");
-      const jsonExpenses = await resExpenses.json();
-      setExpenses(jsonExpenses.expenses || jsonExpenses || []);
-
-      const resEggs = await fetch("/api/admin/daily-eggs");
-      const jsonEggs = await resEggs.json();
-      setDailyEggs(jsonEggs.data || jsonEggs.records || jsonEggs.dailyEggs || jsonEggs || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Chyba při načítání dat: " + (err.message || err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (authenticated) fetchData();
-  }, [authenticated, period, selectedYear, selectedMonth]);
-
-  // --- login handler ---
-  const handleLogin = async () => {
-    const result = login(password);
-    if (result?.success) {
-      toast.success("✅ Přihlášeno");
-      setPassword("");
-    } else {
-      toast.error(result?.message || "Špatné heslo");
-    }
-  };
-
-  // --- chart data builders ---
+  // ----- chart data builders -----
   const getOrderCounts = () => {
     const grouped = {};
+    const invalid = new Set();
+
     (orders || []).forEach((o) => {
       const d = parseDate(o.pickup_date);
-      if (!d) return;
+      if (!d) {
+        invalid.add(String(o.pickup_date));
+        return;
+      }
       let key;
       if (period === "rok") key = d.getFullYear();
       else if (period === "měsíc") key = d.getMonth() + 1;
@@ -138,6 +102,8 @@ export default function StatistikaPage() {
       if (!grouped[key]) grouped[key] = { "nová objednávka": 0, "zpracovává se": 0, "vyřízená": 0, "zrušená": 0 };
       grouped[key][o.status] = (grouped[key][o.status] || 0) + 1;
     });
+
+    if (invalid.size) console.warn("Neparsovaná pickup_date (sample):", Array.from(invalid).slice(0,5));
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
@@ -155,9 +121,14 @@ export default function StatistikaPage() {
 
   const getRevenueData = () => {
     const grouped = {};
+    const invalid = new Set();
+
     (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
       const d = parseDate(o.pickup_date);
-      if (!d) return;
+      if (!d) {
+        invalid.add(String(o.pickup_date));
+        return;
+      }
       let key;
       if (period === "rok") key = d.getFullYear();
       else if (period === "měsíc") key = d.getMonth() + 1;
@@ -168,6 +139,8 @@ export default function StatistikaPage() {
       if (key === undefined) return;
       grouped[key] = (grouped[key] || 0) + Number(o.payment_total || 0);
     });
+
+    if (invalid.size) console.warn("Neparsovaná pickup_date (revenue):", Array.from(invalid).slice(0,5));
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
@@ -180,8 +153,10 @@ export default function StatistikaPage() {
   const getProfitChartData = () => {
     const revenueGrouped = {};
     const expenseGrouped = {};
+    const invalid = new Set();
 
     const getKey = (d) => {
+      if (!d) return undefined;
       if (period === "rok") return d.getFullYear();
       if (period === "měsíc") return d.getMonth() + 1;
       if (period === "týden") {
@@ -193,6 +168,7 @@ export default function StatistikaPage() {
 
     (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
       const d = parseDate(o.pickup_date);
+      if (!d) { invalid.add(String(o.pickup_date)); return; }
       const k = getKey(d);
       if (k === undefined) return;
       revenueGrouped[k] = (revenueGrouped[k] || 0) + Number(o.payment_total || 0);
@@ -200,10 +176,13 @@ export default function StatistikaPage() {
 
     (expenses || []).forEach((e) => {
       const d = parseDate(e.date);
+      if (!d) { invalid.add(String(e.date)); return; }
       const k = getKey(d);
       if (k === undefined) return;
       expenseGrouped[k] = (expenseGrouped[k] || 0) + Number(e.amount || 0);
     });
+
+    if (invalid.size) console.warn("Neparsovaná data (profit):", Array.from(invalid).slice(0,5));
 
     let labels = [];
     if (period === "rok") labels = Object.keys({ ...revenueGrouped, ...expenseGrouped }).sort();
@@ -214,17 +193,22 @@ export default function StatistikaPage() {
     const expenseData = labels.map((l) => expenseGrouped[l] || 0);
     const profitData = revenueData.map((r, i) => r - expenseData[i]);
 
-    return { labels, datasets: [
-      { label: "Náklady", data: expenseData, backgroundColor: "#f87171" },
-      { label: "Čistý zisk", data: profitData, backgroundColor: "#10b981" }
-    ] };
+    return {
+      labels,
+      datasets: [
+        { label: "Náklady", data: expenseData, backgroundColor: "#f87171" },
+        { label: "Čistý zisk", data: profitData, backgroundColor: "#10b981" },
+      ],
+    };
   };
 
   const getEggsData = () => {
     const grouped = {};
+    const invalid = new Set();
+
     (dailyEggs || []).forEach((rec) => {
       const d = parseDate(rec.date);
-      if (!d) return;
+      if (!d) { invalid.add(String(rec.date)); return; }
       let key;
       if (period === "rok") key = d.getFullYear();
       else if (period === "měsíc") key = d.getMonth() + 1;
@@ -233,10 +217,15 @@ export default function StatistikaPage() {
         key = d.getDate();
       }
       if (key === undefined) return;
-      const s = Number(rec.standard_eggs || rec.standard || 0);
+      const s = Number(rec.standard_eggs || rec.standard || rec.quantity || 0);
       const l = Number(rec.low_cholesterol_eggs || rec.low_chol || 0);
       grouped[key] = (grouped[key] || 0) + s + l;
     });
+
+    if (Object.keys(grouped).length === 0 && (dailyEggs || []).length > 0) {
+      // pokud žádné validní date keys, upozorníme a logneme sample dat
+      console.warn("Produkce vajec: žádné validní data pro zvolené období. Ukázka řádků:", (dailyEggs || []).slice(0,5));
+    }
 
     let labels = [];
     if (period === "rok") labels = Object.keys(grouped).sort();
@@ -246,11 +235,12 @@ export default function StatistikaPage() {
     return { labels, datasets: [{ label: "Počet vajec", data: labels.map((l) => grouped[l] || 0), backgroundColor: "#fbbf24" }] };
   };
 
+  // ----- totals + helpers -----
   const completedOrders = useMemo(() => (orders || []).filter((o) => o.status === "vyřízená"), [orders]);
   const totalRevenue = completedOrders.reduce((s, o) => s + Number(o.payment_total || 0), 0);
   const totalExpenses = (expenses || []).reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalProfit = totalRevenue - totalExpenses;
-  const totalEggs = (dailyEggs || []).reduce((s, r) => s + Number(r.standard_eggs || r.standard || 0) + Number(r.low_cholesterol_eggs || r.low_chol || 0), 0);
+  const totalEggs = (dailyEggs || []).reduce((s, r) => s + Number(r.standard_eggs || r.standard || r.quantity || 0) + Number(r.low_cholesterol_eggs || r.low_chol || 0), 0);
 
   const years = Array.from(new Set((orders || []).map((o) => {
     const d = parseDate(o.pickup_date);
@@ -265,7 +255,7 @@ export default function StatistikaPage() {
         callbacks: {
           label: (context) => {
             const v = context.parsed?.y ?? context.parsed ?? 0;
-            if (String(context.dataset.label).toLowerCase().includes("trž") || String(context.dataset.label).toLowerCase().includes("zisk") || String(context.dataset.label).toLowerCase().includes("náklad")) {
+            if (String(context.dataset.label).toLowerCase().includes("trž") || String(context.dataset.label).toLowerCase().includes("kč") || String(context.dataset.label).toLowerCase().includes("zisk") || String(context.dataset.label).toLowerCase().includes("náklad")) {
               return `${context.dataset.label}: ${Number(v).toLocaleString()} Kč`;
             }
             return `${context.dataset.label}: ${Number(v).toLocaleString()}`;
@@ -276,7 +266,90 @@ export default function StatistikaPage() {
     scales: { y: { beginAtZero: true } },
   };
 
-  // --- move chart and persist order ---
+  // ----- default charts (funkční i když charts state inicializujeme v useEffect) -----
+  const defaultCharts = [
+    { id: "orders", title: "Počet objednávek", getData: getOrderCounts },
+    { id: "revenue", title: "Tržby", getData: getRevenueData },
+    { id: "profit", title: "Náklady a čistý zisk", getData: getProfitChartData },
+    { id: "eggs", title: "Produkce vajec", getData: getEggsData },
+  ];
+
+  // načtení pořadí grafů + sloupců z localStorage (jen na klientu)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("stats_charts_order");
+      if (raw) {
+        const ids = JSON.parse(raw);
+        const arranged = ids.map((id) => defaultCharts.find((c) => c.id === id)).filter(Boolean)
+          .concat(defaultCharts.filter((c) => !ids.includes(c.id)));
+        setCharts(arranged);
+      } else {
+        setCharts(defaultCharts);
+      }
+    } catch (e) {
+      console.warn("Chyba při načítání uloženého pořadí grafů:", e);
+      setCharts(defaultCharts);
+    }
+
+    try {
+      const savedCols = localStorage.getItem("stats_layout_columns");
+      setColumns(savedCols ? Number(savedCols) : 1);
+    } catch (e) {
+      setColumns(1);
+    }
+  }, []);
+
+  // fetch data (safe)
+  const fetchData = async () => {
+    if (!authenticated) return;
+    setLoading(true);
+    try {
+      // orders
+      const resOrders = await fetch("/api/admin/orders");
+      if (!resOrders.ok) {
+        const t = await resOrders.text();
+        throw new Error("orders API error: " + t);
+      }
+      const jsonOrders = await resOrders.json();
+      setOrders(jsonOrders.orders || jsonOrders || []);
+
+      // expenses
+      const resExpenses = await fetch("/api/admin/expenses");
+      if (!resExpenses.ok) {
+        const t = await resExpenses.text();
+        throw new Error("expenses API error: " + t);
+      }
+      const jsonExpenses = await resExpenses.json();
+      setExpenses(jsonExpenses.expenses || jsonExpenses || []);
+
+      // daily eggs
+      const resEggs = await fetch("/api/admin/daily-eggs");
+      if (!resEggs.ok) {
+        const t = await resEggs.text();
+        throw new Error("daily-eggs API error: " + t);
+      }
+      const jsonEggs = await resEggs.json();
+      setDailyEggs(jsonEggs.data || jsonEggs.records || jsonEggs.dailyEggs || jsonEggs || []);
+    } catch (err) {
+      console.error("fetchData error:", err);
+      // pokud je to striktní chybová hláška z Date parsování, přidej hint
+      if (String(err).toLowerCase().includes("pattern") || String(err).toLowerCase().includes("expected")) {
+        toast.error("Chyba při parsování dat (pravděpodobně špatný formát datumu). Ověř API / DB formáty (viz konzole).");
+      } else {
+        toast.error("Chyba při načítání dat: " + (err.message || err));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authenticated) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, period, selectedYear, selectedMonth]);
+
+  // --- handlers pro pořadí a layout ---
   const moveChart = (index, direction) => {
     const newCharts = [...charts];
     const target = index + direction;
@@ -285,17 +358,22 @@ export default function StatistikaPage() {
     setCharts(newCharts);
     try {
       localStorage.setItem("stats_charts_order", JSON.stringify(newCharts.map((c) => c.id)));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Nepodařilo se uložit pořadí grafů:", e);
+    }
   };
 
   const saveLayoutColumns = (n) => {
     setColumns(n);
     try {
       localStorage.setItem("stats_layout_columns", String(n));
-    } catch (e) {}
+    } catch (e) {
+      console.warn("Nepodařilo se uložit layout:", e);
+    }
   };
 
   // --- login UI ---
+  if (!ready) return null; // počkej dokud kontext nepřipraven
   if (!authenticated) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -309,19 +387,26 @@ export default function StatistikaPage() {
           className="border p-2 rounded mb-2 w-64"
         />
         <div className="flex gap-2">
-          <button onClick={handleLogin} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Přihlásit se</button>
+          <button onClick={() => {
+            const r = login(password);
+            if (r?.success) {
+              toast.success("✅ Přihlášeno");
+              setPassword("");
+            } else {
+              toast.error(r?.message || "Špatné heslo");
+            }
+          }} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Přihlásit se</button>
         </div>
       </div>
     );
   }
 
-  // --- main UI ---
+  // --- hlavní UI ---
   return (
     <AdminLayout>
       <Toaster position="top-center" />
       <h1 className="text-3xl font-bold mb-6">📊 Statistika objednávek</h1>
 
-      {/* Finanční přehled */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
         <div className="grid grid-cols-4 gap-4 text-center">
           <div>
@@ -343,7 +428,6 @@ export default function StatistikaPage() {
         </div>
       </div>
 
-      {/* Přepínač období + layout */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
         <label className="flex items-center gap-1">
           <input type="radio" value="rok" checked={period === "rok"} onChange={() => setPeriod("rok")} /> Rok
@@ -377,17 +461,17 @@ export default function StatistikaPage() {
         </div>
       </div>
 
-      {/* Grafy */}
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-        {charts.map((chart, index) => (
+        {(charts && charts.length > 0 ? charts : defaultCharts).map((chart, index) => (
           <div key={chart.id} className="mb-6 bg-white shadow rounded-xl p-4">
             <div className="flex justify-between items-center mb-2">
               <h2 className="text-xl font-bold">{chart.title}</h2>
               <div className="flex gap-1">
                 <button onClick={() => moveChart(index, -1)} disabled={index === 0} className="px-2 py-1 bg-gray-200 rounded">↑</button>
-                <button onClick={() => moveChart(index, 1)} disabled={index === charts.length - 1} className="px-2 py-1 bg-gray-200 rounded">↓</button>
+                <button onClick={() => moveChart(index, 1)} disabled={index === (charts.length || defaultCharts.length) - 1} className="px-2 py-1 bg-gray-200 rounded">↓</button>
               </div>
             </div>
+
             <div>
               <Bar data={chart.getData()} options={chartOptions} />
             </div>
