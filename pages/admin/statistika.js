@@ -18,14 +18,110 @@ import { supabase } from "../../lib/supabaseClient";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 /**
+ * Data-label plugin: vykreslí hodnoty přímo v každém sloupci,
+ * otočené o 90°, vycentrované.
+ */
+const DataLabelsPlugin = {
+  id: "dataLabelsPlugin",
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx;
+    const datasets = chart.data.datasets || [];
+
+    // helper: parse color string (#hex or rgb(...))
+    const parseColorToRgb = (col) => {
+      if (!col) return [0, 0, 0];
+      if (typeof col !== "string") return [0, 0, 0];
+      const s = col.trim();
+      if (s.startsWith("#")) {
+        // #rrggbb or #rgb
+        const hex = s.slice(1);
+        if (hex.length === 3) {
+          const r = parseInt(hex[0] + hex[0], 16);
+          const g = parseInt(hex[1] + hex[1], 16);
+          const b = parseInt(hex[2] + hex[2], 16);
+          return [r, g, b];
+        } else if (hex.length === 6) {
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const b = parseInt(hex.slice(4, 6), 16);
+          return [r, g, b];
+        }
+      } else if (s.startsWith("rgb")) {
+        // rgb(a)
+        const nums = s.replace(/rgba?\(|\)|\s/g, "").split(",");
+        return nums.slice(0, 3).map((n) => parseInt(n, 10));
+      }
+      return [0, 0, 0];
+    };
+
+    const luminance = (r, g, b) => {
+      // relative luminance approximation
+      const a = [r, g, b].map((v) => {
+        v = v / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+    };
+
+    ctx.save();
+    // iterate datasets
+    datasets.forEach((dataset, dsIndex) => {
+      const meta = chart.getDatasetMeta(dsIndex);
+      if (!meta || !meta.data) return;
+      // only bar charts
+      if (meta.type !== "bar" && !(meta.data && meta.data[0] && meta.data[0].constructor.name === "BarElement")) {
+        // still allow if elements look like bars
+      }
+
+      meta.data.forEach((bar, index) => {
+        try {
+          const val = dataset.data[index];
+          if (val === null || val === undefined) return;
+
+          // get bar center coordinates
+          const x = typeof bar.x === "number" ? bar.x : (bar.getCenterPoint ? bar.getCenterPoint().x : null);
+          const y = typeof bar.y === "number" ? bar.y : (bar.getCenterPoint ? bar.getCenterPoint().y : null);
+          if (x == null || y == null) return;
+
+          // text formatting
+          const text = typeof val === "number" ? val.toLocaleString() : String(val);
+          const bg = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[index] : dataset.backgroundColor;
+          const rgb = parseColorToRgb(bg);
+          const lum = luminance(rgb[0], rgb[1], rgb[2]);
+
+          // pick color for text (white on dark bg, black on light bg)
+          const textColor = lum < 0.6 ? "#ffffff" : "#111827";
+
+          // set font size relative to chart height but bounded
+          const fontSize = Math.max(10, Math.min(14, Math.floor(chart.height / 40)));
+          ctx.font = `${fontSize}px Inter, Arial, sans-serif`;
+          ctx.fillStyle = textColor;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          // rotate -90 deg and draw at center
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(-Math.PI / 2);
+          ctx.fillText(text, 0, 0);
+          ctx.restore();
+        } catch (e) {
+          // ignore drawing errors per-bar
+        }
+      });
+    });
+    ctx.restore();
+  },
+};
+
+ChartJS.register(DataLabelsPlugin);
+
+/**
  * Statistika page
  * - načítá orders / expenses / daily_eggs přímo ze Supabase
  * - umožňuje přepínat období (rok/měsíc/týden)
  * - umožňuje přesouvat grafy a měnit layout (persistováno v localStorage)
- * 
- * Upraveno: přidán graf "Prodáno vajec (z objednávek)" + responzivní layout pro mobily
  */
-
 export default function StatistikaPage() {
   const { authenticated, ready, login } = useAdminAuth();
 
@@ -38,23 +134,21 @@ export default function StatistikaPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [loading, setLoading] = useState(false);
 
-  // --- chart definitions (id -> title) ---
+  // --- chart definitions (id -> title)
   const chartDefs = {
     orders: "Počet objednávek",
     revenue: "Tržby",
     profit: "Náklady a čistý zisk",
-    eggs: "Produkce vajec",
-    sold: "Prodáno vajec (z objednávek)", // NOVÝ graf
+    eggs: "Produkce a prodej vajec", // combined chart
   };
 
-  // --- charts order (persistováno) - store only IDs to avoid serializing functions ---
+  // --- charts order (persistováno)
   const [charts, setCharts] = useState(() => {
     try {
       if (typeof window === "undefined") return Object.keys(chartDefs);
       const raw = localStorage.getItem("stats_charts_order");
       if (!raw) return Object.keys(chartDefs);
       const parsed = JSON.parse(raw);
-      // ensure valid ids and keep any missing ones appended
       const valid = parsed.filter((id) => Object.keys(chartDefs).includes(id));
       const remaining = Object.keys(chartDefs).filter((id) => !valid.includes(id));
       return [...valid, ...remaining];
@@ -63,7 +157,7 @@ export default function StatistikaPage() {
     }
   });
 
-  // --- layout columns (persistováno) ---
+  // --- layout columns (persistováno)
   const [columns, setColumns] = useState(() => {
     try {
       if (typeof window === "undefined") return 1;
@@ -74,23 +168,15 @@ export default function StatistikaPage() {
     }
   });
 
-  // responsive override: on small screens always 1 column
-  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1200);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  const effectiveColumns = windowWidth < 768 ? 1 : columns;
-
   // --- HELPERS ---
   const parseDate = (d) => {
     if (!d) return null;
     if (d instanceof Date) return d;
     const s = String(d);
+    // try ISO / JS
     const dt = new Date(s);
     if (!isNaN(dt)) return dt;
+    // try DD.MM.YYYY
     const parts = s.split(".");
     if (parts.length === 3) {
       const [dd, mm, yyyy] = parts;
@@ -111,7 +197,7 @@ export default function StatistikaPage() {
     "zrušená": "#9ca3af",
   };
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING from Supabase ---
   const fetchData = async () => {
     if (!authenticated) return;
     setLoading(true);
@@ -148,7 +234,6 @@ export default function StatistikaPage() {
   };
 
   useEffect(() => {
-    // načteme data pokud ready a authenticated
     if (ready && authenticated) {
       fetchData();
     }
@@ -262,8 +347,12 @@ export default function StatistikaPage() {
     };
   };
 
+  // --- COMBINED eggs chart: produced vs sold ---
   const getEggsData = () => {
-    const grouped = {};
+    const producedGrouped = {};
+    const soldGrouped = {};
+
+    // produced from dailyEggs
     (dailyEggs || []).forEach((rec) => {
       const d = parseDate(rec.date);
       if (!d) return;
@@ -277,23 +366,10 @@ export default function StatistikaPage() {
       if (key === undefined) return;
       const s = Number(rec.standard_eggs || 0);
       const l = Number(rec.low_cholesterol_eggs || 0);
-      grouped[key] = (grouped[key] || 0) + s + l;
+      producedGrouped[key] = (producedGrouped[key] || 0) + s + l;
     });
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
-
-    return {
-      labels: labels.map(formatLabel),
-      datasets: [{ label: "Počet vajec", data: labels.map((l) => grouped[l] || 0), backgroundColor: "#fbbf24" }],
-    };
-  };
-
-  // --- NOVÝ: prodaná vejce z dokončených objednávek ---
-  const getSoldEggsData = () => {
-    const grouped = {};
+    // sold calculated from completed orders
     (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
       const d = parseDate(o.pickup_date);
       if (!d) return;
@@ -305,19 +381,24 @@ export default function StatistikaPage() {
         key = d.getDate();
       }
       if (key === undefined) return;
-      const s = Number(o.standard_quantity || 0);
-      const l = Number(o.low_chol_quantity || o.low_chol || 0);
-      grouped[key] = (grouped[key] || 0) + s + l;
+      const soldCount = Number(o.standard_quantity || 0) + Number(o.low_chol_quantity || 0);
+      soldGrouped[key] = (soldGrouped[key] || 0) + soldCount;
     });
 
     let labels = [];
-    if (period === "rok") labels = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
+    if (period === "rok") labels = Object.keys({ ...producedGrouped, ...soldGrouped }).sort((a, b) => Number(a) - Number(b));
     else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
     else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
+    const producedData = labels.map((l) => producedGrouped[l] || 0);
+    const soldData = labels.map((l) => soldGrouped[l] || 0);
+
     return {
       labels: labels.map(formatLabel),
-      datasets: [{ label: "Prodáno vajec", data: labels.map((l) => grouped[l] || 0), backgroundColor: "#f97316" }],
+      datasets: [
+        { label: "Vyrobeno", data: producedData, backgroundColor: "#fbbf24" },
+        { label: "Prodáno", data: soldData, backgroundColor: "#3b82f6" },
+      ],
     };
   };
 
@@ -326,7 +407,6 @@ export default function StatistikaPage() {
     if (id === "revenue") return getRevenueData();
     if (id === "profit") return getProfitChartData();
     if (id === "eggs") return getEggsData();
-    if (id === "sold") return getSoldEggsData();
     return { labels: [], datasets: [] };
   };
 
@@ -397,7 +477,7 @@ export default function StatistikaPage() {
     if (result?.success) {
       toast.success("✅ Přihlášeno");
       setPassword("");
-      // fetchData provede useEffect
+      // fetchData triggered by useEffect on authenticated
     } else {
       toast.error(result?.message || "Špatné heslo");
     }
@@ -435,7 +515,7 @@ export default function StatistikaPage() {
 
       {/* Finanční přehled */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+        <div className="grid grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-gray-500">Tržby</p>
             <p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Kč</p>
@@ -449,7 +529,7 @@ export default function StatistikaPage() {
             <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-700"}`}>{totalProfit.toLocaleString()} Kč</p>
           </div>
           <div>
-            <p className="text-gray-500">Vejce celkem (produkce)</p>
+            <p className="text-gray-500">Vejce celkem</p>
             <p className="text-2xl font-bold text-yellow-600">{totalEggs.toLocaleString()}</p>
           </div>
         </div>
@@ -490,8 +570,8 @@ export default function StatistikaPage() {
         </div>
       </div>
 
-      {/* Grafy - grid podle effectiveColumns (responsive) */}
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}>
+      {/* Grafy - grid podle columns */}
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {charts.map((chartId, index) => {
           const chartData = getChartDataById(chartId);
           const hasData = Array.isArray(chartData.labels) && chartData.labels.length > 0;
