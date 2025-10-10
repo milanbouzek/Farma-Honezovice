@@ -22,6 +22,8 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
  * - načítá orders / expenses / daily_eggs přímo ze Supabase
  * - umožňuje přepínat období (rok/měsíc/týden)
  * - umožňuje přesouvat grafy a měnit layout (persistováno v localStorage)
+ * 
+ * Upraveno: přidán graf "Prodáno vajec (z objednávek)" + responzivní layout pro mobily
  */
 
 export default function StatistikaPage() {
@@ -42,6 +44,7 @@ export default function StatistikaPage() {
     revenue: "Tržby",
     profit: "Náklady a čistý zisk",
     eggs: "Produkce vajec",
+    sold: "Prodáno vajec (z objednávek)", // NOVÝ graf
   };
 
   // --- charts order (persistováno) - store only IDs to avoid serializing functions ---
@@ -71,16 +74,23 @@ export default function StatistikaPage() {
     }
   });
 
+  // responsive override: on small screens always 1 column
+  const [windowWidth, setWindowWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1200);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const effectiveColumns = windowWidth < 768 ? 1 : columns;
+
   // --- HELPERS ---
   const parseDate = (d) => {
     if (!d) return null;
-    // Accept Date, ISO string (YYYY-MM-DD), or Czech DD.MM.YYYY
     if (d instanceof Date) return d;
     const s = String(d);
-    // ISO / JS parse
     const dt = new Date(s);
     if (!isNaN(dt)) return dt;
-    // try DD.MM.YYYY
     const parts = s.split(".");
     if (parts.length === 3) {
       const [dd, mm, yyyy] = parts;
@@ -281,11 +291,42 @@ export default function StatistikaPage() {
     };
   };
 
+  // --- NOVÝ: prodaná vejce z dokončených objednávek ---
+  const getSoldEggsData = () => {
+    const grouped = {};
+    (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
+      const d = parseDate(o.pickup_date);
+      if (!d) return;
+      let key;
+      if (period === "rok") key = d.getFullYear();
+      else if (period === "měsíc") key = d.getMonth() + 1;
+      else if (period === "týden") {
+        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
+        key = d.getDate();
+      }
+      if (key === undefined) return;
+      const s = Number(o.standard_quantity || 0);
+      const l = Number(o.low_chol_quantity || o.low_chol || 0);
+      grouped[key] = (grouped[key] || 0) + s + l;
+    });
+
+    let labels = [];
+    if (period === "rok") labels = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
+    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+
+    return {
+      labels: labels.map(formatLabel),
+      datasets: [{ label: "Prodáno vajec", data: labels.map((l) => grouped[l] || 0), backgroundColor: "#f97316" }],
+    };
+  };
+
   const getChartDataById = (id) => {
     if (id === "orders") return getOrderCounts();
     if (id === "revenue") return getRevenueData();
     if (id === "profit") return getProfitChartData();
     if (id === "eggs") return getEggsData();
+    if (id === "sold") return getSoldEggsData();
     return { labels: [], datasets: [] };
   };
 
@@ -394,7 +435,7 @@ export default function StatistikaPage() {
 
       {/* Finanční přehled */}
       <div className="bg-white shadow rounded-xl p-4 mb-6">
-        <div className="grid grid-cols-4 gap-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-gray-500">Tržby</p>
             <p className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Kč</p>
@@ -408,7 +449,7 @@ export default function StatistikaPage() {
             <p className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-700" : "text-red-700"}`}>{totalProfit.toLocaleString()} Kč</p>
           </div>
           <div>
-            <p className="text-gray-500">Vejce celkem</p>
+            <p className="text-gray-500">Vejce celkem (produkce)</p>
             <p className="text-2xl font-bold text-yellow-600">{totalEggs.toLocaleString()}</p>
           </div>
         </div>
@@ -449,8 +490,8 @@ export default function StatistikaPage() {
         </div>
       </div>
 
-      {/* Grafy - grid podle columns */}
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      {/* Grafy - grid podle effectiveColumns (responsive) */}
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))` }}>
         {charts.map((chartId, index) => {
           const chartData = getChartDataById(chartId);
           const hasData = Array.isArray(chartData.labels) && chartData.labels.length > 0;
