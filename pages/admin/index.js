@@ -21,6 +21,26 @@ export default function AdminDashboard() {
     }
   };
 
+  // 🔧 nově přidáno — funkční změna statusu
+  const advanceStatus = async (id) => {
+    try {
+      const res = await fetch(`/api/admin/orders`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Status objednávky byl změněn");
+        fetchOrders();
+      } else {
+        toast.error("Chyba: " + (data.error || "Nelze změnit status"));
+      }
+    } catch (err) {
+      toast.error("Chyba při změně statusu: " + err.message);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
     const interval = setInterval(fetchOrders, 10000);
@@ -45,7 +65,11 @@ export default function AdminDashboard() {
         </thead>
         <tbody>
           {data.map((order) => (
-            <tr key={order.id} style={{ backgroundColor: color }} className="border-b hover:bg-gray-50">
+            <tr
+              key={order.id}
+              style={{ backgroundColor: color }}
+              className="border-b hover:bg-gray-50"
+            >
               <td className="p-2">{order.id}</td>
               <td className="p-2">{order.customer_name}</td>
               <td className="p-2">{order.email || "-"}</td>
@@ -55,14 +79,15 @@ export default function AdminDashboard() {
               <td className="p-2">{order.pickup_location}</td>
               <td className="p-2">{order.pickup_date}</td>
               <td className="p-2">
-                {order.status !== "vyřízená" && order.status !== "zrušená" && (
-                  <button
-                    onClick={() => advanceStatus(order.id)}
-                    className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
-                  >
-                    Další stav
-                  </button>
-                )}
+                {order.status !== "vyřízená" &&
+                  order.status !== "zrušená" && (
+                    <button
+                      onClick={() => advanceStatus(order.id)}
+                      className="bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"
+                    >
+                      Další stav
+                    </button>
+                  )}
               </td>
             </tr>
           ))}
@@ -73,7 +98,9 @@ export default function AdminDashboard() {
 
   const newOrders = orders.filter((o) => o.status === "nová objednávka");
   const processingOrders = orders.filter((o) => o.status === "zpracovává se");
-  const completedOrders = orders.filter((o) => o.status === "vyřízená" || o.status === "zrušená");
+  const completedOrders = orders.filter(
+    (o) => o.status === "vyřízená" || o.status === "zrušená"
+  );
 
   return (
     <AdminLayout>
