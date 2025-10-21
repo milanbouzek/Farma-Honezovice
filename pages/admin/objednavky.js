@@ -7,6 +7,7 @@ import OrdersTable from "../../components/OrdersTable";
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -27,6 +28,13 @@ export default function OrdersPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Rozdělení podle statusu
+  const newOrders = orders.filter((o) => o.status === "nová objednávka");
+  const processingOrders = orders.filter((o) => o.status === "zpracovává se");
+  const completedOrders = orders.filter(
+    (o) => o.status === "vyřízená" || o.status === "zrušená"
+  );
+
   return (
     <AdminLayout>
       <Toaster position="top-center" />
@@ -34,13 +42,46 @@ export default function OrdersPage() {
 
       <StockBox editable={true} />
 
-      <div className="bg-white shadow rounded-xl p-4 mt-4">
-        {loading ? (
+      {loading ? (
+        <div className="bg-white shadow rounded-xl p-4 mt-4">
           <p>Načítám objednávky…</p>
-        ) : (
-          <OrdersTable orders={orders} refreshOrders={fetchOrders} />
-        )}
-      </div>
+        </div>
+      ) : (
+        <>
+          {newOrders.length > 0 && (
+            <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+              <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
+              <OrdersTable orders={newOrders} refreshOrders={fetchOrders} />
+            </div>
+          )}
+
+          {processingOrders.length > 0 && (
+            <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+              <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
+              <OrdersTable orders={processingOrders} refreshOrders={fetchOrders} />
+            </div>
+          )}
+
+          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
+            <button
+              onClick={() => setShowCompleted(!showCompleted)}
+              className="text-left w-full font-bold text-green-700"
+            >
+              {showCompleted
+                ? "▼ Dokončené a zrušené objednávky"
+                : "► Dokončené a zrušené objednávky"}
+            </button>
+            {showCompleted && completedOrders.length > 0 && (
+              <div className="mt-2">
+                <OrdersTable orders={completedOrders} refreshOrders={fetchOrders} />
+              </div>
+            )}
+            {showCompleted && completedOrders.length === 0 && (
+              <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
+            )}
+          </div>
+        </>
+      )}
     </AdminLayout>
   );
 }
