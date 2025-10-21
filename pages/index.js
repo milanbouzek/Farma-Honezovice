@@ -37,7 +37,7 @@ export default function Home() {
 
       <div className="mb-6 text-gray-700">
         <h2 className="font-bold">Platba</h2>
-        <p>Platba proběhne při dodání vajec – buď bezhotovostně (QR kód) nebo v hotovosti.</p>
+        <p>Platbu je možné provést po dokončení objednávky přes vygenerovaný QR kód, nebo při dodání vajec bezhotovostně (QR kód) nebo v hotovosti.</p>
       </div>
 
       <button
@@ -49,4 +49,5 @@ export default function Home() {
     </Layout>
   );
 }
+
 
