@@ -21,35 +21,16 @@ export default function AdminDashboard() {
     }
   };
 
-  // ✅ opravená funkce advanceStatus (funguje i když API vrátí text)
+  // ✅ změněno: používá POST stejně jako ve fungujícím objednavky.js
   const advanceStatus = async (id) => {
     try {
       const res = await fetch("/api/admin/orders", {
-        method: "PATCH", // primárně PATCH, ale pokud backend neumí, níže fallback
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ action: "nextStatus", id }),
       });
 
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        // fallback – pokud API neumí PATCH, zkusíme POST
-        if (text.includes("Method") && text.includes("not allowed")) {
-          const res2 = await fetch("/api/admin/orders", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "nextStatus", id }),
-          });
-          const data2 = await res2.json();
-          if (!res2.ok) throw new Error(data2?.error || "Chyba při změně statusu");
-          toast.success("Status objednávky byl změněn");
-          fetchOrders();
-          return;
-        }
-        throw new Error("Neplatná odpověď ze serveru: " + text);
-      }
+      const data = await res.json();
 
       if (!res.ok) throw new Error(data?.error || "Chyba při změně statusu");
 
