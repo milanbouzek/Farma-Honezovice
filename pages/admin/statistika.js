@@ -319,57 +319,57 @@ export default function StatistikaPage() {
       ],
     };
   };
+const getEggsData = () => {
+  const producedGrouped = {};
+  (dailyEggs || []).forEach((rec) => {
+    const d = parseDate(rec.date);
+    if (!d) return;
+    let key;
+    if (period === "rok") key = d.getFullYear();
+    else if (period === "měsíc") key = d.getMonth() + 1;
+    else if (period === "týden") {
+      if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
+      key = d.getDate();
+    }
+    if (key === undefined) return;
+    const s = Number(rec.standard_eggs || 0);
+    const l = Number(rec.low_cholesterol_eggs || 0);
+    producedGrouped[key] = (producedGrouped[key] || 0) + s + l;
+  });
 
-  const getEggsData = () => {
-    const producedGrouped = {};
-    (dailyEggs || []).forEach((rec) => {
-      const d = parseDate(rec.date);
-      if (!d) return;
-      let key;
-      if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
-      else if (period === "týden") {
-        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
-        key = d.getDate();
-      }
-      if (key === undefined) return;
-      const s = Number(rec.standard_eggs || 0);
-      const l = Number(rec.low_cholesterol_eggs || 0);
-      producedGrouped[key] = (producedGrouped[key] || 0) + s + l;
-    });
+  const soldGrouped = {};
+  (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
+    const d = parseDate(o.pickup_date);
+    if (!d) return;
+    let key;
+    if (period === "rok") key = d.getFullYear();
+    else if (period === "měsíc") key = d.getMonth() + 1;
+    else if (period === "týden") {
+      if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
+      key = d.getDate();
+    }
+    if (key === undefined) return;
+    const qty = Number(o.standard_quantity || 0) + Number(o.low_chol_quantity || 0);
+    soldGrouped[key] = (soldGrouped[key] || 0) + qty;
+  });
 
-    const soldGrouped = {};
-    (orders || []).filter((o) => o.status === "vyřízená").forEach((o) => {
-      const d = parseDate(o.pickup_date);
-      if (!d) return;
-      let key;
-      if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
-      else if (period === "týden") {
-        if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
-        key = d.getDate();
-      }
-      if (key === undefined) return;
-      const qty = Number(o.standard_quantity || 0) + Number(o.low_chol_quantity || 0);
-      soldGrouped[key] = (soldGrouped[key] || 0) + qty;
-    });
+  let labels = [];
+  if (period === "rok") labels = Object.keys({ ...producedGrouped, ...soldGrouped }).sort((a, b) => Number(a) - Number(b));
+  else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
+  else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
 
-    let labels = [];
-    if (period === "rok") labels = Object.keys({ ...producedGrouped, ...soldGrouped }).sort((a, b) => Number(a) - Number(b));
-    else if (period === "měsíc") labels = Array.from({ length: 12 }, (_, i) => i + 1);
-    else labels = Array.from({ length: new Date(selectedYear, selectedMonth, 0).getDate() }, (_, i) => i + 1);
+  const producedData = labels.map((l) => producedGrouped[l] || 0);
+  const soldData = labels.map((l) => soldGrouped[l] || 0);
 
-    const producedData = labels.map((l) => producedGrouped[l] || 0);
-    const soldData = labels.map((l) => soldGrouped[l] || 0);
-
-    return {
-      labels: labels.map(formatLabel),
-      datasets: [
-        { label: "Vyrobeno", data: producedData, backgroundColor: PASTEL_COLORS[0] },
-        { label: "Prodáno", data: soldData, backgroundColor: PASTEL_COLORS[1] },
-      ],
-    };
+  return {
+    labels: labels.map(formatLabel),
+    datasets: [
+      { label: "Vyprodukováno", data: producedData, backgroundColor: PASTEL_COLORS[0] },
+      { label: "Prodáno", data: soldData, backgroundColor: PASTEL_COLORS[1] },
+    ],
   };
+};
+
 
   const getChartDataById = (id) => {
     if (id === "orders") return getOrderCounts();
