@@ -1,48 +1,35 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 
-export default function PredobjednavkaPage() {
+export default function PreorderPage() {
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [standardQty, setStandardQty] = useState(0);
+  const [lowcholQty, setLowcholQty] = useState(0);
+  const [pickupLocation, setPickupLocation] = useState("Honezovice");
+  const [loading, setLoading] = useState(false);
 
-  const [currentTotal, setCurrentTotal] = useState(0);
-  const [limitReached, setLimitReached] = useState(false);
-
-  const fetchLimit = async () => {
-    try {
-      const res = await fetch("/api/preorders");
-      const data = await res.json();
-      if (res.ok) {
-        setCurrentTotal(data.total || 0);
-        setLimitReached((data.total || 0) >= 100);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchLimit();
-  }, []);
+  // ✅ validace limitu 20 ks / objednávka
+  const perOrderLimit = 20;
+  const totalOrderLimit = 100;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (limitReached) {
-      toast.error("Limit je již dosažen. Předobjednávky nejsou možné.");
+    const total = Number(standardQty) + Number(lowcholQty);
+
+    if (total === 0) {
+      toast.error("Musíte objednat alespoň 1 ks.");
       return;
     }
 
-    if (!name || !phone || !quantity) {
-      toast.error("Vyplň prosím všechna povinná pole.");
+    if (total > perOrderLimit) {
+      toast.error(`Maximální množství na jednu předobjednávku je ${perOrderLimit} ks.`);
       return;
     }
 
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
       const res = await fetch("/api/preorders/create", {
@@ -50,125 +37,128 @@ export default function PredobjednavkaPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          phone,
           email,
-          quantity: Number(quantity),
-          note,
+          phone,
+          standardQty: Number(standardQty),
+          lowcholQty: Number(lowcholQty),
+          pickupLocation,
         }),
       });
 
       const data = await res.json();
 
-      if (res.ok) {
-        toast.success("Předobjednávka byla odeslána!");
-        setName("");
-        setPhone("");
-        setEmail("");
-        setQuantity(1);
-        setNote("");
-        fetchLimit(); // aktualizuje počet
+      if (!res.ok) {
+        if (data.currentTotal !== undefined) {
+          toast.error(
+            `Nelze vytvořit. Celkový limit je ${totalOrderLimit} ks. Momentálně je předobjednáno ${data.currentTotal} ks.`
+          );
+        } else {
+          toast.error(data.error || "Chyba při vytváření předobjednávky.");
+        }
       } else {
-        toast.error(data.error || "Chyba při odesílání předobjednávky.");
+        toast.success("Předobjednávka byla úspěšně vytvořena!");
+        setName("");
+        setEmail("");
+        setPhone("");
+        setStandardQty(0);
+        setLowcholQty(0);
+        setPickupLocation("Honezovice");
       }
-
     } catch (err) {
-      toast.error("Chyba připojení. Zkus to prosím znovu.");
+      toast.error("Chyba při komunikaci se serverem: " + err.message);
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
+    <div className="max-w-xl mx-auto p-6">
       <Toaster position="top-center" />
+      <h1 className="text-3xl font-bold mb-6 text-center">🥚 Předobjednávka vajec</h1>
 
-      <div className="max-w-lg mx-auto bg-white p-6 shadow-xl rounded-2xl">
-        <h1 className="text-3xl font-bold mb-4 text-center">
-          📝 Předobjednávka
-        </h1>
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white shadow-lg p-6 rounded-xl space-y-4"
+      >
+        <div>
+          <label className="font-semibold">Jméno a příjmení</label>
+          <input
+            type="text"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="Jan Novák"
+          />
+        </div>
 
-        <p className="text-center text-gray-600 mb-6">
-          Aktuálně předobjednáno:{" "}
-          <strong className="text-blue-600">{currentTotal} / 100 ks</strong>
-        </p>
+        <div>
+          <label className="font-semibold">Email</label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="jan@novak.cz"
+          />
+        </div>
 
-        {limitReached && (
-          <p className="text-center text-red-600 font-bold mb-4">
-            Limit 100 ks byl naplněn. Předobjednávky nejsou dostupné.
-          </p>
-        )}
+        <div>
+          <label className="font-semibold">Telefon</label>
+          <input
+            type="text"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="w-full border rounded p-2"
+            placeholder="123 456 789"
+          />
+        </div>
 
-        {!limitReached && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="font-semibold">Výběr místa</label>
+          <select
+            value={pickupLocation}
+            onChange={(e) => setPickupLocation(e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option value="Honezovice">Honezovice</option>
+            <option value="Dematic">Dematic</option>
+          </select>
+        </div>
 
-            <div>
-              <label className="block font-semibold mb-1">Jméno a příjmení *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border rounded p-2"
-                placeholder="Jan Novák"
-                required
-              />
-            </div>
+        <div>
+          <label className="font-semibold">Počet kusů – Standard</label>
+          <input
+            type="number"
+            min="0"
+            max="20"
+            value={standardQty}
+            onChange={(e) => setStandardQty(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
 
-            <div>
-              <label className="block font-semibold mb-1">Telefon *</label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full border rounded p-2"
-                placeholder="+420 777 123 456"
-                required
-              />
-            </div>
+        <div>
+          <label className="font-semibold">Počet kusů – Low Cholesterol</label>
+          <input
+            type="number"
+            min="0"
+            max="20"
+            value={lowcholQty}
+            onChange={(e) => setLowcholQty(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+        </div>
 
-            <div>
-              <label className="block font-semibold mb-1">Email (volitelné)</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full border rounded p-2"
-                placeholder="email@domena.cz"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold mb-1">Množství *</label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="w-full border rounded p-2"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold mb-1">Poznámka</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="w-full border rounded p-2 h-24"
-              ></textarea>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isSubmitting ? "Odesílám…" : "Odeslat předobjednávku"}
-            </button>
-
-          </form>
-        )}
-      </div>
+        <button
+          disabled={loading}
+          className="bg-green-600 hover:bg-green-700 w-full py-2 text-white font-bold rounded-xl"
+        >
+          {loading ? "Odesílám…" : "Vytvořit předobjednávku"}
+        </button>
+      </form>
     </div>
   );
 }
