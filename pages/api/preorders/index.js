@@ -1,5 +1,5 @@
 // pages/api/preorders/index.js
-import { supabase } from "../../../utils/supabaseClient";
+import supabase from "../../../lib/supabaseClient";
 
 export default async function handler(req, res) {
   // ✅ vytvoření nové předobjednávky
