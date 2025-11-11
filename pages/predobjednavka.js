@@ -1,30 +1,81 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { X } from "lucide-react";
 
-export default function PreorderPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [standardQty, setStandardQty] = useState(0);
-  const [lowcholQty, setLowcholQty] = useState(0);
-  const [pickupLocation, setPickupLocation] = useState("Honezovice");
+export default function PreorderForm() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    standardQty: "",
+    lowcholQty: "",
+    pickupLocation: "",
+  });
+
   const [loading, setLoading] = useState(false);
+  const [totalPreordered, setTotalPreordered] = useState(0);
 
-  const perOrderLimit = 20;
-  const totalOrderLimit = 100;
+  const MAX_PER_ORDER = 20;
+  const MAX_TOTAL = 100;
+
+  // Načtení aktuálního celkového počtu předobjednávek
+  useEffect(() => {
+    const fetchTotal = async () => {
+      try {
+        const res = await fetch("/api/preorders/total");
+        const data = await res.json();
+        if (data.total !== undefined) setTotalPreordered(data.total);
+      } catch (err) {
+        console.error("Error fetching total preorders:", err);
+      }
+    };
+    fetchTotal();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "standardQty" || name === "lowcholQty"
+          ? value === ""
+            ? ""
+            : parseInt(value, 10)
+          : value,
+    }));
+  };
+
+  const handleAdd = (field, amount) => {
+    setFormData((prev) => {
+      const cur = parseInt(prev[field] || 0, 10);
+      return { ...prev, [field]: Math.min(cur + amount, MAX_PER_ORDER) };
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const standardQty = parseInt(formData.standardQty || 0, 10);
+    const lowcholQty = parseInt(formData.lowcholQty || 0, 10);
+    const orderTotal = standardQty + lowcholQty;
 
-    const total = Number(standardQty) + Number(lowcholQty);
-
-    if (total === 0) {
-      toast.error("Musíte objednat alespoň 1 ks.");
+    // Validace
+    if (!formData.name || !formData.pickupLocation) {
+      toast.error("❌ Vyplňte jméno a místo vyzvednutí.");
       return;
     }
 
-    if (total > perOrderLimit) {
-      toast.error(`Maximální množství na jednu předobjednávku je ${perOrderLimit} ks.`);
+    if (orderTotal === 0) {
+      toast.error("❌ Zadejte počet vajec.");
+      return;
+    }
+
+    if (orderTotal > MAX_PER_ORDER) {
+      toast.error(`❌ Nelze objednat více než ${MAX_PER_ORDER} ks na jednu objednávku.`);
+      return;
+    }
+
+    if (totalPreordered + orderTotal > MAX_TOTAL) {
+      toast.error(`❌ Celkový limit předobjednávek je ${MAX_TOTAL} ks. Aktuálně dostupných: ${MAX_TOTAL - totalPreordered}`);
       return;
     }
 
@@ -35,130 +86,169 @@ export default function PreorderPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          email,
-          phone,
-          standardQty: Number(standardQty),
-          lowcholQty: Number(lowcholQty),
-          pickupLocation,
+          ...formData,
+          standardQty,
+          lowcholQty,
         }),
       });
-
       const data = await res.json();
 
-      if (!res.ok) {
-        if (data.currentTotal !== undefined) {
-          toast.error(
-            `Nelze vytvořit. Celkový limit je ${totalOrderLimit} ks. Momentálně je předobjednáno ${data.currentTotal} ks.`
-          );
-        } else {
-          toast.error(data.error || "Chyba při vytváření předobjednávky.");
-        }
+      if (data.success) {
+        toast.custom((t) => (
+          <div
+            className={`bg-white shadow-lg rounded-2xl p-5 max-w-md w-full relative ${
+              t.visible ? "animate-enter" : "animate-leave"
+            }`}
+          >
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+            >
+              <X size={18} />
+            </button>
+            <h3 className="text-lg font-bold mb-2">✅ Předobjednávka byla úspěšně odeslána</h3>
+            <p className="mb-1">Celkem objednáno: {orderTotal} ks</p>
+            <p className="mb-1">Místo vyzvednutí: {formData.pickupLocation}</p>
+          </div>
+        ), { duration: 5000 });
+
+        // reset formuláře
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          standardQty: "",
+          lowcholQty: "",
+          pickupLocation: "",
+        });
+
+        // aktualizace celkového počtu
+        setTotalPreordered((prev) => prev + orderTotal);
       } else {
-        toast.success("Předobjednávka byla úspěšně vytvořena!");
-        setName("");
-        setEmail("");
-        setPhone("");
-        setStandardQty(0);
-        setLowcholQty(0);
-        setPickupLocation("Honezovice");
+        toast.error("❌ Chyba při odesílání předobjednávky.");
       }
     } catch (err) {
-      toast.error("Chyba při komunikaci se serverem: " + err.message);
+      console.error(err);
+      toast.error("❌ Chyba při odesílání předobjednávky.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4 sm:p-6">
+    <div className="max-w-lg mx-auto p-4">
       <Toaster position="top-center" />
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center">🥚 Předobjednávka vajec</h1>
-
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg p-4 sm:p-6 rounded-xl space-y-4"
+        className="bg-white shadow-lg rounded-2xl p-6 space-y-4"
       >
+        {/* Jméno */}
         <div>
-          <label className="font-semibold mb-1 block">Jméno a příjmení</label>
+          <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded p-2 text-sm sm:text-base"
-            placeholder="Jan Novák"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Zadejte celé jméno"
+            className="w-full border rounded-xl p-2"
           />
         </div>
 
+        {/* Email */}
         <div>
-          <label className="font-semibold mb-1 block">Email</label>
+          <label className="block text-gray-700 mb-1">Email</label>
           <input
+            name="email"
             type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded p-2 text-sm sm:text-base"
-            placeholder="jan@novak.cz"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="např. jan.novak@email.cz"
+            className="w-full border rounded-xl p-2"
           />
         </div>
 
+        {/* Telefon */}
         <div>
-          <label className="font-semibold mb-1 block">Telefon</label>
+          <label className="block text-gray-700 mb-1">Telefon</label>
           <input
-            type="text"
-            required
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full border rounded p-2 text-sm sm:text-base"
-            placeholder="123 456 789"
+            name="phone"
+            type="tel"
+            value={formData.phone}
+            onChange={handleChange}
+            placeholder="+420 123 456 789"
+            className="w-full border rounded-xl p-2"
           />
         </div>
 
+        {/* Místo vyzvednutí */}
         <div>
-          <label className="font-semibold mb-1 block">Výběr místa</label>
-          <select
-            value={pickupLocation}
-            onChange={(e) => setPickupLocation(e.target.value)}
-            className="w-full border rounded p-2 text-sm sm:text-base"
+          <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
+          <div className="flex flex-wrap gap-2">
+            {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
+              <button
+                key={loc}
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, pickupLocation: loc }))}
+                className={`px-4 py-2 rounded-xl font-semibold shadow-md ${
+                  formData.pickupLocation === loc
+                    ? "bg-green-500 text-white"
+                    : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"
+                }`}
+              >
+                {loc}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Počet vajec */}
+        <div>
+          <label className="block text-gray-700 mb-1">Počet standardních vajec</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="standardQty"
+              value={formData.standardQty}
+              onChange={handleChange}
+              min="0"
+              placeholder="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button type="button" onClick={() => handleAdd("standardQty", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("standardQty", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem</label>
+          <div className="flex gap-2 items-center">
+            <input
+              type="number"
+              name="lowcholQty"
+              value={formData.lowcholQty}
+              onChange={handleChange}
+              min="0"
+              placeholder="0"
+              className="w-full border rounded-xl p-2"
+            />
+            <button type="button" onClick={() => handleAdd("lowcholQty", 5)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+5</button>
+            <button type="button" onClick={() => handleAdd("lowcholQty", 10)} className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500">+10</button>
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-yellow-400 w-full px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
           >
-            <option value="Honezovice">Honezovice</option>
-            <option value="Dematic">Dematic</option>
-          </select>
+            {loading ? "Odesílám..." : "Odeslat předobjednávku"}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="font-semibold mb-1 block">Počet kusů – Standard</label>
-            <input
-              type="number"
-              min="0"
-              max="20"
-              value={standardQty}
-              onChange={(e) => setStandardQty(e.target.value)}
-              className="w-full border rounded p-2 text-sm sm:text-base"
-            />
-          </div>
-
-          <div>
-            <label className="font-semibold mb-1 block">Počet kusů – Low Cholesterol</label>
-            <input
-              type="number"
-              min="0"
-              max="20"
-              value={lowcholQty}
-              onChange={(e) => setLowcholQty(e.target.value)}
-              className="w-full border rounded p-2 text-sm sm:text-base"
-            />
-          </div>
-        </div>
-
-        <button
-          disabled={loading}
-          className="bg-green-600 hover:bg-green-700 w-full py-2 text-white font-bold rounded-xl text-sm sm:text-base"
-        >
-          {loading ? "Odesílám…" : "Vytvořit předobjednávku"}
-        </button>
+        <p className="text-sm text-gray-500">
+          Celkově předobjednáno: {totalPreordered}/{MAX_TOTAL} ks
+        </p>
       </form>
     </div>
   );
