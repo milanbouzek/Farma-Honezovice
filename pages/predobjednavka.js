@@ -10,7 +10,6 @@ export default function PreorderPage() {
   const [pickupLocation, setPickupLocation] = useState("Honezovice");
   const [loading, setLoading] = useState(false);
 
-  // ✅ validace limitu 20 ks / objednávka
   const perOrderLimit = 20;
   const totalOrderLimit = 100;
 
@@ -72,89 +71,91 @@ export default function PreorderPage() {
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6">
+    <div className="max-w-xl mx-auto p-4 sm:p-6">
       <Toaster position="top-center" />
-      <h1 className="text-3xl font-bold mb-6 text-center">🥚 Předobjednávka vajec</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold mb-6 text-center">🥚 Předobjednávka vajec</h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg p-6 rounded-xl space-y-4"
+        className="bg-white shadow-lg p-4 sm:p-6 rounded-xl space-y-4"
       >
         <div>
-          <label className="font-semibold">Jméno a příjmení</label>
+          <label className="font-semibold mb-1 block">Jméno a příjmení</label>
           <input
             type="text"
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded p-2"
+            className="w-full border rounded p-2 text-sm sm:text-base"
             placeholder="Jan Novák"
           />
         </div>
 
         <div>
-          <label className="font-semibold">Email</label>
+          <label className="font-semibold mb-1 block">Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded p-2"
+            className="w-full border rounded p-2 text-sm sm:text-base"
             placeholder="jan@novak.cz"
           />
         </div>
 
         <div>
-          <label className="font-semibold">Telefon</label>
+          <label className="font-semibold mb-1 block">Telefon</label>
           <input
             type="text"
             required
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full border rounded p-2"
+            className="w-full border rounded p-2 text-sm sm:text-base"
             placeholder="123 456 789"
           />
         </div>
 
         <div>
-          <label className="font-semibold">Výběr místa</label>
+          <label className="font-semibold mb-1 block">Výběr místa</label>
           <select
             value={pickupLocation}
             onChange={(e) => setPickupLocation(e.target.value)}
-            className="w-full border rounded p-2"
+            className="w-full border rounded p-2 text-sm sm:text-base"
           >
             <option value="Honezovice">Honezovice</option>
             <option value="Dematic">Dematic</option>
           </select>
         </div>
 
-        <div>
-          <label className="font-semibold">Počet kusů – Standard</label>
-          <input
-            type="number"
-            min="0"
-            max="20"
-            value={standardQty}
-            onChange={(e) => setStandardQty(e.target.value)}
-            className="w-full border rounded p-2"
-          />
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="font-semibold mb-1 block">Počet kusů – Standard</label>
+            <input
+              type="number"
+              min="0"
+              max="20"
+              value={standardQty}
+              onChange={(e) => setStandardQty(e.target.value)}
+              className="w-full border rounded p-2 text-sm sm:text-base"
+            />
+          </div>
 
-        <div>
-          <label className="font-semibold">Počet kusů – Low Cholesterol</label>
-          <input
-            type="number"
-            min="0"
-            max="20"
-            value={lowcholQty}
-            onChange={(e) => setLowcholQty(e.target.value)}
-            className="w-full border rounded p-2"
-          />
+          <div>
+            <label className="font-semibold mb-1 block">Počet kusů – Low Cholesterol</label>
+            <input
+              type="number"
+              min="0"
+              max="20"
+              value={lowcholQty}
+              onChange={(e) => setLowcholQty(e.target.value)}
+              className="w-full border rounded p-2 text-sm sm:text-base"
+            />
+          </div>
         </div>
 
         <button
           disabled={loading}
-          className="bg-green-600 hover:bg-green-700 w-full py-2 text-white font-bold rounded-xl"
+          className="bg-green-600 hover:bg-green-700 w-full py-2 text-white font-bold rounded-xl text-sm sm:text-base"
         >
           {loading ? "Odesílám…" : "Vytvořit předobjednávku"}
         </button>
