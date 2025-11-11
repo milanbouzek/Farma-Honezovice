@@ -1,54 +1,46 @@
-// pages/api/preorders/confirm.js
-import supabase from "../../../lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
 
 export default async function handler(req, res) {
-  if (req.method !== "PATCH") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Pouze POST povolen" });
   }
 
-  const { id } = req.body;
+  try {
+    const { id } = req.body;
 
-  // ✅ Najdeme předobjednávku
-  const { data: preorder, error: findErr } = await supabase
-    .from("preorders")
-    .select("*")
-    .eq("id", id)
-    .single();
+    // načtení předobjednávky
+    const { data: preorder, error: err1 } = await supabase
+      .from("preorders")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-  if (findErr || !preorder) {
-    return res.status(404).json({ error: "Předobjednávka nenalezena." });
+    if (err1) throw err1;
+
+    // vložení do objednávek
+    const { error: err2 } = await supabase.from("orders").insert([
+      {
+        customer_name: preorder.name,
+        phone: preorder.phone,
+        email: preorder.email,
+        standard_quantity: preorder.quantity,
+        pickup_location: "Předobjednávka",
+        status: "nová objednávka",
+      },
+    ]);
+
+    if (err2) throw err2;
+
+    // označení converted = true
+    const { error: err3 } = await supabase
+      .from("preorders")
+      .update({ converted: true, status: "převedena" })
+      .eq("id", id);
+
+    if (err3) throw err3;
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  // ✅ Vytvoříme klasickou objednávku
-  const { error: createErr } = await supabase.from("orders").insert([
-    {
-      customer_name: preorder.customer_name,
-      email: preorder.email,
-      phone: preorder.phone,
-      standard_quantity: preorder.standard_quantity,
-      low_chol_quantity: preorder.low_chol_quantity,
-      pickup_location: preorder.pickup_location,
-      pickup_date: preorder.pickup_date,
-      status: "nová objednávka",
-      paid: false,
-      payment_total: 0,
-      payment_currency: "CZK",
-    },
-  ]);
-
-  if (createErr) {
-    return res.status(500).json({ error: "Chyba při vytváření objednávky." });
-  }
-
-  // ✅ Aktualizujeme stav předobjednávky
-  const { error: updateErr } = await supabase
-    .from("preorders")
-    .update({ status: "vyřízeno" })
-    .eq("id", id);
-
-  if (updateErr) {
-    return res.status(500).json({ error: "Chyba při aktualizaci předobjednávky." });
-  }
-
-  return res.status(200).json({ success: true });
 }
