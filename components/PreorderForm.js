@@ -14,6 +14,7 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Načtení aktuálního počtu ks
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -33,6 +34,7 @@ export default function PreorderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -45,27 +47,32 @@ export default function PreorderForm() {
   const handleAdd = (amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev.quantity || 0, 10);
-      return { ...prev, quantity: Math.min(Math.max(0, cur + amount), 20) };
+      return { ...prev, quantity: Math.min(Math.max(cur + amount, 0), 20) };
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const qty = Number(formData.quantity);
+
     if (limitReached) {
-      toast.error("❌ Už není možné vytvářet další předobjednávky (100/100).");
+      toast.error("❌ Limit 100 ks byl dosažen. Nelze předobjednat.");
       return;
     }
 
-    const qty = parseInt(formData.quantity || 0, 10);
+    if (!formData.name.trim()) {
+      toast.error("❌ Zadejte jméno a příjmení.");
+      return;
+    }
 
-    if (!formData.name || qty <= 0) {
-      toast.error("❌ Vyplňte jméno a počet vajec.");
+    if (!qty || isNaN(qty) || qty <= 0) {
+      toast.error("❌ Zadejte počet vajec (1–20).");
       return;
     }
 
     if (qty > 20) {
-      toast.error("❌ Maximální počet na jednu předobjednávku je 20 ks.");
+      toast.error("❌ Maximální počet vajec na jednu předobjednávku je 20 ks.");
       return;
     }
 
@@ -95,7 +102,7 @@ export default function PreorderForm() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("❌ Chyba připojení.");
+      toast.error("❌ Chyba připojení k serveru.");
     } finally {
       setLoading(false);
     }
@@ -107,72 +114,66 @@ export default function PreorderForm() {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-5"
+        className="bg-white bg-opacity-90 shadow-xl rounded-2xl p-6 space-y-4 backdrop-blur-sm"
       >
-        <h2 className="text-2xl font-bold text-center text-green-800">
-          Předobjednávkový formulář
+        <h2 className="text-3xl font-bold text-green-700 text-center mb-2">
+          🥚 Předobjednávka vajec
         </h2>
 
-        <p className="text-center text-gray-600">
+        <p className="text-center text-gray-700 mb-4">
           Aktuálně předobjednáno:{" "}
           <strong className="text-blue-600">{currentTotal}/100</strong> ks
         </p>
 
-        {limitReached && (
-          <p className="text-center text-red-600 font-bold">
-            Limit 100 ks byl dosažen. Nelze vytvořit další předobjednávku.
+        {limitReached ? (
+          <p className="text-center text-red-600 font-semibold">
+            Limit 100 ks byl dosažen. Předobjednávky jsou uzavřeny.
           </p>
-        )}
-
-        {!limitReached && (
+        ) : (
           <>
-            {/* Jméno */}
             <div>
-              <label className="block text-gray-700 mb-1">
+              <label className="block text-gray-800 mb-1">
                 Jméno a příjmení *
               </label>
               <input
+                type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                required
-                className="w-full border rounded-2xl p-3"
+                className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
                 placeholder="Zadejte celé jméno"
               />
             </div>
 
-            {/* Telefon */}
             <div>
-              <label className="block text-gray-700 mb-1">Telefon</label>
+              <label className="block text-gray-800 mb-1">Telefon</label>
               <input
+                type="tel"
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                type="tel"
-                className="w-full border rounded-2xl p-3"
+                className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
                 placeholder="+420…"
               />
             </div>
 
-            {/* Email */}
             <div>
-              <label className="block text-gray-700 mb-1">Email</label>
+              <label className="block text-gray-800 mb-1">E-mail</label>
               <input
+                type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                type="email"
-                className="w-full border rounded-2xl p-3"
-                placeholder="jan@domena.cz"
+                className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
+                placeholder="např. jan@domena.cz"
               />
             </div>
 
-            {/* Počet vajec */}
             <div>
-              <label className="block text-gray-700 mb-1">
+              <label className="block text-gray-800 mb-1">
                 Počet vajec *
               </label>
-              <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
                   name="quantity"
@@ -180,19 +181,19 @@ export default function PreorderForm() {
                   onChange={handleChange}
                   min="1"
                   max="20"
-                  className="w-full border rounded-2xl p-3"
+                  className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
                 />
                 <button
                   type="button"
                   onClick={() => handleAdd(5)}
-                  className="bg-yellow-400 px-4 py-2 rounded-2xl font-semibold hover:bg-yellow-500"
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
                 >
                   +5
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAdd(10)}
-                  className="bg-yellow-400 px-4 py-2 rounded-2xl font-semibold hover:bg-yellow-500"
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
                 >
                   +10
                 </button>
@@ -202,28 +203,24 @@ export default function PreorderForm() {
               </p>
             </div>
 
-            {/* Poznámka */}
             <div>
-              <label className="block text-gray-700 mb-1">Poznámka</label>
+              <label className="block text-gray-800 mb-1">Poznámka</label>
               <textarea
                 name="note"
                 value={formData.note}
                 onChange={handleChange}
-                className="w-full border rounded-2xl p-3 h-24"
-                placeholder="Doplňující informace (nepovinné)"
+                className="w-full border rounded-xl p-2 h-20 focus:ring-2 focus:ring-green-400"
+                placeholder="Např. preferovaný termín odběru..."
               ></textarea>
             </div>
 
-            {/* Odeslání */}
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-yellow-400 w-full px-6 py-3 rounded-2xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
-              >
-                {loading ? "Odesílám..." : "Odeslat předobjednávku"}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-yellow-400 w-full px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
+            >
+              {loading ? "Odesílám..." : "Odeslat předobjednávku"}
+            </button>
           </>
         )}
       </form>
