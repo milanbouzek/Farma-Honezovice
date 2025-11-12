@@ -114,7 +114,9 @@ export default function PreorderForm() {
         onSubmit={handleSubmit}
         className="bg-white shadow-lg rounded-2xl p-6 space-y-4"
       >
-        <h2 className="text-xl font-bold text-center">📝 Předobjednávka vajec</h2>
+        <h2 className="text-2xl font-bold text-center text-green-800">
+          📝 Předobjednávka vajec
+        </h2>
 
         <p className="text-center text-gray-600">
           Aktuálně předobjednáno:{" "}
@@ -139,7 +141,7 @@ export default function PreorderForm() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full border rounded-xl p-2"
+                className="w-full border rounded-2xl p-3"
                 placeholder="Zadejte celé jméno"
               />
             </div>
@@ -152,7 +154,7 @@ export default function PreorderForm() {
                 value={formData.phone}
                 onChange={handleChange}
                 type="tel"
-                className="w-full border rounded-xl p-2"
+                className="w-full border rounded-2xl p-3"
                 placeholder="+420…"
               />
             </div>
@@ -165,7 +167,7 @@ export default function PreorderForm() {
                 value={formData.email}
                 onChange={handleChange}
                 type="email"
-                className="w-full border rounded-xl p-2"
+                className="w-full border rounded-2xl p-3"
                 placeholder="jan@domena.cz"
               />
             </div>
@@ -183,19 +185,19 @@ export default function PreorderForm() {
                   onChange={handleChange}
                   min="1"
                   max="20"
-                  className="w-full border rounded-xl p-2"
+                  className="w-full border rounded-2xl p-3"
                 />
                 <button
                   type="button"
                   onClick={() => handleAdd(5)}
-                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                  className="bg-yellow-400 px-4 py-2 rounded-xl font-semibold hover:bg-yellow-500"
                 >
                   +5
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAdd(10)}
-                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                  className="bg-yellow-400 px-4 py-2 rounded-xl font-semibold hover:bg-yellow-500"
                 >
                   +10
                 </button>
@@ -212,7 +214,7 @@ export default function PreorderForm() {
                 name="note"
                 value={formData.note}
                 onChange={handleChange}
-                className="w-full border rounded-xl p-2 h-20"
+                className="w-full border rounded-2xl p-3 h-24"
               ></textarea>
             </div>
 
@@ -221,7 +223,7 @@ export default function PreorderForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-yellow-400 w-full px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
+                className="bg-yellow-400 w-full px-6 py-3 rounded-2xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
               >
                 {loading ? "Odesílám..." : "Odeslat předobjednávku"}
               </button>
