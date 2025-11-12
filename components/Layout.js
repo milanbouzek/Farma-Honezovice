@@ -7,15 +7,17 @@ export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
-  // Funkce pro zvýraznění aktivní položky
+  // Zvýraznění aktivní stránky
   const linkClass = (path) =>
-    `block p-2 rounded hover:bg-green-600 ${
-      router.pathname === path ? "bg-green-600 font-semibold" : ""
+    `block p-2 rounded transition-colors ${
+      router.pathname === path
+        ? "bg-green-600 font-semibold text-white"
+        : "hover:bg-green-600"
     }`;
 
   return (
     <div className="min-h-screen relative flex flex-col md:flex-row">
-      {/* Pozadí s obrázkem */}
+      {/* Pozadí */}
       <div
         className="absolute inset-0"
         style={{
@@ -26,7 +28,7 @@ export default function Layout({ children }) {
         }}
       ></div>
 
-      {/* Overlay pro čitelnost obsahu */}
+      {/* Poloprůhledný overlay */}
       <div className="absolute inset-0 bg-white bg-opacity-70"></div>
 
       {/* Obsah */}
@@ -72,25 +74,27 @@ export default function Layout({ children }) {
             <Link href="/" className={linkClass("/")}>
               Úvod
             </Link>
+
             <Link href="/o-farme" className={linkClass("/o-farme")}>
               O farmě
             </Link>
+
             <Link href="/objednavka" className={linkClass("/objednavka")}>
               Objednávka vajec
             </Link>
 
-            {/* 🥚 Nová položka */}
-            <Link
-              href="/predobjednavka"
-              className={linkClass("/predobjednavka")}
-            >
+            <Link href="/predobjednavka" className={linkClass("/predobjednavka")}>
               🥚 Předobjednávka
             </Link>
 
             <Link href="/novinky" className={linkClass("/novinky")}>
               Novinky
             </Link>
-            <Link href="/podminky-prodeje" className={linkClass("/podminky-prodeje")}>
+
+            <Link
+              href="/podminky-prodeje"
+              className={linkClass("/podminky-prodeje")}
+            >
               Podmínky prodeje
             </Link>
           </nav>
