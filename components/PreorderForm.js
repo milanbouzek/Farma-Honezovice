@@ -103,18 +103,18 @@ export default function PreorderForm() {
     setLoading(true);
     try {
       const res = await fetch("/api/preorders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          pickupLocation: formData.pickupLocation,
-          standardQty: standard,
-          lowcholQty: lowchol,
-          note: formData.note,
-        }),
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    name: formData.name,
+    email: formData.email,
+    phone: formData.phone,
+    pickupLocation: formData.pickupLocation,
+    standardQty: parseInt(formData.standardQuantity || 0, 10),
+    lowcholQty: parseInt(formData.lowCholQuantity || 0, 10),
+    note: formData.note,
+  }),
+});
 
       const data = await res.json();
 
