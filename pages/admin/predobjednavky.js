@@ -1,23 +1,19 @@
 import { useState, useEffect } from "react";
-import AdminLayout from "../../components/AdminLayout";
 import toast, { Toaster } from "react-hot-toast";
-import PreordersTable from "../../components/PreordersTable";
+import AdminLayout from "../../components/AdminLayout";
 
-export default function PreordersAdmin() {
+export default function AdminPreorders() {
   const [preorders, setPreorders] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentTotal, setCurrentTotal] = useState(0);
 
   const fetchPreorders = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/preorders");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
       setPreorders(data.preorders || []);
-      setCurrentTotal(data.total || 0);
     } catch (err) {
-      toast.error("Chyba: " + err.message);
+      toast.error("Chyba při načítání předobjednávek: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -29,32 +25,110 @@ export default function PreordersAdmin() {
     return () => clearInterval(interval);
   }, []);
 
+  const confirmPreorder = async (id) => {
+    try {
+      const res = await fetch("/api/preorders/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success("Předobjednávka byla převedena na objednávku");
+        fetchPreorders();
+      } else {
+        toast.error("Chyba: " + (data.error || "Nepodařilo se potvrdit předobjednávku"));
+      }
+    } catch (err) {
+      toast.error("Chyba při potvrzení: " + err.message);
+    }
+  };
+
+  const deletePreorder = async (id) => {
+    if (!confirm("Opravdu chcete zrušit tuto předobjednávku?")) return;
+
+    try {
+      const res = await fetch("/api/preorders/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success("Předobjednávka byla zrušena");
+        fetchPreorders();
+      } else {
+        toast.error("Chyba při mazání: " + (data.error || "Nepodařilo se odstranit předobjednávku"));
+      }
+    } catch (err) {
+      toast.error("Chyba při mazání: " + err.message);
+    }
+  };
+
+  const renderTable = () => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white rounded-xl shadow overflow-hidden">
+        <thead className="bg-gray-200">
+          <tr>
+            <th className="p-2 text-left">ID</th>
+            <th className="p-2 text-left">Jméno</th>
+            <th className="p-2 text-left">Email</th>
+            <th className="p-2 text-left">Telefon</th>
+            <th className="p-2 text-left">Standard</th>
+            <th className="p-2 text-left">LowChol</th>
+            <th className="p-2 text-left">Místo</th>
+            <th className="p-2 text-left">Akce</th>
+          </tr>
+        </thead>
+        <tbody>
+          {preorders.map((order) => (
+            <tr key={order.id} className="border-b hover:bg-gray-50">
+              <td className="p-2">{order.id}</td>
+              <td className="p-2">{order.name}</td>
+              <td className="p-2">{order.email || "-"}</td>
+              <td className="p-2">{order.phone || "-"}</td>
+              <td className="p-2">{order.standardQty}</td>
+              <td className="p-2">{order.lowcholQty}</td>
+              <td className="p-2">{order.pickupLocation}</td>
+              <td className="p-2 space-x-2">
+                <button
+                  onClick={() => confirmPreorder(order.id)}
+                  className="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+                >
+                  Potvrdit
+                </button>
+                <button
+                  onClick={() => deletePreorder(order.id)}
+                  className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                >
+                  Zrušit
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <AdminLayout>
       <Toaster position="top-center" />
+      <h1 className="text-3xl font-bold mb-6">🥚 Správa předobjednávek</h1>
 
-      <h1 className="text-3xl font-bold mb-6">📝 Předobjednávky</h1>
-
-      <div className="mb-4 p-4 bg-white shadow rounded-xl">
-        <p className="text-lg">
-          <strong>Celkem předobjednáno:</strong>{" "}
-          <span className="text-blue-600">{currentTotal} ks</span> / 100 ks limit
-        </p>
-
-        {currentTotal >= 100 && (
-          <p className="text-red-600 font-bold mt-2">
-            Limit 100 ks dosažen — další předobjednávky nejsou možné.
-          </p>
-        )}
-      </div>
-
-      <div className="bg-white shadow rounded-xl p-4">
-        {loading ? (
-          <p>Načítám…</p>
-        ) : (
-          <PreordersTable preorders={preorders} refresh={fetchPreorders} />
-        )}
-      </div>
+      {loading ? (
+        <div className="bg-white shadow rounded-xl p-4 mt-4">
+          <p>Načítám předobjednávky…</p>
+        </div>
+      ) : preorders.length === 0 ? (
+        <div className="bg-white shadow rounded-xl p-4 mt-4">
+          <p className="italic text-gray-500">Žádné aktivní předobjednávky</p>
+        </div>
+      ) : (
+        renderTable()
+      )}
     </AdminLayout>
   );
 }
