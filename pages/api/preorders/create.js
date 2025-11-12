@@ -6,9 +6,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, phone, pickupLocation, standardQty, lowcholQty } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      pickupLocation,
+      standardQty,
+      lowcholQty,
+      note,
+    } = req.body;
 
-    // Ověření vstupů
+    // Povinná pole
     if (!name || !pickupLocation) {
       return res.status(400).json({ error: "Chybí povinné údaje" });
     }
@@ -17,21 +25,24 @@ export default async function handler(req, res) {
     const lowchol = parseInt(lowcholQty || 0, 10);
     const totalOrder = standard + lowchol;
 
-    // Limit na jednu objednávku
-    const MAX_PER_ORDER = 20;
-    const MAX_TOTAL = 100;
-
-    if (totalOrder <= 0) {
-      return res.status(400).json({ error: "Musíte objednat alespoň 1 vejce" });
+    // Validace počtu vajec
+    if (totalOrder < 10) {
+      return res.status(400).json({
+        error: "Minimální objednávka je 10 ks.",
+      });
+    }
+    if (totalOrder % 10 !== 0) {
+      return res.status(400).json({
+        error: "Počet vajec musí být násobek 10.",
+      });
+    }
+    if (totalOrder > 20) {
+      return res.status(400).json({
+        error: "Maximálně 20 ks na jednu předobjednávku.",
+      });
     }
 
-    if (totalOrder > MAX_PER_ORDER) {
-      return res
-        .status(400)
-        .json({ error: `Maximálně ${MAX_PER_ORDER} ks na jednu objednávku.` });
-    }
-
-    // Získání aktuálního součtu všech předobjednávek
+    // Celkový limit 100 ks
     const { data: totalData, error: totalErr } = await supabase
       .from("preorders")
       .select("standardQty, lowcholQty");
@@ -43,23 +54,24 @@ export default async function handler(req, res) {
       0
     );
 
-    if (totalCurrent + totalOrder > MAX_TOTAL) {
+    if (totalCurrent + totalOrder > 100) {
       return res.status(400).json({
-        error: `Celkový limit ${MAX_TOTAL} ks překročen. Aktuálně dostupných ${
-          MAX_TOTAL - totalCurrent
+        error: `Celkový limit 100 ks překročen. Aktuálně dostupných ${
+          100 - totalCurrent
         } ks.`,
       });
     }
 
-    // Uložení nové předobjednávky
+    // Vložení do databáze
     const { error: insertErr } = await supabase.from("preorders").insert([
       {
         name,
-        email,
-        phone,
+        email: email || null,
+        phone: phone || null,
         pickupLocation,
         standardQty: standard,
         lowcholQty: lowchol,
+        note: note || null,
         created_at: new Date().toISOString(),
         status: "čeká na potvrzení",
       },
@@ -70,6 +82,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("❌ Chyba při vytváření předobjednávky:", err);
-    return res.status(500).json({ error: "Chyba při vytváření předobjednávky" });
+    return res
+      .status(500)
+      .json({ error: "Chyba při vytváření předobjednávky" });
   }
 }
