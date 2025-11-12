@@ -4,9 +4,11 @@ import toast, { Toaster } from "react-hot-toast";
 export default function PreorderForm() {
   const [formData, setFormData] = useState({
     name: "",
-    phone: "",
     email: "",
-    quantity: "",
+    phone: "",
+    standardQty: "",
+    lowCholQty: "",
+    pickupLocation: "",
     note: "",
   });
 
@@ -38,23 +40,24 @@ export default function PreorderForm() {
     setFormData((prev) => ({
       ...prev,
       [name]:
-        name === "quantity"
+        name === "standardQty" || name === "lowCholQty"
           ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
   };
 
-  const handleAdd = (amount) => {
+  const handleAdd = (field, amount) => {
     setFormData((prev) => {
-      const cur = parseInt(prev.quantity || 0, 10);
-      return { ...prev, quantity: Math.min(Math.max(cur + amount, 0), 20) };
+      const cur = parseInt(prev[field] || 0, 10);
+      return { ...prev, [field]: Math.min(Math.max(cur + amount, 0), 20) };
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const qty = Number(formData.quantity);
+    const standardQty = Number(formData.standardQty || 0);
+    const lowCholQty = Number(formData.lowCholQty || 0);
+    const totalQty = standardQty + lowCholQty;
 
     if (limitReached) {
       toast.error("❌ Limit 100 ks byl dosažen. Nelze předobjednat.");
@@ -66,12 +69,17 @@ export default function PreorderForm() {
       return;
     }
 
-    if (!qty || isNaN(qty) || qty <= 0) {
-      toast.error("❌ Zadejte počet vajec (1–20).");
+    if (!formData.pickupLocation.trim()) {
+      toast.error("❌ Vyberte místo vyzvednutí.");
       return;
     }
 
-    if (qty > 20) {
+    if (totalQty <= 0) {
+      toast.error("❌ Zadejte počet vajec (minimálně 1).");
+      return;
+    }
+
+    if (totalQty > 20) {
       toast.error("❌ Maximální počet vajec na jednu předobjednávku je 20 ks.");
       return;
     }
@@ -82,7 +90,11 @@ export default function PreorderForm() {
       const res = await fetch("/api/preorders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          standardQty,
+          lowCholQty,
+        }),
       });
 
       const data = await res.json();
@@ -91,9 +103,11 @@ export default function PreorderForm() {
         toast.success("✅ Předobjednávka byla úspěšně odeslána!");
         setFormData({
           name: "",
-          phone: "",
           email: "",
-          quantity: "",
+          phone: "",
+          standardQty: "",
+          lowCholQty: "",
+          pickupLocation: "",
           note: "",
         });
         fetchLimit();
@@ -111,7 +125,6 @@ export default function PreorderForm() {
   return (
     <div className="max-w-lg mx-auto p-4">
       <Toaster position="top-center" />
-
       <form
         onSubmit={handleSubmit}
         className="bg-white bg-opacity-90 shadow-xl rounded-2xl p-6 space-y-4 backdrop-blur-sm"
@@ -146,6 +159,88 @@ export default function PreorderForm() {
             </div>
 
             <div>
+              <label className="block text-gray-800 mb-1">
+                Počet standardních vajec *
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  name="standardQty"
+                  value={formData.standardQty}
+                  onChange={handleChange}
+                  min="0"
+                  max="20"
+                  className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAdd("standardQty", 5)}
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                >
+                  +5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdd("standardQty", 10)}
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                >
+                  +10
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-800 mb-1">
+                Počet vajec se sníženým cholesterolem *
+              </label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  name="lowCholQty"
+                  value={formData.lowCholQty}
+                  onChange={handleChange}
+                  min="0"
+                  max="20"
+                  className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAdd("lowCholQty", 5)}
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                >
+                  +5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAdd("lowCholQty", 10)}
+                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                >
+                  +10
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-800 mb-1">Místo vyzvednutí *</label>
+              <div className="flex flex-wrap gap-2">
+                {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
+                  <button
+                    key={loc}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, pickupLocation: loc }))}
+                    className={`px-4 py-2 rounded-xl font-semibold shadow-md ${
+                      formData.pickupLocation === loc
+                        ? "bg-green-500 text-white"
+                        : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"
+                    }`}
+                  >
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <label className="block text-gray-800 mb-1">Telefon</label>
               <input
                 type="tel"
@@ -170,40 +265,6 @@ export default function PreorderForm() {
             </div>
 
             <div>
-              <label className="block text-gray-800 mb-1">
-                Počet vajec *
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  min="1"
-                  max="20"
-                  className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleAdd(5)}
-                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-                >
-                  +5
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleAdd(10)}
-                  className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
-                >
-                  +10
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">
-                Max. 20 ks na jednu předobjednávku.
-              </p>
-            </div>
-
-            <div>
               <label className="block text-gray-800 mb-1">Poznámka</label>
               <textarea
                 name="note"
@@ -211,7 +272,7 @@ export default function PreorderForm() {
                 onChange={handleChange}
                 className="w-full border rounded-xl p-2 h-20 focus:ring-2 focus:ring-green-400"
                 placeholder="Např. preferovaný termín odběru..."
-              ></textarea>
+              />
             </div>
 
             <button
