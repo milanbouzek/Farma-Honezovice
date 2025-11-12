@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/router";
 
 export default function Layout({ children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const router = useRouter();
+
+  // Funkce pro zvýraznění aktivní položky
+  const linkClass = (path) =>
+    `block p-2 rounded hover:bg-green-600 ${
+      router.pathname === path ? "bg-green-600 font-semibold" : ""
+    }`;
 
   return (
     <div className="min-h-screen relative flex flex-col md:flex-row">
@@ -12,9 +20,9 @@ export default function Layout({ children }) {
         className="absolute inset-0"
         style={{
           backgroundImage: "url('/Slepice-pozadi.PNG')",
-          backgroundSize: "cover", // vyplní celou plochu
+          backgroundSize: "cover",
           backgroundRepeat: "no-repeat",
-          backgroundPosition: "center", // drží střed
+          backgroundPosition: "center",
         }}
       ></div>
 
@@ -61,31 +69,28 @@ export default function Layout({ children }) {
           </div>
 
           <nav className="space-y-2">
-            <Link href="/" className="block hover:bg-green-600 p-2 rounded">
+            <Link href="/" className={linkClass("/")}>
               Úvod
             </Link>
-            <Link
-              href="/o-farme"
-              className="block hover:bg-green-600 p-2 rounded"
-            >
+            <Link href="/o-farme" className={linkClass("/o-farme")}>
               O farmě
             </Link>
-            <Link
-              href="/objednavka"
-              className="block hover:bg-green-600 p-2 rounded"
-            >
+            <Link href="/objednavka" className={linkClass("/objednavka")}>
               Objednávka vajec
             </Link>
+
+            {/* 🥚 Nová položka */}
             <Link
-              href="/novinky"
-              className="block hover:bg-green-600 p-2 rounded"
+              href="/predobjednavka"
+              className={linkClass("/predobjednavka")}
             >
+              🥚 Předobjednávka
+            </Link>
+
+            <Link href="/novinky" className={linkClass("/novinky")}>
               Novinky
             </Link>
-            <Link
-              href="/podminky-prodeje"
-              className="block hover:bg-green-600 p-2 rounded"
-            >
+            <Link href="/podminky-prodeje" className={linkClass("/podminky-prodeje")}>
               Podmínky prodeje
             </Link>
           </nav>
