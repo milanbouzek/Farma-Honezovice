@@ -14,7 +14,6 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // načtení aktuálního stavu předobjednávek
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -38,9 +37,7 @@ export default function PreorderForm() {
       ...prev,
       [name]:
         name === "quantity"
-          ? value === ""
-            ? ""
-            : parseInt(value, 10)
+          ? value === "" ? "" : parseInt(value, 10)
           : value,
     }));
   };
@@ -48,7 +45,7 @@ export default function PreorderForm() {
   const handleAdd = (amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev.quantity || 0, 10);
-      return { ...prev, quantity: Math.min(cur + amount, 20) };
+      return { ...prev, quantity: Math.min(Math.max(0, cur + amount), 20) };
     });
   };
 
@@ -63,7 +60,7 @@ export default function PreorderForm() {
     const qty = parseInt(formData.quantity || 0, 10);
 
     if (!formData.name || qty <= 0) {
-      toast.error("❌ Vyplňte jméno a množství.");
+      toast.error("❌ Vyplňte jméno a počet vajec.");
       return;
     }
 
@@ -84,8 +81,7 @@ export default function PreorderForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success("✅ Předobjednávka byla odeslána!");
-
+        toast.success("✅ Předobjednávka byla úspěšně odeslána!");
         setFormData({
           name: "",
           phone: "",
@@ -93,10 +89,9 @@ export default function PreorderForm() {
           quantity: "",
           note: "",
         });
-
         fetchLimit();
       } else {
-        toast.error(data.error || "❌ Došlo k chybě.");
+        toast.error(data.error || "❌ Došlo k chybě při odesílání.");
       }
     } catch (err) {
       console.error(err);
@@ -112,10 +107,10 @@ export default function PreorderForm() {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white shadow-lg rounded-2xl p-6 space-y-4"
+        className="bg-white shadow-lg rounded-2xl p-6 space-y-5"
       >
         <h2 className="text-2xl font-bold text-center text-green-800">
-          📝 Předobjednávka vajec
+          Předobjednávkový formulář
         </h2>
 
         <p className="text-center text-gray-600">
@@ -125,7 +120,7 @@ export default function PreorderForm() {
 
         {limitReached && (
           <p className="text-center text-red-600 font-bold">
-            Limit 100 ks byl dosažen. Nelze předobjednat.
+            Limit 100 ks byl dosažen. Nelze vytvořit další předobjednávku.
           </p>
         )}
 
@@ -190,14 +185,14 @@ export default function PreorderForm() {
                 <button
                   type="button"
                   onClick={() => handleAdd(5)}
-                  className="bg-yellow-400 px-4 py-2 rounded-xl font-semibold hover:bg-yellow-500"
+                  className="bg-yellow-400 px-4 py-2 rounded-2xl font-semibold hover:bg-yellow-500"
                 >
                   +5
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAdd(10)}
-                  className="bg-yellow-400 px-4 py-2 rounded-xl font-semibold hover:bg-yellow-500"
+                  className="bg-yellow-400 px-4 py-2 rounded-2xl font-semibold hover:bg-yellow-500"
                 >
                   +10
                 </button>
@@ -215,10 +210,11 @@ export default function PreorderForm() {
                 value={formData.note}
                 onChange={handleChange}
                 className="w-full border rounded-2xl p-3 h-24"
+                placeholder="Doplňující informace (nepovinné)"
               ></textarea>
             </div>
 
-            {/* Odeslat */}
+            {/* Odeslání */}
             <div>
               <button
                 type="submit"
