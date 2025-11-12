@@ -43,9 +43,30 @@ export default function PreordersAdmin() {
     setLoading(false);
   }
 
+  // ✅ Potvrzení objednávky
+  async function handleConfirm(id) {
+    if (!confirm("Opravdu potvrdit tuto předobjednávku?")) return;
+    const { error } = await supabase
+      .from("preorders")
+      .update({ status: "potvrzená" })
+      .eq("id", id);
+
+    if (error) alert("Chyba při potvrzení: " + error.message);
+    else fetchPreorders();
+  }
+
+  // ❌ Smazání objednávky
+  async function handleDelete(id) {
+    if (!confirm("Opravdu smazat tuto předobjednávku?")) return;
+    const { error } = await supabase.from("preorders").delete().eq("id", id);
+
+    if (error) alert("Chyba při mazání: " + error.message);
+    else fetchPreorders();
+  }
+
   return (
     <AdminLayout title="🥚 Předobjednávky">
-      <div className="p-4 max-w-5xl mx-auto">
+      <div className="p-4 max-w-6xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">Předobjednávky</h1>
 
         {/* 🔍 Panel filtrů */}
@@ -95,12 +116,13 @@ export default function PreordersAdmin() {
                   <th className="p-2 text-left">Odběr</th>
                   <th className="p-2 text-left">Stav</th>
                   <th className="p-2 text-left">Vytvořeno</th>
+                  <th className="p-2 text-center">Akce</th>
                 </tr>
               </thead>
               <tbody>
                 {preorders.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center p-4 text-gray-500">
+                    <td colSpan="9" className="text-center p-4 text-gray-500">
                       Žádné záznamy
                     </td>
                   </tr>
@@ -128,6 +150,22 @@ export default function PreordersAdmin() {
                       </td>
                       <td className="p-2 text-gray-500">
                         {new Date(p.created_at).toLocaleString("cs-CZ")}
+                      </td>
+                      <td className="p-2 text-center space-x-2">
+                        {p.status !== "potvrzená" && (
+                          <button
+                            onClick={() => handleConfirm(p.id)}
+                            className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                          >
+                            Potvrdit
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(p.id)}
+                          className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          Smazat
+                        </button>
                       </td>
                     </tr>
                   ))
