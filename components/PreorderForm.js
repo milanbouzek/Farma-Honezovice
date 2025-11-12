@@ -14,6 +14,7 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // načtení aktuálního stavu předobjednávek
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -33,12 +34,13 @@ export default function PreorderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setFormData((prev) => ({
       ...prev,
       [name]:
         name === "quantity"
-          ? value === "" ? "" : parseInt(value, 10)
+          ? value === ""
+            ? ""
+            : parseInt(value, 10)
           : value,
     }));
   };
@@ -46,7 +48,7 @@ export default function PreorderForm() {
   const handleAdd = (amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev.quantity || 0, 10);
-      return { ...prev, quantity: Math.max(0, cur + amount) };
+      return { ...prev, quantity: Math.min(cur + amount, 20) };
     });
   };
 
@@ -127,6 +129,7 @@ export default function PreorderForm() {
 
         {!limitReached && (
           <>
+            {/* Jméno */}
             <div>
               <label className="block text-gray-700 mb-1">
                 Jméno a příjmení *
@@ -141,6 +144,7 @@ export default function PreorderForm() {
               />
             </div>
 
+            {/* Telefon */}
             <div>
               <label className="block text-gray-700 mb-1">Telefon</label>
               <input
@@ -153,6 +157,7 @@ export default function PreorderForm() {
               />
             </div>
 
+            {/* Email */}
             <div>
               <label className="block text-gray-700 mb-1">Email</label>
               <input
@@ -165,6 +170,7 @@ export default function PreorderForm() {
               />
             </div>
 
+            {/* Počet vajec */}
             <div>
               <label className="block text-gray-700 mb-1">
                 Počet vajec *
@@ -199,6 +205,7 @@ export default function PreorderForm() {
               </p>
             </div>
 
+            {/* Poznámka */}
             <div>
               <label className="block text-gray-700 mb-1">Poznámka</label>
               <textarea
@@ -209,6 +216,7 @@ export default function PreorderForm() {
               ></textarea>
             </div>
 
+            {/* Odeslat */}
             <div>
               <button
                 type="submit"
