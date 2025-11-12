@@ -44,13 +44,15 @@ export default function AdminLayout({ children }) {
     );
   }
 
-  const menuItems = [
-    { name: "🏠 Dashboard", path: "/admin" },
-    { name: "📦 Objednávky", path: "/admin/objednavky" },
-    { name: "📊 Statistika", path: "/admin/statistika" },
-    { name: "📉 Náklady", path: "/admin/naklady" },
-    { name: "🥚 Produkce vajec", path: "/admin/produkcevajec" },
-  ];
+const menuItems = [
+  { name: "🏠 Dashboard", path: "/admin" },
+  { name: "📦 Objednávky", path: "/admin/objednavky" },
+  { name: "🥚 Předobjednávky", path: "/admin/predobjednavky" }, // ← nová položka
+  { name: "📊 Statistika", path: "/admin/statistika" },
+  { name: "📉 Náklady", path: "/admin/naklady" },
+  { name: "🥚 Produkce vajec", path: "/admin/produkcevajec" },
+];
+
 
   return (
     <div className="flex min-h-screen bg-gray-50">
