@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import AdminLayout from "@/components/AdminLayout";
 
 export default function PreordersAdmin() {
@@ -14,28 +15,32 @@ export default function PreordersAdmin() {
 
   async function fetchPreorders() {
     setLoading(true);
+    let query = supabase.from("preorders").select("*");
 
-    try {
-      let queryUrl = `/api/preorders/list?search=${encodeURIComponent(
-        search
-      )}&status=${encodeURIComponent(statusFilter)}&sort=${sortBy}`;
-
-      const res = await fetch(queryUrl);
-      const data = await res.json();
-
-      if (!res.ok) {
-        console.error("Chyba při načítání:", data.error);
-      } else {
-        setPreorders(data.preorders || []);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
+    if (search.trim() !== "") {
+      query = query.or(
+        `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
+      );
     }
+
+    if (statusFilter !== "") {
+      query = query.eq("status", statusFilter);
+    }
+
+    if (sortBy === "created_at_desc") query = query.order("created_at", { ascending: false });
+    if (sortBy === "created_at_asc") query = query.order("created_at", { ascending: true });
+    if (sortBy === "name_asc") query = query.order("name", { ascending: true });
+    if (sortBy === "name_desc") query = query.order("name", { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) console.error("Chyba při načítání předobjednávek:", error);
+    else setPreorders(data || []);
 
     setLoading(false);
   }
 
-  // 🔄 API volání – potvrzení předobjednávky
+  // 🔥 POTVRZENÍ PŘEDOBJEDNÁVKY — FULL DEBUG JSON
   async function handleConfirm(id) {
     if (!confirm("Opravdu potvrdit tuto předobjednávku?")) return;
 
@@ -47,32 +52,30 @@ export default function PreordersAdmin() {
 
     const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      alert("Chyba: " + (data.error || "Nepodařilo se potvrdit."));
+    if (!res.ok) {
+      console.error("CONFIRM ERROR JSON:", data);
+
+      alert(
+        "Chyba při potvrzení předobjednávky:\n\n" +
+        (data.details || data.error || "Unknown error") +
+        "\n\n--- FULL RESPONSE ---\n" +
+        JSON.stringify(data, null, 2)
+      );
+
       return;
     }
 
-    alert("Předobjednávka byla potvrzena a převedena do objednávek.");
-    fetchPreorders(); // refresh tabulky
+    fetchPreorders();
   }
 
-  // ❌ Smazání
+  // ❌ Smazání předobjednávky
   async function handleDelete(id) {
     if (!confirm("Opravdu smazat tuto předobjednávku?")) return;
 
-    const res = await fetch("/api/preorders/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    const { error } = await supabase.from("preorders").delete().eq("id", id);
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert("Chyba při mazání: " + data.error);
-    } else {
-      fetchPreorders();
-    }
+    if (error) alert("Chyba při mazání: " + error.message);
+    else fetchPreorders();
   }
 
   return (
@@ -80,7 +83,7 @@ export default function PreordersAdmin() {
       <div className="p-4 max-w-6xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">Předobjednávky</h1>
 
-        {/* 🔍 Filtry */}
+        {/* 🔍 Panel filtrů */}
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center mb-4">
           <input
             type="text"
@@ -132,7 +135,6 @@ export default function PreordersAdmin() {
                   <th className="p-2 text-center">Akce</th>
                 </tr>
               </thead>
-
               <tbody>
                 {preorders.length === 0 ? (
                   <tr>
@@ -148,8 +150,7 @@ export default function PreordersAdmin() {
                       <td className="p-2">{p.email}</td>
                       <td className="p-2 text-right">{p.standardQty}</td>
                       <td className="p-2 text-right">{p.lowcholQty}</td>
-                      <td className="p-2">{p.pickupLocation}</td>
-
+                      <td className="p-2">{p.pickuplocation}</td>
                       <td className="p-2">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -163,11 +164,9 @@ export default function PreordersAdmin() {
                           {p.status}
                         </span>
                       </td>
-
                       <td className="p-2 text-gray-500">
                         {new Date(p.created_at).toLocaleString("cs-CZ")}
                       </td>
-
                       <td className="p-2 text-center space-x-2">
                         {p.status !== "potvrzená" && (
                           <button
