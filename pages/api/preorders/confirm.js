@@ -6,71 +6,59 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { preorderId } = req.body;
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "Missing preorder ID" });
 
-    if (!preorderId) {
-      return res.status(400).json({ error: "Missing preorder ID" });
-    }
-
-    // 1️⃣ Načteme předobjednávku
-    const { data: preorder, error: fetchErr } = await supabase
+    // 1️⃣ Načtení předobjednávky
+    const { data: preorder, error: loadErr } = await supabase
       .from("preorders")
       .select("*")
-      .eq("id", preorderId)
+      .eq("id", id)
       .single();
 
-    if (fetchErr || !preorder) {
+    if (loadErr || !preorder)
       return res.status(404).json({ error: "Předobjednávka nenalezena" });
-    }
 
-    // 2️⃣ Připravíme data pro tabulku orders – POZOR: mapujeme názvy sloupců
-    const orderInsert = {
-      customer_name: preorder.name,
-      email: preorder.email ?? null,
-      phone: preorder.phone ?? null,
-      standard_quantity: preorder.standardQty,
-      low_chol_quantity: preorder.lowcholQty,
-      pickup_location: preorder.pickuplocation,
-      pickup_date: null, // předobjednávka nemá datum
-      payment_total: null,
-      payment_currency: "CZK",
-      payment_vs: null,
-      payment_url: null,
-      payment_qr: null,
-      status: "new",
-      paid: false,
-    };
+    // 2️⃣ Výpočet pickup_date = dnes + 2 dny
+    const pickupDate = new Date();
+    pickupDate.setDate(pickupDate.getDate() + 2);
 
-    // 3️⃣ Zapíšeme objednávku
-    const { data: newOrder, error: insertErr } = await supabase
+    // 3️⃣ Cena — podle klasického ceníku
+    const price =
+      preorder.standardQty * 5 + preorder.lowcholQty * 7;
+
+    // 4️⃣ Vložení do orders
+    const { error: insertErr } = await supabase
       .from("orders")
-      .insert([orderInsert])
-      .select()
-      .single();
+      .insert([
+        {
+          customer_name: preorder.name,
+          email: preorder.email,
+          phone: preorder.phone,
+          standard_quantity: preorder.standardQty,
+          low_chol_quantity: preorder.lowcholQty,
+          pickup_location: preorder.pickupLocation,
+          pickup_date: pickupDate.toISOString().split("T")[0], // YYYY-MM-DD
+          payment_total: price,
+          payment_currency: "CZK",
+          status: "new",
+          paid: false,
+        },
+      ]);
 
-    if (insertErr) {
-      console.error("Insert error:", insertErr);
-      return res.status(500).json({ error: "Nepodařilo se vytvořit objednávku" });
-    }
+    if (insertErr) throw insertErr;
 
-    // 4️⃣ Aktualizujeme předobjednávku na potvrzeno
-    const { error: updateErr } = await supabase
+    // 5️⃣ Změna stavu předobjednávky
+    const { error: updErr } = await supabase
       .from("preorders")
-      .update({ status: "potvrzena" })
-      .eq("id", preorderId);
+      .update({ status: "potvrzená" })
+      .eq("id", id);
 
-    if (updateErr) {
-      console.error(updateErr);
-      return res.status(500).json({ error: "Objednávka vytvořena, ale nepodařilo se aktualizovat stav předobjednávky" });
-    }
+    if (updErr) throw updErr;
 
-    return res.status(200).json({
-      success: true,
-      orderId: newOrder.id,
-    });
-
+    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("❌ Chyba confirm endpointu:", err);
+    console.error("Confirm error:", err);
     return res.status(500).json({ error: "Server error" });
   }
 }
