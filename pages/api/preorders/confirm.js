@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   try {
     const { id } = req.body;
 
-    // 1️⃣ Načteme předobjednávku
     const { data: preorder, error: loadErr } = await supabase
       .from("preorders")
       .select("*")
@@ -18,10 +17,8 @@ export default async function handler(req, res) {
     if (loadErr) throw loadErr;
     if (!preorder) throw new Error("Preorder not found");
 
-    // 2️⃣ Cena
     const totalPrice = preorder.standardQty * 5 + preorder.lowcholQty * 7;
 
-    // 3️⃣ Vložíme do orders
     const { error: insertErr } = await supabase.from("orders").insert([
       {
         customer_name: preorder.name,
@@ -29,13 +26,10 @@ export default async function handler(req, res) {
         phone: preorder.phone,
         standard_quantity: preorder.standardQty,
         low_chol_quantity: preorder.lowcholQty,
-
-        // 🔥 TADY BYLA CHYBA
-        // preorders.pickuplocation -> orders.pickup_location
         pickup_location: preorder.pickuplocation,
 
-        // Předobjednávky nemají datum — dáme NULL nebo ho budeš chtít doplnit později
-        pickup_date: null,
+        // ⭐ OPRAVA – pickup_date nesmí být NULL:
+        pickup_date: new Date().toISOString().slice(0, 10),
 
         payment_total: totalPrice,
         payment_currency: "CZK",
@@ -46,7 +40,6 @@ export default async function handler(req, res) {
 
     if (insertErr) throw insertErr;
 
-    // 4️⃣ Předobjednávku označíme jako potvrzenou
     const { error: updateErr } = await supabase
       .from("preorders")
       .update({ status: "potvrzená" })
