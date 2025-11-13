@@ -16,7 +16,6 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Načtení aktuálního počtu ks
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -55,8 +54,8 @@ export default function PreorderForm() {
     });
   };
 
-  const handlePickupSelect = (location) => {
-    setFormData((prev) => ({ ...prev, pickupLocation: location }));
+  const handlePickupSelect = (loc) => {
+    setFormData((prev) => ({ ...prev, pickupLocation: loc }));
   };
 
   const handleSubmit = async (e) => {
@@ -138,7 +137,6 @@ export default function PreorderForm() {
   return (
     <div className="max-w-lg mx-auto p-4">
       <Toaster position="top-center" />
-
       {limitReached ? (
         <p className="text-center text-red-600 font-semibold">
           Limit 100 ks byl dosažen. Předobjednávky jsou uzavřeny.
@@ -146,50 +144,54 @@ export default function PreorderForm() {
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="bg-white bg-opacity-90 shadow-xl rounded-2xl p-6 space-y-4 backdrop-blur-sm"
+          className="bg-white shadow-lg rounded-2xl p-6 space-y-4"
         >
-          <h2 className="text-3xl font-bold text-green-700 text-center mb-2">
-            🥚 Předobjednávka vajec
-          </h2>
-
+          {/* Jméno */}
           <div>
-            <label className="block text-gray-800 mb-1">Jméno a příjmení *</label>
+            <label className="block text-gray-700 mb-1">
+              Jméno a příjmení *
+            </label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
               placeholder="Zadejte celé jméno"
+              className="w-full border rounded-xl p-2"
             />
           </div>
 
+          {/* Telefon */}
           <div>
-            <label className="block text-gray-800 mb-1">Telefon</label>
+            <label className="block text-gray-700 mb-1">Telefon</label>
             <input
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
               placeholder="+420…"
+              className="w-full border rounded-xl p-2"
             />
           </div>
 
+          {/* Email */}
           <div>
-            <label className="block text-gray-800 mb-1">Email</label>
+            <label className="block text-gray-700 mb-1">Email</label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
               placeholder="např. jan@domena.cz"
+              className="w-full border rounded-xl p-2"
             />
           </div>
 
+          {/* Standardní vejce */}
           <div>
-            <label className="block text-gray-800 mb-1">Počet standardních vajec *</label>
+            <label className="block text-gray-700 mb-1">
+              Počet standardních vajec *
+            </label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
@@ -197,7 +199,7 @@ export default function PreorderForm() {
                 value={formData.standardQuantity}
                 onChange={handleChange}
                 min="0"
-                className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
+                className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
@@ -216,8 +218,11 @@ export default function PreorderForm() {
             </div>
           </div>
 
+          {/* Vejce se sníženým cholesterolem */}
           <div>
-            <label className="block text-gray-800 mb-1">Počet vajec se sníženým cholesterolem *</label>
+            <label className="block text-gray-700 mb-1">
+              Počet vajec se sníženým cholesterolem *
+            </label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
@@ -225,7 +230,7 @@ export default function PreorderForm() {
                 value={formData.lowCholQuantity}
                 onChange={handleChange}
                 min="0"
-                className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
+                className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
@@ -244,19 +249,21 @@ export default function PreorderForm() {
             </div>
           </div>
 
-          {/* ✅ NOVÝ design výběru místa odběru */}
+          {/* Místo vyzvednutí (tlačítka místo selectu) */}
           <div>
-            <label className="block text-gray-800 mb-1">Místo vyzvednutí *</label>
-            <div className="flex gap-4">
+            <label className="block text-gray-700 mb-1">
+              Místo vyzvednutí *
+            </label>
+            <div className="flex flex-wrap gap-2">
               {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
                 <button
-                  type="button"
                   key={loc}
+                  type="button"
                   onClick={() => handlePickupSelect(loc)}
-                  className={`flex-1 border rounded-xl py-2 font-semibold transition ${
+                  className={`px-4 py-2 rounded-xl font-semibold shadow-md ${
                     formData.pickupLocation === loc
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white hover:bg-green-100 border-gray-400 text-gray-800"
+                      ? "bg-green-500 text-white"
+                      : "bg-yellow-400 text-gray-900 hover:bg-yellow-500"
                   }`}
                 >
                   {loc}
@@ -265,17 +272,19 @@ export default function PreorderForm() {
             </div>
           </div>
 
+          {/* Poznámka */}
           <div>
-            <label className="block text-gray-800 mb-1">Poznámka</label>
+            <label className="block text-gray-700 mb-1">Poznámka</label>
             <textarea
               name="note"
               value={formData.note}
               onChange={handleChange}
-              className="w-full border rounded-xl p-2 h-20 focus:ring-2 focus:ring-green-400"
+              className="w-full border rounded-xl p-2 h-20"
               placeholder="Např. preferovaný termín odběru..."
-            ></textarea>
+            />
           </div>
 
+          {/* Odeslat */}
           <button
             type="submit"
             disabled={loading}
