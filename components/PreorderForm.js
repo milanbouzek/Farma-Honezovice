@@ -2,6 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import { X } from "lucide-react";
+
+/**
+ * PreorderForm.js
+ * Formulář pro předobjednávky vajec
+ * Povinná pole: jméno, počet vajec (min 10, násobky 10), místo vyzvednutí, datum vyzvednutí
+ * Nepovinná pole: email, telefon, poznámka
+ *
+ * Po odeslání očekáváme od /api/preorders/create odpověď:
+ * { success: true, id: <preorder id>, totalPrice: <number> }
+ * a zobrazíme persistentní toast s číslem objednávky a cenou.
+ */
 
 export default function PreorderForm() {
   const [formData, setFormData] = useState({
@@ -70,6 +82,7 @@ export default function PreorderForm() {
       const res = await fetch("/api/preorders");
       const data = await res.json();
       if (res.ok) {
+        // Pozor: server endpoint vrací objekt s total (součet všech kusů)
         const total = data.total || 0;
         setCurrentTotal(total);
         setLimitReached(total >= 100);
@@ -217,7 +230,40 @@ export default function PreorderForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success(`✅ Předobjednávka byla odeslána!`);
+        // ---- CUSTOM TOAST with preorder ID + price ----
+        toast.custom(
+          (t) => (
+            <div
+              className={`bg-white shadow-lg rounded-2xl p-5 max-w-md w-full relative ${
+                t.visible ? "animate-enter" : "animate-leave"
+              }`}
+            >
+              <button
+                onClick={() => toast.dismiss(t.id)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+              >
+                <X size={18} />
+              </button>
+
+              <h3 className="text-lg font-bold mb-2">✅ Předobjednávka byla úspěšně odeslána</h3>
+
+              <p className="mb-1">
+                Číslo předobjednávky:{" "}
+                <strong>{data.id ?? data.preorderId ?? "—"}</strong>
+              </p>
+
+              <p className="mb-1">
+                Celková cena:{" "}
+                <strong>{(data.totalPrice ?? data.price ?? 0)} Kč</strong>
+              </p>
+
+              <p className="text-sm text-gray-500 mt-2">
+                Uloženo do systému — čeká na potvrzení.
+              </p>
+            </div>
+          ),
+          { duration: 10000 }
+        );
 
         // reset formuláře
         setFormData({
@@ -231,6 +277,7 @@ export default function PreorderForm() {
           note: "",
         });
 
+        setDateError("");
         fetchLimit();
       } else {
         toast.error(data.error || "❌ Chyba při odesílání.");
@@ -265,6 +312,7 @@ export default function PreorderForm() {
               value={formData.name}
               onChange={handleChange}
               className="w-full border rounded-xl p-2"
+              placeholder="Zadejte celé jméno"
             />
           </div>
 
@@ -277,6 +325,7 @@ export default function PreorderForm() {
               value={formData.phone}
               onChange={handleChange}
               className="w-full border rounded-xl p-2"
+              placeholder="+420…"
             />
           </div>
 
@@ -289,31 +338,34 @@ export default function PreorderForm() {
               value={formData.email}
               onChange={handleChange}
               className="w-full border rounded-xl p-2"
+              placeholder="např. jan@domena.cz"
             />
           </div>
 
           {/* Standard */}
           <div>
-            <label className="block text-gray-700 mb-1">Standardní vejce *</label>
+            <label className="block text-gray-700 mb-1">Počet standardních vajec *</label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
                 name="standardQuantity"
                 value={formData.standardQuantity}
                 onChange={handleChange}
+                min="0"
+                placeholder="0"
                 className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
                 onClick={() => handleAdd("standardQuantity", 5)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 +5
               </button>
               <button
                 type="button"
                 onClick={() => handleAdd("standardQuantity", 10)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 +10
               </button>
@@ -322,28 +374,28 @@ export default function PreorderForm() {
 
           {/* LowChol */}
           <div>
-            <label className="block text-gray-700 mb-1">
-              LowChol vejce *
-            </label>
+            <label className="block text-gray-700 mb-1">Počet vajec se sníženým cholesterolem *</label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
                 name="lowCholQuantity"
                 value={formData.lowCholQuantity}
                 onChange={handleChange}
+                min="0"
+                placeholder="0"
                 className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
                 onClick={() => handleAdd("lowCholQuantity", 5)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 +5
               </button>
               <button
                 type="button"
                 onClick={() => handleAdd("lowCholQuantity", 10)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 +10
               </button>
@@ -382,38 +434,21 @@ export default function PreorderForm() {
               onFocus={() => setShowCalendar(true)}
               readOnly
               placeholder="DD.MM.YYYY"
-              className={`w-full border rounded-xl p-2 ${
-                dateError ? "border-red-500" : ""
-              }`}
+              className={`w-full border rounded-xl p-2 ${dateError ? "border-red-500" : ""}`}
             />
 
-            {dateError && (
-              <p className="text-red-600 text-sm mt-1">{dateError}</p>
-            )}
+            {dateError && <p className="text-red-600 text-sm mt-1">{dateError}</p>}
 
             {showCalendar && (
               <div ref={calendarRef} className="mt-2">
                 <DayPicker
                   mode="single"
-                  selected={
-                    formData.pickupDate
-                      ? parseDateFromCZ(formData.pickupDate)
-                      : undefined
-                  }
+                  selected={formData.pickupDate ? parseDateFromCZ(formData.pickupDate) : undefined}
                   onSelect={handleDateSelect}
                   disabled={(date) => {
-                    const d = new Date(
-                      date.getFullYear(),
-                      date.getMonth(),
-                      date.getDate()
-                    );
+                    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
                     if (d <= today) return true;
-                    if (
-                      formData.pickupLocation ===
-                        "Dematic Ostrov u Stříbra 65" &&
-                      isWeekend(d)
-                    )
-                      return true;
+                    if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return true;
                     return false;
                   }}
                   weekStartsOn={1}
@@ -425,7 +460,7 @@ export default function PreorderForm() {
               <button
                 type="button"
                 onClick={() => handleDateQuickPick(1)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 Zítra
               </button>
@@ -433,7 +468,7 @@ export default function PreorderForm() {
               <button
                 type="button"
                 onClick={() => handleDateQuickPick(2)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg"
+                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
               >
                 Pozítří
               </button>
