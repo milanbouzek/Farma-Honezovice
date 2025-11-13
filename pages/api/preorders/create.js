@@ -30,7 +30,8 @@ export default async function handler(req, res) {
         name,
         email,
         phone,
-        pickupLocation,
+        // 🔥 TADY BYLA CHYBA
+        pickuplocation: pickupLocation,
         standardQty,
         lowcholQty,
         note,
