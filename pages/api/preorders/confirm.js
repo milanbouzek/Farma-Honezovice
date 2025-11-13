@@ -19,20 +19,16 @@ export default async function handler(req, res) {
       .single();
 
     console.log("📌 PREORDER LOADED:", preorder);
+    console.log("📌 loadErr:", loadErr);
 
     if (loadErr) throw loadErr;
     if (!preorder) throw new Error("Preorder not found");
 
-    // 2️⃣ Kontrola pickup location (musí existovat)
-    if (!preorder.pickuplocation || preorder.pickuplocation.trim() === "") {
-      throw new Error("Pickup location is missing in preorder.");
-    }
-
-    // 3️⃣ Cena
+    // 2️⃣ Spočítáme cenu
     const totalPrice = preorder.standardQty * 5 + preorder.lowcholQty * 7;
     console.log("💰 Total price:", totalPrice);
 
-    // 4️⃣ Vložíme do orders
+    // 3️⃣ Vložíme objednávku do orders
     const { error: insertErr } = await supabase.from("orders").insert([
       {
         customer_name: preorder.name,
@@ -41,23 +37,23 @@ export default async function handler(req, res) {
         standard_quantity: preorder.standardQty,
         low_chol_quantity: preorder.lowcholQty,
 
-        // 👍 Fallback pro jistotu
-        pickup_location: preorder.pickuplocation || "neuvedeno",
+        // ⚠️ DŮLEŽITÉ – musí sedět přesný název sloupce
+        pickup_location: preorder.pickuplocation,
 
         pickup_date: null,
         payment_total: totalPrice,
         payment_currency: "CZK",
-
-        // musí být toto, jinak se nezobrazí v adminu
         status: "nová objednávka",
-
         paid: false,
       },
     ]);
 
-    if (insertErr) throw insertErr;
+    if (insertErr) {
+      console.error("📌 InsertErr:", insertErr);
+      throw insertErr;
+    }
 
-    // 5️⃣ Update preorder
+    // 4️⃣ Aktualizujeme předobjednávku na potvrzenou
     const { error: updateErr } = await supabase
       .from("preorders")
       .update({ status: "potvrzená" })
@@ -68,10 +64,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true });
 
   } catch (err) {
-    console.error("🔥 CONFIRM ERROR:", err);
+    console.error("🔥 CONFIRM ERROR FULL:", err);
+
     return res.status(500).json({
       error: "Failed to confirm preorder",
       details: err.message,
+      full: err    // ← přidá celý objekt chyby
     });
   }
 }
