@@ -9,6 +9,7 @@ export default function PreorderForm() {
     standardQuantity: "",
     lowCholQuantity: "",
     pickupLocation: "",
+    pickupDate: "",
     note: "",
   });
 
@@ -16,6 +17,7 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Limit předobjednávek
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -34,6 +36,7 @@ export default function PreorderForm() {
     fetchLimit();
   }, []);
 
+  // Nastavení textových a numerických polí
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -47,6 +50,7 @@ export default function PreorderForm() {
     }));
   };
 
+  // Přidávání +5 / +10 ks
   const handleAdd = (field, amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev[field] || 0, 10);
@@ -55,11 +59,46 @@ export default function PreorderForm() {
   };
 
   const handlePickupSelect = (loc) => {
-    setFormData((prev) => ({ ...prev, pickupLocation: loc }));
+    setFormData((prev) => ({ ...prev, pickupLocation: loc, pickupDate: "" }));
+  };
+
+  // Výpočet minimálního a maximálního data
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 30);
+
+  const toInputDate = (d) => d.toISOString().split("T")[0];
+
+  // Validace datumu – stejné jako objednávky
+  const validateDate = () => {
+    if (!formData.pickupDate) return false;
+
+    const date = new Date(formData.pickupDate);
+    const day = date.getDay();
+
+    // Datum musí být od zítřka dál
+    if (date < tomorrow) {
+      toast.error("❌ Datum musí být nejdříve zítra.");
+      return false;
+    }
+
+    // Dematic → nesmí víkendy
+    if (
+      formData.pickupLocation === "Dematic Ostrov u Stříbra 65" &&
+      (day === 0 || day === 6)
+    ) {
+      toast.error("❌ Pro Dematic nelze vybrat víkend.");
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const standard = parseInt(formData.standardQuantity || 0, 10);
     const lowchol = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standard + lowchol;
@@ -72,6 +111,8 @@ export default function PreorderForm() {
       toast.error("❌ Vyberte místo vyzvednutí.");
       return;
     }
+    if (!validateDate()) return;
+
     if (totalEggs < 10) {
       toast.error("❌ Minimální objednávka je 10 ks.");
       return;
@@ -86,7 +127,7 @@ export default function PreorderForm() {
     }
     if (currentTotal + totalEggs > 100) {
       toast.error(
-        `❌ Celkový limit 100 ks překročen. Aktuálně dostupných ${
+        `❌ Celkový limit 100 ks překročen. Dostupných je ${
           100 - currentTotal
         } ks.`
       );
@@ -103,6 +144,7 @@ export default function PreorderForm() {
           email: formData.email,
           phone: formData.phone,
           pickupLocation: formData.pickupLocation,
+          pickupDate: formData.pickupDate,
           standardQty: standard,
           lowcholQty: lowchol,
           note: formData.note,
@@ -120,6 +162,7 @@ export default function PreorderForm() {
           standardQuantity: "",
           lowCholQuantity: "",
           pickupLocation: "",
+          pickupDate: "",
           note: "",
         });
         fetchLimit();
@@ -218,7 +261,7 @@ export default function PreorderForm() {
             </div>
           </div>
 
-          {/* Vejce se sníženým cholesterolem */}
+          {/* LowChol vejce */}
           <div>
             <label className="block text-gray-700 mb-1">
               Počet vajec se sníženým cholesterolem *
@@ -249,11 +292,9 @@ export default function PreorderForm() {
             </div>
           </div>
 
-          {/* Místo vyzvednutí (tlačítka místo selectu) */}
+          {/* Místo odběru */}
           <div>
-            <label className="block text-gray-700 mb-1">
-              Místo vyzvednutí *
-            </label>
+            <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
             <div className="flex flex-wrap gap-2">
               {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
                 <button
@@ -272,6 +313,29 @@ export default function PreorderForm() {
             </div>
           </div>
 
+          {/* Datum odběru */}
+          {formData.pickupLocation && (
+            <div>
+              <label className="block text-gray-700 mb-1">
+                Datum vyzvednutí *
+              </label>
+              <input
+                type="date"
+                name="pickupDate"
+                className="w-full border rounded-xl p-2"
+                min={toInputDate(tomorrow)}
+                max={toInputDate(maxDate)}
+                value={formData.pickupDate}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.pickupLocation === "Dematic Ostrov u Stříbra 65"
+                  ? "Víkendy nejsou možné."
+                  : "Víkendy jsou povolené."}
+              </p>
+            </div>
+          )}
+
           {/* Poznámka */}
           <div>
             <label className="block text-gray-700 mb-1">Poznámka</label>
@@ -280,7 +344,7 @@ export default function PreorderForm() {
               value={formData.note}
               onChange={handleChange}
               className="w-full border rounded-xl p-2 h-20"
-              placeholder="Např. preferovaný termín odběru..."
+              placeholder="Např. upřesnění…"
             />
           </div>
 
