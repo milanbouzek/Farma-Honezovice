@@ -1,18 +1,18 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import OrderEditModal from "./OrderEditModal";
 
 const STATUSES = ["nová objednávka", "zpracovává se", "vyřízená", "zrušená"];
 
 export default function OrdersTable({ orders, refreshOrders }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
 
-  // Načtení stavu z localStorage
   useEffect(() => {
     const stored = localStorage.getItem("ordersExpanded");
     if (stored === "true") setExpanded(true);
   }, []);
 
-  // Uložení stavu do localStorage při změně
   const toggleExpanded = () => {
     const newState = !expanded;
     setExpanded(newState);
@@ -27,10 +27,11 @@ export default function OrdersTable({ orders, refreshOrders }) {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Chyba serveru");
       toast.success(`Status změněn na: ${data.status}`);
       refreshOrders();
     } catch (err) {
-      toast.error("Chyba při změně statusu: " + err.message);
+      toast.error("Chyba při změně statusu: " + (err.message || err));
     }
   };
 
@@ -42,7 +43,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
         body: JSON.stringify({ id, paid: !currentState }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         toast.success(data.paid ? "💰 Objednávka označena jako zaplacená" : "❌ Platba zrušena");
         refreshOrders();
       } else {
@@ -61,7 +62,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
         body: JSON.stringify({ id }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         toast.success("💸 Cena objednávky byla vynulována");
         refreshOrders();
       } else {
@@ -70,6 +71,10 @@ export default function OrdersTable({ orders, refreshOrders }) {
     } catch (err) {
       toast.error("Chyba při komunikaci se serverem: " + err.message);
     }
+  };
+
+  const openEditor = (order) => {
+    setEditingOrder(order);
   };
 
   const renderRow = (order) => {
@@ -82,15 +87,14 @@ export default function OrdersTable({ orders, refreshOrders }) {
     return (
       <tr key={order.id} className={`${bgColor} border-b`}>
         <td className="p-2">{order.id}</td>
-        <td className="p-2">
-          {order.customer_name} {order.paid && <span title="Zaplaceno">💰</span>}
-        </td>
+        <td className="p-2">{order.customer_name} {order.paid && <span title="Zaplaceno">💰</span>}</td>
         <td className="p-2">{order.email || "-"}</td>
         <td className="p-2">{order.phone || "-"}</td>
-        <td className="p-2">{order.standard_quantity}</td>
-        <td className="p-2">{order.low_chol_quantity}</td>
+        <td className="p-2 text-right">{order.standard_quantity}</td>
+        <td className="p-2 text-right">{order.low_chol_quantity}</td>
         <td className="p-2">{order.pickup_location}</td>
         <td className="p-2">{order.pickup_date}</td>
+        <td className="p-2 text-right">{order.payment_total ?? "-"}</td>
 
         <td className="p-2 text-center">
           <input
@@ -104,14 +108,23 @@ export default function OrdersTable({ orders, refreshOrders }) {
           {order.status !== STATUSES[STATUSES.length - 1] && (
             <button
               onClick={() => advanceStatus(order.id)}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-xs"
             >
               Další stav
             </button>
           )}
+
+          <button
+            onClick={() => openEditor(order)}
+            className="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 text-xs"
+            title="Upravit objednávku"
+          >
+            Upravit
+          </button>
+
           <button
             onClick={() => resetPrice(order.id)}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-xs"
           >
             Vynulovat cenu
           </button>
@@ -142,6 +155,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
             <th className="p-2">LowChol</th>
             <th className="p-2">Místo</th>
             <th className="p-2">Datum</th>
+            <th className="p-2 text-right">Cena</th>
             <th className="p-2 text-center">Zaplaceno</th>
             <th className="p-2">Akce</th>
           </tr>
@@ -168,12 +182,21 @@ export default function OrdersTable({ orders, refreshOrders }) {
               <th className="p-2">LowChol</th>
               <th className="p-2">Místo</th>
               <th className="p-2">Datum</th>
+              <th className="p-2 text-right">Cena</th>
               <th className="p-2 text-center">Zaplaceno</th>
               <th className="p-2">Akce</th>
             </tr>
           </thead>
           <tbody>{finishedOrders.map(renderRow)}</tbody>
         </table>
+      )}
+
+      {editingOrder && (
+        <OrderEditModal
+          order={editingOrder}
+          onClose={() => setEditingOrder(null)}
+          onSaved={() => { setEditingOrder(null); refreshOrders(); }}
+        />
       )}
     </div>
   );
