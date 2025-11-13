@@ -1,4 +1,4 @@
-import { supabaseServer } from "../../../../lib/supabaseServerClient";
+import { supabaseServer } from "../../../lib/supabaseServerClient";
 
 function parsePossibleCZ(dateStr) {
   if (!dateStr) return null;
