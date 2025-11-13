@@ -1,15 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
-import { X } from "lucide-react";
-
-/**
- * PreorderForm.js
- * Formulář pro předobjednávky vajec
- * Povinná pole: jméno, počet vajec (min 10, násobky 10), místo vyzvednutí
- * Nepovinná pole: email, telefon, poznámka
- */
 
 export default function PreorderForm() {
   const [formData, setFormData] = useState({
@@ -26,6 +16,7 @@ export default function PreorderForm() {
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Načtení aktuálního počtu ks
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -64,13 +55,16 @@ export default function PreorderForm() {
     });
   };
 
+  const handlePickupSelect = (location) => {
+    setFormData((prev) => ({ ...prev, pickupLocation: location }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const standard = parseInt(formData.standardQuantity || 0, 10);
     const lowchol = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standard + lowchol;
 
-    // validace
     if (!formData.name.trim()) {
       toast.error("❌ Zadejte jméno a příjmení.");
       return;
@@ -103,18 +97,18 @@ export default function PreorderForm() {
     setLoading(true);
     try {
       const res = await fetch("/api/preorders/create", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    name: formData.name,
-    email: formData.email,
-    phone: formData.phone,
-    pickupLocation: formData.pickupLocation,
-    standardQty: parseInt(formData.standardQuantity || 0, 10),
-    lowcholQty: parseInt(formData.lowCholQuantity || 0, 10),
-    note: formData.note,
-  }),
-});
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          pickupLocation: formData.pickupLocation,
+          standardQty: standard,
+          lowcholQty: lowchol,
+          note: formData.note,
+        }),
+      });
 
       const data = await res.json();
 
@@ -154,6 +148,10 @@ export default function PreorderForm() {
           onSubmit={handleSubmit}
           className="bg-white bg-opacity-90 shadow-xl rounded-2xl p-6 space-y-4 backdrop-blur-sm"
         >
+          <h2 className="text-3xl font-bold text-green-700 text-center mb-2">
+            🥚 Předobjednávka vajec
+          </h2>
+
           <div>
             <label className="block text-gray-800 mb-1">Jméno a příjmení *</label>
             <input
@@ -246,18 +244,25 @@ export default function PreorderForm() {
             </div>
           </div>
 
+          {/* ✅ NOVÝ design výběru místa odběru */}
           <div>
             <label className="block text-gray-800 mb-1">Místo vyzvednutí *</label>
-            <select
-              name="pickupLocation"
-              value={formData.pickupLocation}
-              onChange={handleChange}
-              className="w-full border rounded-xl p-2 focus:ring-2 focus:ring-green-400"
-            >
-              <option value="">Vyberte místo</option>
-              <option value="Dematic Ostrov u Stříbra 65">Dematic Ostrov u Stříbra 65</option>
-              <option value="Honezovice">Honezovice</option>
-            </select>
+            <div className="flex gap-4">
+              {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
+                <button
+                  type="button"
+                  key={loc}
+                  onClick={() => handlePickupSelect(loc)}
+                  className={`flex-1 border rounded-xl py-2 font-semibold transition ${
+                    formData.pickupLocation === loc
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white hover:bg-green-100 border-gray-400 text-gray-800"
+                  }`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
