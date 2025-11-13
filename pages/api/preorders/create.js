@@ -106,7 +106,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔶 Výpočet ceny (5 Kč / 7 Kč jako objednávky)
+    // 🔶 Výpočet ceny (stejná logika jako objednávky)
     const totalPrice = std * 5 + low * 7;
 
     // 🔶 Uložit do DB
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
           status: "čeká",
         },
       ])
-      .select("id") // ← ABYCHOM ZÍSKALI ID
+      .select("id") // ← DŮLEŽITÉ — vezmeme id vytvořeného záznamu
       .single();
 
     if (insertErr) {
@@ -140,9 +140,10 @@ export default async function handler(req, res) {
     // 🔶 Vrátíme success + ID + cenu
     return res.status(200).json({
       success: true,
-      id: insertData.id,
+      preorderId: insertData.id,
       totalPrice,
     });
+
   } catch (err) {
     console.error("🔥 CREATE ERROR:", err);
     return res.status(500).json({
