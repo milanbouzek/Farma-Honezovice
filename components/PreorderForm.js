@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 
 export default function PreorderForm() {
   const [formData, setFormData] = useState({
@@ -9,14 +11,60 @@ export default function PreorderForm() {
     standardQuantity: "",
     lowCholQuantity: "",
     pickupLocation: "",
-    pickupDate: "",
+    pickupDate: "", // DD.MM.YYYY
     note: "",
   });
 
   const [currentTotal, setCurrentTotal] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [dateError, setDateError] = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
 
+  const calendarRef = useRef(null);
+
+  // dnešek (00:00)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const getDateOffset = (offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const formatDateCZ = (date) => {
+    if (!date) return "";
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    return `${dd}.${mm}.${yyyy}`;
+  };
+
+  const parseDateFromCZ = (cz) => {
+    if (!cz) return null;
+    const [dd, mm, yyyy] = cz.split(".");
+    if (!dd || !mm || !yyyy) return null;
+    const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+
+  const isValidDate = (date, location = formData.pickupLocation) => {
+    let d = date instanceof Date ? new Date(date) : parseDateFromCZ(date);
+    if (!d) return false;
+
+    d.setHours(0, 0, 0, 0);
+
+    if (d <= today) return false;
+    if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
+
+    return true;
+  };
+
+  // načtení dostupných kusů (limit 100 ks)
   const fetchLimit = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -37,6 +85,7 @@ export default function PreorderForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -51,19 +100,65 @@ export default function PreorderForm() {
   const handleAdd = (field, amount) => {
     setFormData((prev) => {
       const cur = parseInt(prev[field] || 0, 10);
-      return { ...prev, [field]: Math.min(Math.max(cur + amount, 0), 20) };
+      return { ...prev, [field]: Math.max(0, cur + amount) };
     });
   };
 
-  const setShortcutDate = (days) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    const iso = d.toISOString().split("T")[0];
-    setFormData((prev) => ({ ...prev, pickupDate: iso }));
+  const clearDateAndSetError = (msg) => {
+    setFormData((prev) => ({ ...prev, pickupDate: "" }));
+    setDateError(msg || "");
   };
 
   const handlePickupSelect = (loc) => {
     setFormData((prev) => ({ ...prev, pickupLocation: loc }));
+
+    if (formData.pickupDate) {
+      const parsed = parseDateFromCZ(formData.pickupDate);
+      if (!isValidDate(parsed, loc)) {
+        if (loc === "Dematic Ostrov u Stříbra 65") {
+          clearDateAndSetError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+        } else {
+          clearDateAndSetError("❌ Nelze vybrat dnešní den.");
+        }
+      } else {
+        setDateError("");
+      }
+    }
+  };
+
+  const handleDateSelect = (date) => {
+    if (!date) return;
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    if (!isValidDate(d)) {
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        clearDateAndSetError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        clearDateAndSetError("❌ Nelze vybrat dnešní den.");
+      }
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, pickupDate: formatDateCZ(d) }));
+    setDateError("");
+    setShowCalendar(false);
+  };
+
+  const handleDateQuickPick = (offset) => {
+    const d = getDateOffset(offset);
+
+    if (!isValidDate(d)) {
+      if (formData.pickupLocation === "Dematic Ostrov u Stříbra 65") {
+        clearDateAndSetError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
+      } else {
+        clearDateAndSetError("❌ Nelze vybrat dnešní den.");
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, pickupDate: formatDateCZ(d) }));
+      setDateError("");
+    }
+
+    setShowCalendar(false);
   };
 
   const handleSubmit = async (e) => {
@@ -73,6 +168,7 @@ export default function PreorderForm() {
     const lowchol = parseInt(formData.lowCholQuantity || 0, 10);
     const totalEggs = standard + lowchol;
 
+    // validace
     if (!formData.name.trim()) {
       toast.error("❌ Zadejte jméno a příjmení.");
       return;
@@ -81,17 +177,12 @@ export default function PreorderForm() {
       toast.error("❌ Vyberte místo vyzvednutí.");
       return;
     }
-    if (!formData.pickupDate) {
-      toast.error("❌ Vyberte datum vyzvednutí.");
+    if (!formData.pickupDate || !isValidDate(formData.pickupDate)) {
+      toast.error("❌ Neplatné nebo chybějící datum vyzvednutí.");
       return;
     }
-
-    if (totalEggs < 10) {
-      toast.error("❌ Minimální objednávka je 10 ks.");
-      return;
-    }
-    if (totalEggs % 10 !== 0) {
-      toast.error("❌ Počet vajec musí být násobek 10.");
+    if (totalEggs < 10 || totalEggs % 10 !== 0) {
+      toast.error("❌ Minimální objednávka je 10 ks a násobky 10.");
       return;
     }
     if (totalEggs > 20) {
@@ -100,9 +191,7 @@ export default function PreorderForm() {
     }
     if (currentTotal + totalEggs > 100) {
       toast.error(
-        `❌ Celkový limit 100 ks překročen. Aktuálně dostupných ${
-          100 - currentTotal
-        } ks.`
+        `❌ Celkový limit 100 ks překročen. Dostupných: ${100 - currentTotal}`
       );
       return;
     }
@@ -128,10 +217,9 @@ export default function PreorderForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        toast.success(
-          `✅ Předobjednávka #${data.id} vytvořena • Cena ${data.totalPrice} Kč`
-        );
+        toast.success(`✅ Předobjednávka byla odeslána!`);
 
+        // reset formuláře
         setFormData({
           name: "",
           email: "",
@@ -145,7 +233,7 @@ export default function PreorderForm() {
 
         fetchLimit();
       } else {
-        toast.error(data.error || "❌ Došlo k chybě.");
+        toast.error(data.error || "❌ Chyba při odesílání.");
       }
     } catch (err) {
       console.error(err);
@@ -158,6 +246,7 @@ export default function PreorderForm() {
   return (
     <div className="max-w-lg mx-auto p-4">
       <Toaster position="top-center" />
+
       {limitReached ? (
         <p className="text-center text-red-600 font-semibold">
           Limit 100 ks byl dosažen. Předobjednávky jsou uzavřeny.
@@ -169,15 +258,12 @@ export default function PreorderForm() {
         >
           {/* Jméno */}
           <div>
-            <label className="block text-gray-700 mb-1">
-              Jméno a příjmení *
-            </label>
+            <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              placeholder="Zadejte celé jméno"
               className="w-full border rounded-xl p-2"
             />
           </div>
@@ -190,7 +276,6 @@ export default function PreorderForm() {
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="+420…"
               className="w-full border rounded-xl p-2"
             />
           </div>
@@ -203,43 +288,39 @@ export default function PreorderForm() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="např. jan@domena.cz"
               className="w-full border rounded-xl p-2"
             />
           </div>
 
-          {/* Standardní vejce */}
+          {/* Standard */}
           <div>
-            <label className="block text-gray-700 mb-1">
-              Standardní vejce *
-            </label>
+            <label className="block text-gray-700 mb-1">Standardní vejce *</label>
             <div className="flex gap-2 items-center">
               <input
                 type="number"
                 name="standardQuantity"
                 value={formData.standardQuantity}
                 onChange={handleChange}
-                min="0"
                 className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
                 onClick={() => handleAdd("standardQuantity", 5)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 +5
               </button>
               <button
                 type="button"
                 onClick={() => handleAdd("standardQuantity", 10)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 +10
               </button>
             </div>
           </div>
 
-          {/* Vejce LowChol */}
+          {/* LowChol */}
           <div>
             <label className="block text-gray-700 mb-1">
               LowChol vejce *
@@ -250,30 +331,29 @@ export default function PreorderForm() {
                 name="lowCholQuantity"
                 value={formData.lowCholQuantity}
                 onChange={handleChange}
-                min="0"
                 className="w-full border rounded-xl p-2"
               />
               <button
                 type="button"
                 onClick={() => handleAdd("lowCholQuantity", 5)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 +5
               </button>
               <button
                 type="button"
                 onClick={() => handleAdd("lowCholQuantity", 10)}
-                className="bg-yellow-400 px-3 py-1 rounded-lg hover:bg-yellow-500"
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 +10
               </button>
             </div>
           </div>
 
-          {/* Místo odběru */}
+          {/* Místo vyzvednutí */}
           <div>
             <label className="block text-gray-700 mb-1">Místo vyzvednutí *</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
                 <button
                   key={loc}
@@ -291,29 +371,69 @@ export default function PreorderForm() {
             </div>
           </div>
 
-          {/* Datum */}
+          {/* DATUM VYZVEDNUTÍ */}
           <div>
             <label className="block text-gray-700 mb-1">Datum vyzvednutí *</label>
+
             <input
               type="text"
               name="pickupDate"
-              placeholder="YYYY-MM-DD"
               value={formData.pickupDate}
-              onChange={handleChange}
-              className="w-full border rounded-xl p-2"
+              onFocus={() => setShowCalendar(true)}
+              readOnly
+              placeholder="DD.MM.YYYY"
+              className={`w-full border rounded-xl p-2 ${
+                dateError ? "border-red-500" : ""
+              }`}
             />
+
+            {dateError && (
+              <p className="text-red-600 text-sm mt-1">{dateError}</p>
+            )}
+
+            {showCalendar && (
+              <div ref={calendarRef} className="mt-2">
+                <DayPicker
+                  mode="single"
+                  selected={
+                    formData.pickupDate
+                      ? parseDateFromCZ(formData.pickupDate)
+                      : undefined
+                  }
+                  onSelect={handleDateSelect}
+                  disabled={(date) => {
+                    const d = new Date(
+                      date.getFullYear(),
+                      date.getMonth(),
+                      date.getDate()
+                    );
+                    if (d <= today) return true;
+                    if (
+                      formData.pickupLocation ===
+                        "Dematic Ostrov u Stříbra 65" &&
+                      isWeekend(d)
+                    )
+                      return true;
+                    return false;
+                  }}
+                  weekStartsOn={1}
+                />
+              </div>
+            )}
+
             <div className="flex gap-2 mt-2">
               <button
                 type="button"
-                onClick={() => setShortcutDate(1)}
-                className="px-4 py-2 bg-yellow-400 rounded-xl font-semibold hover:bg-yellow-500"
+                onClick={() => handleDateQuickPick(1)}
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 Zítra
               </button>
+
               <button
                 type="button"
-                onClick={() => setShortcutDate(2)}
-                className="px-4 py-2 bg-yellow-400 rounded-xl font-semibold hover:bg-yellow-500"
+                onClick={() => handleDateQuickPick(2)}
+                className="bg-yellow-400 px-3 py-1 rounded-lg"
               >
                 Pozítří
               </button>
@@ -328,7 +448,6 @@ export default function PreorderForm() {
               value={formData.note}
               onChange={handleChange}
               className="w-full border rounded-xl p-2 h-20"
-              placeholder="Např. preferovaný termín odběru..."
             />
           </div>
 
@@ -338,7 +457,7 @@ export default function PreorderForm() {
             disabled={loading}
             className="bg-yellow-400 w-full px-6 py-3 rounded-xl font-semibold shadow-md hover:bg-yellow-500 hover:scale-105 transform transition"
           >
-            {loading ? "Odesílám…" : "Odeslat předobjednávku"}
+            {loading ? "Odesílám..." : "Odeslat předobjednávku"}
           </button>
         </form>
       )}
