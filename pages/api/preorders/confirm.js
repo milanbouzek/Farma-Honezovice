@@ -1,35 +1,27 @@
 import { supabase } from "@/lib/supabaseClient";
 
 export default async function handler(req, res) {
-  console.log("=== CONFIRM START ===");
-
   if (req.method !== "POST") {
-    console.log("❌ Wrong method");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
     const { id } = req.body;
-    console.log("➡️ Preorder ID:", id);
 
-    // 1️⃣ Načíst předobjednávku
+    // 1️⃣ Načteme předobjednávku
     const { data: preorder, error: loadErr } = await supabase
       .from("preorders")
       .select("*")
       .eq("id", id)
       .single();
 
-    console.log("📌 PREORDER LOADED:", preorder);
-    console.log("📌 loadErr:", loadErr);
-
-    if (loadErr) throw new Error("Load error: " + loadErr.message);
+    if (loadErr) throw loadErr;
     if (!preorder) throw new Error("Preorder not found");
 
-    // 2️⃣ Spočítat cenu
+    // 2️⃣ Cena
     const totalPrice = preorder.standardQty * 5 + preorder.lowcholQty * 7;
-    console.log("💰 Total price:", totalPrice);
 
-    // 3️⃣ Vložit do orders
+    // 3️⃣ Vložíme do orders
     const { error: insertErr } = await supabase.from("orders").insert([
       {
         customer_name: preorder.name,
@@ -37,8 +29,14 @@ export default async function handler(req, res) {
         phone: preorder.phone,
         standard_quantity: preorder.standardQty,
         low_chol_quantity: preorder.lowcholQty,
-        pickup_location: preorder.pickupLocation,
-        pickup_date: null, // !!! Pokud je povinné, tady to spadne !!!
+
+        // 🔥 TADY BYLA CHYBA
+        // preorders.pickuplocation -> orders.pickup_location
+        pickup_location: preorder.pickuplocation,
+
+        // Předobjednávky nemají datum — dáme NULL nebo ho budeš chtít doplnit později
+        pickup_date: null,
+
         payment_total: totalPrice,
         payment_currency: "CZK",
         status: "new",
@@ -46,25 +44,21 @@ export default async function handler(req, res) {
       },
     ]);
 
-    console.log("📌 InsertErr:", insertErr);
+    if (insertErr) throw insertErr;
 
-    if (insertErr) throw new Error("Insert error: " + insertErr.message);
-
-    // 4️⃣ Aktualizace statusu v preorders
+    // 4️⃣ Předobjednávku označíme jako potvrzenou
     const { error: updateErr } = await supabase
       .from("preorders")
       .update({ status: "potvrzená" })
       .eq("id", id);
 
-    console.log("📌 UpdateErr:", updateErr);
-
-    if (updateErr) throw new Error("Update error: " + updateErr.message);
-
-    console.log("=== CONFIRM DONE ===");
+    if (updateErr) throw updateErr;
 
     return res.status(200).json({ success: true });
   } catch (err) {
-    console.error("🔥 CONFIRM ERROR:", err);
-    return res.status(500).json({ error: "Failed to confirm preorder", details: err.message });
+    console.error("Confirm error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to confirm preorder", details: err.message });
   }
 }
