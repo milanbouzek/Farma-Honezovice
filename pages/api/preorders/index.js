@@ -6,18 +6,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 🔥 počítáme pouze předobjednávky, které mají status "čeká"
+    // načíst pouze NEPŘEVEDEMÉ předobjednávky
     const { data, error } = await supabase
       .from("preorders")
       .select("*")
-      .eq("status", "čeká")
+      .eq("converted", false)
       .order("created_at", { ascending: true });
 
     if (error) throw error;
 
-    // 🔥 správný výpočet počtu vajec
+    // výpočet celkového počtu vajec
     const total = data.reduce(
-      (sum, row) => sum + (row.standardQty || 0) + (row.lowcholQty || 0),
+      (sum, row) =>
+        sum +
+        (row.standardQty || 0) +
+        (row.lowcholQty || 0),
       0
     );
 
@@ -25,6 +28,7 @@ export default async function handler(req, res) {
       preorders: data,
       total,
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
