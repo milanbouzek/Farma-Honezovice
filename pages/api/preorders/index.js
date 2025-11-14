@@ -7,22 +7,25 @@ export default async function handler(req, res) {
   }
 
   try {
+    // načteme pouze předobjednávky, které ještě ČEKAJÍ
     const { data, error } = await supabase
       .from("preorders")
-      .select("id, standardQty, lowcholQty, status, converted, name, email, phone, pickupdate, pickuplocation, note, created_at")
-      .eq("converted", false)        // jen nepřevedené
-      .eq("status", "čeká")         // jen čekající
+      .select("*")
+      .eq("status", "čeká")
       .order("created_at", { ascending: true });
 
     if (error) throw error;
 
+    // spočítáme počet kusů
     const total = (data || []).reduce((sum, row) => {
-      return sum + Number(row.standardQty || 0) + Number(row.lowcholQty || 0);
+      const s = Number(row.standardQty || 0);
+      const l = Number(row.lowcholQty || 0);
+      return sum + s + l;
     }, 0);
 
     res.status(200).json({
       preorders: data,
-      total,
+      total, // ← toto se ukáže na FE jako aktuální vytížení
     });
   } catch (err) {
     console.error("Preorders index error:", err);
