@@ -27,7 +27,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
     } catch (e) {}
   };
 
-  // postup stavu objednávky (POST /api/admin/orders)
+  // postup stavu objednávky
   const advanceStatus = async (id) => {
     try {
       const res = await fetch("/api/admin/orders", {
@@ -47,7 +47,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // přepnutí zaplaceno (POST /api/admin/toggle-paid)
+  // zaplaceno
   const togglePaid = async (id, currentState) => {
     try {
       const res = await fetch("/api/admin/toggle-paid", {
@@ -67,7 +67,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // vynulovat cenu (POST /api/admin/reset-price)
+  // vynulovat cenu
   const resetPrice = async (id) => {
     try {
       const res = await fetch("/api/admin/reset-price", {
@@ -87,7 +87,32 @@ export default function OrdersTable({ orders, refreshOrders }) {
     }
   };
 
-  // otevřít modal pro editaci
+  // 🗑 Smazání objednávky
+  const handleDelete = async (id) => {
+    const ok = confirm("Opravdu chcete smazat tuto objednávku?");
+    if (!ok) return;
+
+    try {
+      const res = await fetch("/api/admin/delete-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success("🗑 Objednávka byla smazána");
+        refreshOrders();
+      } else {
+        toast.error("Chyba při mazání: " + (data.error || ""));
+      }
+    } catch (err) {
+      toast.error("Chyba komunikace: " + err.message);
+    }
+  };
+
+  // modal edit
   const handleEdit = (order) => {
     setEditingOrder(order);
     setModalOpen(true);
@@ -124,7 +149,7 @@ export default function OrdersTable({ orders, refreshOrders }) {
         </td>
 
         <td className="p-2 text-right text-sm font-medium">
-          {order.payment_total !== null && order.payment_total !== undefined
+          {order.payment_total != null
             ? `${Number(order.payment_total).toFixed(2)} Kč`
             : "-"}
         </td>
@@ -160,6 +185,14 @@ export default function OrdersTable({ orders, refreshOrders }) {
             className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm"
           >
             Vynulovat cenu
+          </button>
+
+          {/* 🗑 NOVÉ TLAČÍTKO SMAZAT */}
+          <button
+            onClick={() => handleDelete(order.id)}
+            className="bg-gray-700 text-white px-3 py-1 rounded hover:bg-black text-sm"
+          >
+            Smazat
           </button>
         </td>
       </tr>
