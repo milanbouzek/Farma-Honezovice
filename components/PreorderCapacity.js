@@ -1,53 +1,49 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function PreorderCapacity() {
-  const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const LIMIT = 100;
 
-  // každých 10 sekund obnovit
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("/api/preorders/count");
-        const data = await res.json();
-        setCurrent(data.total || 0);
-        setLoading(false);
-      } catch (err) {
-        console.error("Chyba načítání kapacity:", err);
+  async function load() {
+    try {
+      const res = await fetch("/api/preorders");
+      const data = await res.json();
+
+      if (res.ok) {
+        // API už vrací total = jen "čeká"
+        setTotal(data.total || 0);
       }
-    };
+    } catch (err) {
+      console.error("Chyba při načítání limitu:", err);
+    }
+  }
 
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const max = 100;
-  const percent = Math.min(100, Math.round((current / max) * 100));
+  const percent = Math.min(100, Math.round((total / LIMIT) * 100));
 
-  let color = "bg-green-500";
-  if (percent >= 50 && percent < 80) color = "bg-orange-500";
-  if (percent >= 80) color = "bg-red-600";
+  // barva podle vytížení
+  const barColor =
+    percent < 50 ? "bg-green-500" : percent < 80 ? "bg-orange-500" : "bg-red-500";
 
   return (
-    <div className="mb-4">
-      {/* text */}
-      <p className="font-semibold text-gray-800 mb-1">
-        Celkový limit systému:{" "}
-        <span className="font-bold">{current} / {max} ks</span>
+    <div className="mb-4 bg-white p-4 rounded-xl shadow">
+      <p className="font-semibold text-gray-700 mb-1">
+        Celkový limit systému: {total} / {LIMIT} ks
       </p>
 
-      {/* progress bar */}
-      <div className="w-full h-4 bg-gray-200 rounded-xl overflow-hidden shadow-inner">
+      <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
         <div
-          className={`${color} h-full transition-all duration-500`}
+          className={`${barColor} h-full transition-all`}
           style={{ width: `${percent}%` }}
         ></div>
       </div>
 
-      {!loading && (
-        <p className="text-sm text-gray-600 mt-1">{percent}% kapacity</p>
-      )}
+      <p className="text-sm text-gray-600 mt-1">{percent}% kapacity</p>
     </div>
   );
 }
