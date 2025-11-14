@@ -1,5 +1,5 @@
 // pages/api/admin/delete-order.js
-import { supabase } from "@/lib/supabaseServerClient";
+import { supabaseServer } from "@/lib/supabaseServerClient";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Nejprve zkontrolujeme, že objednávka existuje
-    const { data: order, error: selectError } = await supabase
+    // Ověření, že objednávka existuje
+    const { data: order, error: selectError } = await supabaseServer
       .from("orders")
       .select("id")
       .eq("id", id)
@@ -29,8 +29,8 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Objednávka nenalezena." });
     }
 
-    // Smazat
-    const { error: deleteError } = await supabase
+    // Smazání objednávky
+    const { error: deleteError } = await supabaseServer
       .from("orders")
       .delete()
       .eq("id", id);
