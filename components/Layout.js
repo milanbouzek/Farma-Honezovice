@@ -84,7 +84,7 @@ export default function Layout({ children }) {
             </Link>
 
             <Link href="/predobjednavka" className={linkClass("/predobjednavka")}>
-              🥚 Předobjednávka
+              Předobjednávka vajec
             </Link>
 
             <Link href="/novinky" className={linkClass("/novinky")}>
