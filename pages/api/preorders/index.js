@@ -7,20 +7,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Načteme všechny předobjednávky, které nejsou potvrzené (status != 'potvrzená')
     const { data, error } = await supabase
       .from("preorders")
-      .select("*")
-      .neq("status", "potvrzená")
+      .select("id, standardQty, lowcholQty, status, converted, name, email, phone, pickupdate, pickuplocation, note, created_at")
+      .eq("converted", false)        // jen nepřevedené
+      .eq("status", "čeká")         // jen čekající
       .order("created_at", { ascending: true });
 
     if (error) throw error;
 
-    // Spočítáme celkem ks = standardQty + lowcholQty
     const total = (data || []).reduce((sum, row) => {
-      const s = Number(row.standardQty || 0);
-      const l = Number(row.lowcholQty || 0);
-      return sum + s + l;
+      return sum + Number(row.standardQty || 0) + Number(row.lowcholQty || 0);
     }, 0);
 
     res.status(200).json({
