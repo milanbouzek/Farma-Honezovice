@@ -13,29 +13,30 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Zkontrolujeme, zda objednávka existuje
-    const { data: existing, error: selectError } = await supabase
+    // Nejprve zkontrolujeme, že objednávka existuje
+    const { data: order, error: selectError } = await supabase
       .from("orders")
       .select("id")
       .eq("id", id)
       .single();
 
     if (selectError) {
+      console.error("Select error:", selectError);
       return res.status(500).json({ error: "Chyba při ověřování objednávky." });
     }
 
-    if (!existing) {
+    if (!order) {
       return res.status(404).json({ error: "Objednávka nenalezena." });
     }
 
-    // SMAZAT OBJEDNÁVKU
+    // Smazat
     const { error: deleteError } = await supabase
       .from("orders")
       .delete()
       .eq("id", id);
 
     if (deleteError) {
-      console.error("Delete order error:", deleteError);
+      console.error("Delete error:", deleteError);
       return res.status(500).json({ error: "Chyba při mazání objednávky." });
     }
 
@@ -43,12 +44,10 @@ export default async function handler(req, res) {
       success: true,
       message: "Objednávka byla úspěšně smazána.",
     });
-
   } catch (err) {
-    console.error("Unhandled delete error:", err);
+    console.error("Unexpected error:", err);
     return res.status(500).json({
       error: "Neočekávaná chyba serveru.",
-      details: err.message,
     });
   }
 }
