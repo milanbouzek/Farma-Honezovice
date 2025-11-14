@@ -21,8 +21,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("=== CREATE PREORDER START ===");
-
     const {
       name,
       email = null,
@@ -58,7 +56,7 @@ export default async function handler(req, res) {
     const max = new Date(today);
     max.setDate(max.getDate() + 30);
 
-    // 🔶 Validace data (stejně jako u objednávek)
+    // 🔶 Validace data
     if (d < tomorrow) {
       return res.status(400).json({ error: "Datum musí být nejdříve zítra." });
     }
@@ -88,10 +86,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔶 Celkový limit 100 ks
+    // 🔶 Celkový limit 100 ks — počítat POUZE converted = false
     const { data: all, error: allErr } = await supabase
       .from("preorders")
-      .select("standardQty, lowcholQty");
+      .select("standardQty, lowcholQty, converted")
+      .eq("converted", false);
 
     if (allErr) throw allErr;
 
@@ -106,7 +105,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔶 Výpočet ceny (stejná logika jako objednávky)
+    // 🔶 Výpočet ceny
     const totalPrice = std * 5 + low * 7;
 
     // 🔶 Uložit do DB
@@ -125,19 +124,14 @@ export default async function handler(req, res) {
           lowcholQty: low,
           note,
           status: "čeká",
+          converted: false,     // ⬅ NOVÉ – default hodnoty
         },
       ])
-      .select("id") // ← DŮLEŽITÉ — vezmeme id vytvořeného záznamu
+      .select("id")
       .single();
 
-    if (insertErr) {
-      console.error("❌ Insert error:", insertErr);
-      throw insertErr;
-    }
+    if (insertErr) throw insertErr;
 
-    console.log("✅ Preorder CREATED OK:", insertData);
-
-    // 🔶 Vrátíme success + ID + cenu
     return res.status(200).json({
       success: true,
       preorderId: insertData.id,
