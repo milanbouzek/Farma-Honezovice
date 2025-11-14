@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
 
-// převod DD.MM.YYYY → Date
 function parseCZ(dateStr) {
   if (!dateStr) return null;
   const [dd, mm, yyyy] = dateStr.split(".");
@@ -26,27 +25,22 @@ export default async function handler(req, res) {
       email = null,
       phone = null,
       pickupLocation,
-      pickupDate, // DD.MM.YYYY
+      pickupDate,
       standardQty = 0,
       lowcholQty = 0,
       note = null,
     } = req.body;
 
-    // 🔶 Povinné hodnoty
     if (!name || !pickupLocation || !pickupDate) {
       return res.status(400).json({
         error: "Chybí povinné údaje nebo datum vyzvednutí.",
       });
     }
 
-    // 🔶 Převeď datum
     const d = parseCZ(pickupDate);
-    if (!d) {
-      return res.status(400).json({ error: "Neplatné datum." });
-    }
+    if (!d) return res.status(400).json({ error: "Neplatné datum." });
     d.setHours(0, 0, 0, 0);
 
-    // pomocné datumy
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -56,7 +50,6 @@ export default async function handler(req, res) {
     const max = new Date(today);
     max.setDate(max.getDate() + 30);
 
-    // 🔶 Validace data
     if (d < tomorrow) {
       return res.status(400).json({ error: "Datum musí být nejdříve zítra." });
     }
@@ -69,7 +62,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Pro Dematic nelze vybrat víkend." });
     }
 
-    // 🔶 Validace množství
     const std = parseInt(standardQty || 0, 10);
     const low = parseInt(lowcholQty || 0, 10);
     const total = std + low;
@@ -86,15 +78,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔶 Celkový limit 100 ks — počítat POUZE converted = false
-    const { data: all, error: allErr } = await supabase
+    // 🔥 LIMIT 100 ks — počítáme pouze NEPŘEVEDEMÉ
+    const { data: active, error: activeErr } = await supabase
       .from("preorders")
-      .select("standardQty, lowcholQty, converted")
+      .select("standardQty, lowcholQty")
       .eq("converted", false);
 
-    if (allErr) throw allErr;
+    if (activeErr) throw activeErr;
 
-    const current = (all || []).reduce(
+    const current = (active || []).reduce(
       (s, r) => s + (r.standardQty || 0) + (r.lowcholQty || 0),
       0
     );
@@ -105,11 +97,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // 🔶 Výpočet ceny
     const totalPrice = std * 5 + low * 7;
 
-    // 🔶 Uložit do DB
-    const isoDate = d.toISOString().split("T")[0]; // YYYY-MM-DD
+    const isoDate = d.toISOString().split("T")[0];
 
     const { data: insertData, error: insertErr } = await supabase
       .from("preorders")
@@ -124,7 +114,7 @@ export default async function handler(req, res) {
           lowcholQty: low,
           note,
           status: "čeká",
-          converted: false,     // ⬅ NOVÉ – default hodnoty
+          converted: false, // 📌 důležité
         },
       ])
       .select("id")
