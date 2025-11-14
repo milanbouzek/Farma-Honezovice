@@ -12,27 +12,7 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
 
   const calendarRef = useRef(null);
 
-  // naplnění formuláře
-  useEffect(() => {
-    if (!preorder) return;
-
-    setForm({
-      id: preorder.id,
-      name: preorder.name || "",
-      email: preorder.email || "",
-      phone: preorder.phone || "",
-      pickuplocation: preorder.pickuplocation || "",
-      pickupdate: preorder.pickupdate || "",
-      standardQty: preorder.standardQty ?? 0,
-      lowcholQty: preorder.lowcholQty ?? 0,
-      note: preorder.note || "",
-      status: preorder.status || "čeká",
-    });
-  }, [preorder]);
-
-  if (!form) return null;
-
-  // pomocné funkce
+  // --- Helpers ---
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -47,7 +27,9 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
     if (!cz) return null;
     const [dd, mm, yyyy] = cz.split(".");
     if (!dd || !mm || !yyyy) return null;
-    return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    const iso = `${yyyy}-${mm}-${dd}`;
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
   };
 
   const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
@@ -66,18 +48,48 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
 
   const setField = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
-  // výběr data
+  // --- Load preorder into form ---
+  useEffect(() => {
+    if (!preorder) return;
+
+    let parsedDate = "";
+
+    if (preorder.pickupdate) {
+      // DB returns ISO → convert to Date → to CZ format
+      const d = new Date(preorder.pickupdate);
+      if (!isNaN(d.getTime())) {
+        parsedDate = formatDateCZ(d);
+      }
+    }
+
+    setForm({
+      id: preorder.id,
+      name: preorder.name || "",
+      email: preorder.email || "",
+      phone: preorder.phone || "",
+      pickuplocation: preorder.pickuplocation || "",
+      pickupdate: parsedDate,
+      standardQty: preorder.standardQty ?? 0,
+      lowcholQty: preorder.lowcholQty ?? 0,
+      note: preorder.note || "",
+      status: preorder.status || "čeká",
+    });
+  }, [preorder]);
+
+  if (!form) return null;
+
+  // ---------------- DATE SELECT ----------------
   const handleDateSelect = (d) => {
     if (!d) return;
 
     const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
     if (!isValidDate(date)) {
-      if (form.pickuplocation === "Dematic Ostrov u Stříbra 65") {
-        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-      } else {
-        setDateError("❌ Nelze vybrat dnešní den.");
-      }
+      setDateError(
+        form.pickuplocation === "Dematic Ostrov u Stříbra 65"
+          ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
+          : "❌ Nelze vybrat dnešní den."
+      );
       return;
     }
 
@@ -92,11 +104,11 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
     d.setHours(0, 0, 0, 0);
 
     if (!isValidDate(d, form.pickuplocation)) {
-      if (form.pickuplocation === "Dematic Ostrov u Stříbra 65") {
-        setDateError("❌ Nelze vybrat dnešní den nebo víkend pro Dematic.");
-      } else {
-        setDateError("❌ Nelze vybrat dnešní den.");
-      }
+      setDateError(
+        form.pickuplocation === "Dematic Ostrov u Stříbra 65"
+          ? "❌ Nelze vybrat dnešní den nebo víkend pro Dematic."
+          : "❌ Nelze vybrat dnešní den."
+      );
       return;
     }
 
@@ -104,21 +116,32 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
     setDateError("");
   };
 
-  // uložení
+  // ---------------- SAVE ----------------
   const handleSave = async () => {
     setLoading(true);
 
     try {
-      const parsed = parseDateFromCZ(form.pickupdate);
-      let isoDate = form.pickupdate;
+      // convert CZ date → ISO YYYY-MM-DD
+      let isoDate = null;
 
-      if (parsed) {
-        isoDate = parsed.toISOString().split("T")[0];
+      if (form.pickupdate) {
+        const parsed = parseDateFromCZ(form.pickupdate);
+        if (parsed) {
+          isoDate = parsed.toISOString().split("T")[0];
+        }
       }
 
       const payload = {
-        ...form,
-        pickupdate: isoDate,
+        id: form.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        pickuplocation: form.pickuplocation,
+        pickupdate: isoDate, // DATE for Supabase
+        standardQty: Number(form.standardQty),
+        lowcholQty: Number(form.lowcholQty),
+        note: form.note || null,
+        status: form.status,
       };
 
       const res = await fetch("/api/preorders/update", {
@@ -130,9 +153,9 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        toast.error(data.error || "Chyba při ukládání");
+        toast.error(data.error || "❌ Chyba při ukládání");
       } else {
-        toast.success("Předobjednávka upravena");
+        toast.success("✔ Předobjednávka upravena");
         onSaved?.();
         onClose?.();
       }
@@ -143,7 +166,7 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
     }
   };
 
-  // === RETURN ===
+  // ---------------- RENDER ----------------
   return (
     <div className="fixed inset-0 z-[9999] bg-black bg-opacity-40 flex justify-center items-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-auto">
@@ -165,7 +188,7 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
             />
           </div>
 
-          {/* Email / Telefon */}
+          {/* Kontakt */}
           <div className="grid sm:grid-cols-2 gap-2">
             <div>
               <label className="block text-sm mb-1">Telefon</label>
@@ -209,7 +232,7 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Místo odběru */}
+          {/* Odběr */}
           <div>
             <label className="block text-sm mb-1">Místo vyzvednutí</label>
             <div className="flex gap-2 flex-wrap">
@@ -234,24 +257,38 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
           <div>
             <label className="block text-sm mb-1">Datum vyzvednutí</label>
             <input
-              className={`input input-bordered w-full ${dateError ? "border-red-500" : ""}`}
+              className={`input input-bordered w-full ${
+                dateError ? "border-red-500" : ""
+              }`}
               value={form.pickupdate}
               readOnly
               onFocus={() => setShowCalendar(true)}
             />
 
-            {dateError && <p className="text-red-500 text-xs mt-1">{dateError}</p>}
+            {dateError && (
+              <p className="text-red-500 text-xs mt-1">{dateError}</p>
+            )}
 
             {showCalendar && (
               <div className="mt-2">
                 <DayPicker
                   mode="single"
-                  selected={parseDateFromCZ(form.pickupdate) || undefined}
+                  selected={
+                    parseDateFromCZ(form.pickupdate) || undefined
+                  }
                   onSelect={handleDateSelect}
                   disabled={(date) => {
-                    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+                    const d = new Date(
+                      date.getFullYear(),
+                      date.getMonth(),
+                      date.getDate()
+                    );
                     if (d <= today) return true;
-                    if (form.pickuplocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d))
+                    if (
+                      form.pickuplocation ===
+                        "Dematic Ostrov u Stříbra 65" &&
+                      isWeekend(d)
+                    )
                       return true;
                     return false;
                   }}
@@ -260,16 +297,22 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
             )}
 
             <div className="flex gap-2 mt-2">
-              <button className="bg-yellow-400 px-3 py-1 rounded" onClick={() => handleDateQuickPick(1)}>
+              <button
+                className="bg-yellow-400 px-3 py-1 rounded"
+                onClick={() => handleDateQuickPick(1)}
+              >
                 Zítra
               </button>
-              <button className="bg-yellow-400 px-3 py-1 rounded" onClick={() => handleDateQuickPick(2)}>
+              <button
+                className="bg-yellow-400 px-3 py-1 rounded"
+                onClick={() => handleDateQuickPick(2)}
+              >
                 Pozítří
               </button>
             </div>
           </div>
 
-          {/* Status */}
+          {/* Stav */}
           <div>
             <label className="block text-sm mb-1">Stav</label>
             <select
@@ -295,7 +338,10 @@ export default function PreorderEditModal({ preorder, onClose, onSaved }) {
 
           {/* Akce */}
           <div className="flex justify-end gap-2 pt-2">
-            <button className="px-4 py-2 border rounded-xl" onClick={onClose}>
+            <button
+              className="px-4 py-2 border rounded-xl"
+              onClick={onClose}
+            >
               Zavřít
             </button>
             <button
