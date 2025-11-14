@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 
+// ← Pomocné funkce
 function parseCZ(dateStr) {
   if (!dateStr) return null;
   const [dd, mm, yyyy] = dateStr.split(".");
@@ -32,11 +33,10 @@ export default async function handler(req, res) {
     } = req.body;
 
     if (!name || !pickupLocation || !pickupDate) {
-      return res.status(400).json({
-        error: "Chybí povinné údaje nebo datum vyzvednutí.",
-      });
+      return res.status(400).json({ error: "Chybí povinné údaje nebo datum vyzvednutí." });
     }
 
+    // Převod data
     const d = parseCZ(pickupDate);
     if (!d) return res.status(400).json({ error: "Neplatné datum." });
     d.setHours(0, 0, 0, 0);
@@ -50,46 +50,36 @@ export default async function handler(req, res) {
     const max = new Date(today);
     max.setDate(max.getDate() + 30);
 
-    if (d < tomorrow) {
-      return res.status(400).json({ error: "Datum musí být nejdříve zítra." });
-    }
-
-    if (d > max) {
-      return res.status(400).json({ error: "Datum je příliš daleko (max. +30 dní)." });
-    }
-
+    if (d < tomorrow) return res.status(400).json({ error: "Datum musí být nejdříve zítra." });
+    if (d > max) return res.status(400).json({ error: "Datum je příliš daleko (max. 30 dní)." });
     if (pickupLocation === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) {
       return res.status(400).json({ error: "Pro Dematic nelze vybrat víkend." });
     }
 
-    const std = parseInt(standardQty || 0, 10);
-    const low = parseInt(lowcholQty || 0, 10);
+    // Validace množství
+    const std = Number(standardQty);
+    const low = Number(lowcholQty);
     const total = std + low;
 
-    if (total < 10 || total % 10 !== 0) {
-      return res.status(400).json({
-        error: "Minimální objednávka je 10 ks a musí být násobky 10.",
-      });
-    }
+    if (total < 10 || total % 10 !== 0)
+      return res.status(400).json({ error: "Minimální objednávka je 10 ks a násobky 10." });
 
-    if (total > 20) {
-      return res.status(400).json({
-        error: "Maximálně 20 ks na jednu předobjednávku.",
-      });
-    }
+    if (total > 20)
+      return res.status(400).json({ error: "Maximálně 20 ks na jednu předobjednávku." });
 
-    // 🔥 LIMIT 100 ks — počítáme pouze NEPŘEVEDEMÉ
-    const { data: active, error: activeErr } = await supabase
+    // Výpočet aktuální kapacity
+    const { data: allRows, error: allErr } = await supabase
       .from("preorders")
-      .select("standardQty, lowcholQty")
-      .eq("converted", false);
+      .select("standardQty, lowcholQty, status");
 
-    if (activeErr) throw activeErr;
+    if (allErr) throw allErr;
 
-    const current = (active || []).reduce(
-      (s, r) => s + (r.standardQty || 0) + (r.lowcholQty || 0),
-      0
-    );
+    const current = (allRows || []).reduce((s, r) => {
+      if (r.status !== "potvrzená") {
+        return s + (r.standardQty || 0) + (r.lowcholQty || 0);
+      }
+      return s;
+    }, 0);
 
     if (current + total > 100) {
       return res.status(400).json({
@@ -98,7 +88,6 @@ export default async function handler(req, res) {
     }
 
     const totalPrice = std * 5 + low * 7;
-
     const isoDate = d.toISOString().split("T")[0];
 
     const { data: insertData, error: insertErr } = await supabase
@@ -114,7 +103,7 @@ export default async function handler(req, res) {
           lowcholQty: low,
           note,
           status: "čeká",
-          converted: false, // 📌 důležité
+          converted: false,
         },
       ])
       .select("id")
@@ -124,12 +113,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      preorderId: insertData.id,
+      id: insertData.id,   // ← sjednoceno s frontendem
       totalPrice,
     });
-
   } catch (err) {
-    console.error("🔥 CREATE ERROR:", err);
     return res.status(500).json({
       error: "Failed to create preorder.",
       details: err.message || err,
