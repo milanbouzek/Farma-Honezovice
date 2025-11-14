@@ -11,8 +11,8 @@ import PreorderCapacity from "./PreorderCapacity";
  * Obsahuje:
  *  - validace množství
  *  - blokování víkendů u Dematicu
- *  - persistentní toast po odeslání
- *  - nový ukazatel kapacity (63/100 ks + progress bar)
+ *  - persistentní toast po odeslání (zobrazuje ID + cenu)
+ *  - nový ukazatel kapacity (63/100 ks + progress bar) - refresh volán po vytvoření
  */
 
 export default function PreorderForm() {
@@ -201,6 +201,11 @@ export default function PreorderForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // vybereme id (podporujeme oba tvary odpovědi)
+        const preorderId = data.preorderId ?? data.id ?? data.preorder_id ?? null;
+        const totalPrice = data.totalPrice ?? data.total ?? data.price ?? 0;
+
+        // ---- CUSTOM TOAST with preorder ID + price ----
         toast.custom(
           (t) => (
             <div
@@ -218,17 +223,31 @@ export default function PreorderForm() {
               <h3 className="text-lg font-bold mb-2">✅ Předobjednávka byla úspěšně odeslána</h3>
 
               <p className="mb-1">
-                Číslo předobjednávky: <strong>{data.id}</strong>
+                Číslo předobjednávky:{" "}
+                <strong>{preorderId ?? "—"}</strong>
               </p>
 
               <p className="mb-1">
-                Celková cena: <strong>{data.totalPrice} Kč</strong>
+                Celková cena: <strong>{totalPrice} Kč</strong>
               </p>
+
+              <p className="text-sm text-gray-500 mt-2">Uloženo do systému — čeká na potvrzení.</p>
             </div>
           ),
-          { duration: 8000 }
+          { duration: 10000 }
         );
 
+        // refresh kapacity (pokud komponenta expose funkci)
+        try {
+          if (typeof window !== "undefined" && typeof window.updatePreorderCapacity === "function") {
+            window.updatePreorderCapacity();
+          }
+        } catch (err) {
+          // nic zásadního — jen fallback
+          console.warn("updatePreorderCapacity failed:", err);
+        }
+
+        // reset formuláře
         setFormData({
           name: "",
           email: "",
