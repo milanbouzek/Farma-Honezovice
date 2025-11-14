@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import AdminLayout from "@/components/AdminLayout";
+import PreorderEditModal from "@/components/PreorderEditModal";
 
 export default function PreordersAdmin() {
   const [preorders, setPreorders] = useState([]);
@@ -9,12 +10,16 @@ export default function PreordersAdmin() {
   const [statusFilter, setStatusFilter] = useState("");
   const [sortBy, setSortBy] = useState("created_at_desc");
 
+  // modal
+  const [editing, setEditing] = useState(null);
+
   useEffect(() => {
     fetchPreorders();
   }, [search, statusFilter, sortBy]);
 
   async function fetchPreorders() {
     setLoading(true);
+
     let query = supabase.from("preorders").select("*");
 
     if (search.trim() !== "") {
@@ -27,10 +32,15 @@ export default function PreordersAdmin() {
       query = query.eq("status", statusFilter);
     }
 
-    if (sortBy === "created_at_desc") query = query.order("created_at", { ascending: false });
-    if (sortBy === "created_at_asc") query = query.order("created_at", { ascending: true });
-    if (sortBy === "name_asc") query = query.order("name", { ascending: true });
-    if (sortBy === "name_desc") query = query.order("name", { ascending: false });
+    // řazení
+    if (sortBy === "created_at_desc")
+      query = query.order("created_at", { ascending: false });
+    if (sortBy === "created_at_asc")
+      query = query.order("created_at", { ascending: true });
+    if (sortBy === "name_asc")
+      query = query.order("name", { ascending: true });
+    if (sortBy === "name_desc")
+      query = query.order("name", { ascending: false });
 
     const { data, error } = await query;
 
@@ -40,7 +50,7 @@ export default function PreordersAdmin() {
     setLoading(false);
   }
 
-  // 🔥 POTVRZENÍ PŘEDOBJEDNÁVKY — FULL DEBUG JSON
+  // potvrzení předobjednávky
   async function handleConfirm(id) {
     if (!confirm("Opravdu potvrdit tuto předobjednávku?")) return;
 
@@ -53,22 +63,14 @@ export default function PreordersAdmin() {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error("CONFIRM ERROR JSON:", data);
-
-      alert(
-        "Chyba při potvrzení předobjednávky:\n\n" +
-        (data.details || data.error || "Unknown error") +
-        "\n\n--- FULL RESPONSE ---\n" +
-        JSON.stringify(data, null, 2)
-      );
-
+      alert("Chyba při potvrzení: " + (data.error || data.details));
       return;
     }
 
     fetchPreorders();
   }
 
-  // ❌ Smazání předobjednávky
+  // smazání předobjednávky
   async function handleDelete(id) {
     if (!confirm("Opravdu smazat tuto předobjednávku?")) return;
 
@@ -83,7 +85,7 @@ export default function PreordersAdmin() {
       <div className="p-4 max-w-6xl mx-auto">
         <h1 className="text-2xl font-semibold mb-4">Předobjednávky</h1>
 
-        {/* 🔍 Panel filtrů */}
+        {/* 🔍 Filtry */}
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center mb-4">
           <input
             type="text"
@@ -167,7 +169,16 @@ export default function PreordersAdmin() {
                       <td className="p-2 text-gray-500">
                         {new Date(p.created_at).toLocaleString("cs-CZ")}
                       </td>
+
+                      {/* TLAČÍTKA */}
                       <td className="p-2 text-center space-x-2">
+                        <button
+                          onClick={() => setEditing(p)}
+                          className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                          Upravit
+                        </button>
+
                         {p.status !== "potvrzená" && (
                           <button
                             onClick={() => handleConfirm(p.id)}
@@ -190,6 +201,18 @@ export default function PreordersAdmin() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* === MODAL === */}
+        {editing && (
+          <PreorderEditModal
+            preorder={editing}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              fetchPreorders();
+            }}
+          />
         )}
       </div>
     </AdminLayout>
