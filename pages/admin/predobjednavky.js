@@ -7,11 +7,21 @@ export default function PreordersAdmin() {
   const [preorders, setPreorders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("čeká");   // ⬅ DEFAULT = pouze čekající
   const [sortBy, setSortBy] = useState("created_at_desc");
 
-  // modal
   const [editing, setEditing] = useState(null);
+
+  // ⬅⬅⬅ načtení uloženého filtru z localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("adminPreordersStatus");
+    if (saved !== null) setStatusFilter(saved);
+  }, []);
+
+  // ⬅⬅⬅ uložení filtru do localStorage
+  useEffect(() => {
+    localStorage.setItem("adminPreordersStatus", statusFilter);
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchPreorders();
@@ -32,7 +42,6 @@ export default function PreordersAdmin() {
       query = query.eq("status", statusFilter);
     }
 
-    // řazení
     if (sortBy === "created_at_desc")
       query = query.order("created_at", { ascending: false });
     if (sortBy === "created_at_asc")
@@ -50,7 +59,6 @@ export default function PreordersAdmin() {
     setLoading(false);
   }
 
-  // potvrzení předobjednávky
   async function handleConfirm(id) {
     if (!confirm("Opravdu potvrdit tuto předobjednávku?")) return;
 
@@ -70,7 +78,6 @@ export default function PreordersAdmin() {
     fetchPreorders();
   }
 
-  // smazání předobjednávky
   async function handleDelete(id) {
     if (!confirm("Opravdu smazat tuto předobjednávku?")) return;
 
@@ -170,7 +177,6 @@ export default function PreordersAdmin() {
                         {new Date(p.created_at).toLocaleString("cs-CZ")}
                       </td>
 
-                      {/* TLAČÍTKA */}
                       <td className="p-2 text-center space-x-2">
                         <button
                           onClick={() => setEditing(p)}
@@ -203,7 +209,6 @@ export default function PreordersAdmin() {
           </div>
         )}
 
-        {/* === MODAL === */}
         {editing && (
           <PreorderEditModal
             preorder={editing}
