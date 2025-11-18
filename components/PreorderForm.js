@@ -21,16 +21,16 @@ export default function PreorderForm() {
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
 
-  const [minDate, setMinDate] = useState(null); // 🔥 backend minDate
-  const [minDateBS, setMinDateBS] = useState(""); // CZ formát
+  const [minDate, setMinDate] = useState(null);
+  const [minDateCZ, setMinDateCZ] = useState("");
+
   const calendarRef = useRef(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // === Helpers ===
+  // === helpers ===
   const formatDateCZ = (date) => {
-    if (!date) return "";
     const dd = String(date.getDate()).padStart(2, "0");
     const mm = String(date.getMonth() + 1).padStart(2, "0");
     const yyyy = date.getFullYear();
@@ -40,51 +40,53 @@ export default function PreorderForm() {
   const parseDateFromCZ = (cz) => {
     if (!cz) return null;
     const [dd, mm, yyyy] = cz.split(".");
-    if (!dd || !mm || !yyyy) return null;
-    const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? null : d;
+    return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
   };
 
-  const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
+  const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
 
   const isDateAllowed = (d, location = formData.pickupLocation) => {
-    if (!d) return false;
     if (!(d instanceof Date)) d = parseDateFromCZ(d);
-    if (!d) return false;
+    if (!d || !minDate) return false;
 
     d.setHours(0, 0, 0, 0);
 
-    if (!minDate) return false;
     if (d < minDate) return false;
-
     if (location === "Dematic Ostrov u Stříbra 65" && isWeekend(d)) return false;
 
     return true;
   };
 
-  // === Load minDate from API ===
+  // === dynamic minDate loader ===
   useEffect(() => {
+    const qty =
+      parseInt(formData.standardQuantity || 0, 10) +
+      parseInt(formData.lowCholQuantity || 0, 10);
+
+    if (qty <= 0) return;
+
     (async () => {
       try {
-        const res = await fetch("/api/preorders/min-date");
+        const res = await fetch(`/api/preorders/min-date?qty=${qty}`);
         const data = await res.json();
 
-        if (data?.minDate) {
+        if (data.minDate) {
           const d = new Date(data.minDate);
           d.setHours(0, 0, 0, 0);
 
           setMinDate(d);
-          setMinDateBS(formatDateCZ(d));
+          setMinDateCZ(data.minDateCZ);
         }
       } catch (err) {
-        console.error("MinDate fetch error:", err);
+        console.error("min-date fetch error:", err);
       }
     })();
-  }, []);
+  }, [formData.standardQuantity, formData.lowCholQuantity]);
 
-  // === Form Handlers ===
+  // === handlers ===
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -94,27 +96,15 @@ export default function PreorderForm() {
     }));
   };
 
-  const handleAdd = (field, amount) => {
-    setFormData((prev) => {
-      const cur = parseInt(prev[field] || 0, 10);
-      return { ...prev, [field]: Math.max(0, cur + amount) };
-    });
-  };
-
-  const clearDateAndSetError = (msg) => {
-    setFormData((prev) => ({ ...prev, pickupDate: "" }));
-    setDateError(msg || "");
-  };
-
   const handlePickupSelect = (loc) => {
     setFormData((prev) => ({ ...prev, pickupLocation: loc }));
+  };
 
-    if (formData.pickupDate) {
-      const d = parseDateFromCZ(formData.pickupDate);
-      if (!isDateAllowed(d, loc)) {
-        clearDateAndSetError("❌ Toto datum není pro tuto pobočku povoleno.");
-      }
-    }
+  const handleAdd = (field, amount) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: Math.max(0, parseInt(prev[field] || 0, 10) + amount),
+    }));
   };
 
   const handleDateSelect = (date) => {
@@ -124,15 +114,13 @@ export default function PreorderForm() {
     d.setHours(0, 0, 0, 0);
 
     if (!isDateAllowed(d)) {
-      clearDateAndSetError(
-        `❌ Nejbližší dostupný termín je až ${minDateBS}.`
-      );
+      setDateError(`❌ Nejbližší možný termín je ${minDateCZ}.`);
       return;
     }
 
     setFormData((prev) => ({ ...prev, pickupDate: formatDateCZ(d) }));
-    setShowCalendar(false);
     setDateError("");
+    setShowCalendar(false);
   };
 
   const handleDateQuickPick = (offset) => {
@@ -141,9 +129,7 @@ export default function PreorderForm() {
     d.setHours(0, 0, 0, 0);
 
     if (!isDateAllowed(d)) {
-      clearDateAndSetError(
-        `❌ Nejbližší možný termín je až ${minDateBS}.`
-      );
+      setDateError(`❌ Nejbližší možný termín je ${minDateCZ}.`);
       return;
     }
 
@@ -151,7 +137,6 @@ export default function PreorderForm() {
     setDateError("");
   };
 
-  // === Submit ===
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -159,30 +144,21 @@ export default function PreorderForm() {
     const low = parseInt(formData.lowCholQuantity || 0, 10);
     const total = std + low;
 
-    // Validate
-    if (!formData.name.trim()) {
-      toast.error("❌ Zadejte jméno.");
-      return;
-    }
-    if (!formData.pickupLocation) {
-      toast.error("❌ Vyberte místo vyzvednutí.");
-      return;
-    }
+    if (!formData.name.trim())
+      return toast.error("❌ Zadejte jméno a příjmení.");
+
+    if (!formData.pickupLocation)
+      return toast.error("❌ Vyberte místo odběru.");
 
     const d = parseDateFromCZ(formData.pickupDate);
-    if (!d || !isDateAllowed(d)) {
-      toast.error(`❌ Neplatné datum. Nejbližší termín: ${minDateBS}`);
-      return;
-    }
+    if (!isDateAllowed(d))
+      return toast.error(`❌ Neplatné datum. Min.: ${minDateCZ}`);
 
-    if (total < 10 || total % 10 !== 0) {
-      toast.error("❌ Minimální objednávka je 10 ks a násobky 10.");
-      return;
-    }
-    if (total > 20) {
-      toast.error("❌ Maximálně 20 ks.");
-      return;
-    }
+    if (total < 10 || total % 10 !== 0)
+      return toast.error("❌ Minimální objednávka je 10 ks a násobky 10.");
+
+    if (total > 20)
+      return toast.error("❌ Maximálně 20 ks.");
 
     setLoading(true);
 
@@ -205,12 +181,8 @@ export default function PreorderForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        const preorderId = data.id;
-        const totalPrice = data.totalPrice;
+        toast.success(`Předobjednávka vytvořena (#${data.id})`);
 
-        toast.success(`Předobjednávka vytvořena (#${preorderId})`);
-
-        // refresh capacity component
         if (window.updatePreorderCapacity) {
           window.updatePreorderCapacity();
         }
@@ -226,26 +198,25 @@ export default function PreorderForm() {
           note: "",
         });
       } else {
-        toast.error(data.error || "Chyba při odesílání.");
+        toast.error(data.error || "❌ Chyba při odesílání.");
       }
     } catch (err) {
-      toast.error("Chyba připojení k serveru.");
+      toast.error("❌ Chyba připojení.");
     } finally {
       setLoading(false);
     }
   };
 
+  // === UI ===
   return (
     <div className="max-w-lg mx-auto p-4">
       <Toaster position="top-center" />
 
-      {/* 🟩 Kapacita */}
       <PreorderCapacity />
 
-      {/* 🟦 info banner */}
-      {minDate && (
+      {minDateCZ && (
         <div className="bg-blue-100 text-blue-700 p-3 rounded-xl mb-3 text-sm">
-          Nejbližší možný termín vyzvednutí: <strong>{minDateBS}</strong>
+          Nejbližší možný termín vyzvednutí: <strong>{minDateCZ}</strong>
         </div>
       )}
 
@@ -253,21 +224,21 @@ export default function PreorderForm() {
         onSubmit={handleSubmit}
         className="bg-white shadow-lg rounded-2xl p-6 space-y-4"
       >
-        {/* standardní pole */}
+        {/* Name */}
         <div>
-          <label className="block mb-1 text-gray-700">Jméno a příjmení *</label>
+          <label className="block text-gray-700 mb-1">Jméno a příjmení *</label>
           <input
             type="text"
             name="name"
             value={formData.name}
             onChange={handleChange}
             className="w-full border rounded-xl p-2"
-            placeholder="Zadejte celé jméno"
           />
         </div>
 
+        {/* Phone */}
         <div>
-          <label className="block mb-1 text-gray-700">Telefon</label>
+          <label className="block text-gray-700 mb-1">Telefon</label>
           <input
             type="tel"
             name="phone"
@@ -277,8 +248,9 @@ export default function PreorderForm() {
           />
         </div>
 
+        {/* Email */}
         <div>
-          <label className="block mb-1 text-gray-700">Email</label>
+          <label className="block text-gray-700 mb-1">Email</label>
           <input
             type="email"
             name="email"
@@ -288,7 +260,7 @@ export default function PreorderForm() {
           />
         </div>
 
-        {/* quantities */}
+        {/* Quantities */}
         <div>
           <label className="block mb-1">Počet standardních vajec *</label>
           <div className="flex gap-2 items-center">
@@ -317,7 +289,9 @@ export default function PreorderForm() {
         </div>
 
         <div>
-          <label className="block mb-1">Počet vajec se sníženým cholesterolem *</label>
+          <label className="block mb-1">
+            Počet vajec se sníženým cholesterolem *
+          </label>
           <div className="flex gap-2 items-center">
             <input
               type="number"
@@ -343,9 +317,9 @@ export default function PreorderForm() {
           </div>
         </div>
 
-        {/* location */}
+        {/* Location */}
         <div>
-          <label className="block mb-1 text-gray-700">Místo vyzvednutí *</label>
+          <label className="block mb-1">Místo vyzvednutí *</label>
           <div className="flex gap-2">
             {["Dematic Ostrov u Stříbra 65", "Honezovice"].map((loc) => (
               <button
@@ -364,7 +338,7 @@ export default function PreorderForm() {
           </div>
         </div>
 
-        {/* date */}
+        {/* Date */}
         <div>
           <label className="block mb-1">Datum vyzvednutí *</label>
           <input
@@ -378,7 +352,9 @@ export default function PreorderForm() {
             placeholder="Vyberte datum"
           />
 
-          {dateError && <p className="text-red-600 mt-1">{dateError}</p>}
+          {dateError && (
+            <p className="text-red-600 text-sm mt-1">{dateError}</p>
+          )}
 
           {showCalendar && (
             <div ref={calendarRef} className="mt-2">
@@ -391,14 +367,16 @@ export default function PreorderForm() {
                 }
                 onSelect={handleDateSelect}
                 weekStartsOn={1}
-                disabled={(date) => {
+                disabled={(day) => {
                   if (!minDate) return true;
+
                   const d = new Date(
-                    date.getFullYear(),
-                    date.getMonth(),
-                    date.getDate()
+                    day.getFullYear(),
+                    day.getMonth(),
+                    day.getDate()
                   );
                   d.setHours(0, 0, 0, 0);
+
                   if (d < minDate) return true;
                   if (
                     formData.pickupLocation ===
@@ -406,6 +384,7 @@ export default function PreorderForm() {
                     isWeekend(d)
                   )
                     return true;
+
                   return false;
                 }}
               />
@@ -430,6 +409,7 @@ export default function PreorderForm() {
           </div>
         </div>
 
+        {/* Note */}
         <div>
           <label className="block mb-1">Poznámka</label>
           <textarea
@@ -440,6 +420,7 @@ export default function PreorderForm() {
           />
         </div>
 
+        {/* Submit */}
         <button
           type="submit"
           disabled={loading}
