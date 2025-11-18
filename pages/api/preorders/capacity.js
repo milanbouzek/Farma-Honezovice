@@ -3,24 +3,40 @@ import { supabaseServer } from "@/lib/supabaseServerClient";
 
 /**
  * Vrací informace potřebné pro výpočet nejdříve dostupného data:
- * - sklad (standard + lowchol)
- * - součet rezervací (předobjednávky, které nejsou potvrzené a nejsou converted)
- * - daily_production (z eggs_settings)
- * - available = stock - reserved
- * - minDate (ISO YYYY-MM-DD) = dnes + potřebné dny (ale minimálně zítra)
- * - daysNeeded
+ * Query param: ?qty=NUMBER  (volitelně)
+ *
+ * Vrací:
+ *  - totalStock
+ *  - reserved
+ *  - available
+ *  - dailyProduction
+ *  - today (ISO)
+ *  - daysNeeded (integer)
+ *  - minDate (ISO YYYY-MM-DD)
+ *  - minDateCZ (DD.MM.YYYY)
  */
 
-function addDaysToDate(date, days) {
+function formatDateCZ(date) {
   const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  d.setHours(0,0,0,0);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + Number(days));
+  d.setHours(0, 0, 0, 0);
   return d;
 }
 
 export default async function handler(req, res) {
   try {
-    // Načteme sklad (předpokládaná tabulka eggs_stock, pouze jedna řádka)
+    const qtyQuery = req.query.qty;
+    const wantedQty = qtyQuery ? Math.max(0, Number(qtyQuery)) : 10; // default 10
+
+    // načteme sklad (předpoklad: tabulka eggs_stock obsahuje 1 řádku)
     const { data: stockRows, error: stockError } = await supabaseServer
       .from("eggs_stock")
       .select("id, standard_quantity, low_chol_quantity")
@@ -33,11 +49,11 @@ export default async function handler(req, res) {
     const stockLow = Number(stockRows?.low_chol_quantity || 0);
     const totalStock = stockStandard + stockLow;
 
-    // Načteme součet ne-potvrzených a ne-converted předobjednávek
+    // načteme rezervace (předobjednávky které NEJSOU potvrzené a nejsou converted)
     const { data: preRows, error: preErr } = await supabaseServer
       .from("preorders")
       .select("standardQty, lowcholQty, status, converted")
-      .neq("status", "potvrzená") // pokud chcete defaultně nepočítat potvrzené
+      .neq("status", "potvrzená")
       .eq("converted", false);
 
     if (preErr) throw preErr;
@@ -46,7 +62,7 @@ export default async function handler(req, res) {
       return s + (Number(r.standardQty || 0) + Number(r.lowcholQty || 0));
     }, 0);
 
-    // Načteme daily_production z eggs_settings (poslední nebo první)
+    // načteme daily_production z eggs_settings (poslední)
     const { data: settings, error: settingsErr } = await supabaseServer
       .from("eggs_settings")
       .select("daily_production")
@@ -58,24 +74,49 @@ export default async function handler(req, res) {
 
     const dailyProduction = Number(settings?.daily_production ?? 5);
 
-    // dostupné ks (můžeme vytvořit negativní číslo pokud rezervace > sklad)
+    // dostupné ks (může být i negativní)
     const available = totalStock - reserved;
 
-    // vrátíme základní info i vypočtené minDate pro běžnou "10 ks" objednávku
-    // ale endpoint bude vracet i raw data, aby frontend mohl počítat pro různé množství
-
+    // logika pro minDate:
+    // pokud available >= wantedQty => minDate = tomorrow
+    // jinak: need = wantedQty - available; daysNeeded = ceil( need / dailyProduction )
+    // minDate = today + daysNeeded (alespoň +1 = zítra)
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
 
-    res.status(200).json({
+    const tomorrow = addDays(today, 1);
+
+    let daysNeeded = 0;
+    let minDate = tomorrow;
+
+    if (available >= wantedQty) {
+      daysNeeded = 0;
+      minDate = tomorrow;
+    } else {
+      const need = wantedQty - available;
+      // pokud dailyProduction je 0 (nebo chybné), nastavíme velké číslo nebo error
+      const perDay = dailyProduction > 0 ? dailyProduction : 1;
+      daysNeeded = Math.ceil(need / perDay);
+      // minDate is today + daysNeeded (ale minimum tomorrow)
+      const candidate = addDays(today, daysNeeded);
+      if (candidate < tomorrow) minDate = tomorrow;
+      else minDate = candidate;
+    }
+
+    // výstup
+    return res.status(200).json({
       totalStock,
       reserved,
       available,
       dailyProduction,
-      today: today.toISOString().split("T")[0]
+      today: today.toISOString().split("T")[0],
+      wantedQty,
+      daysNeeded,
+      minDate: minDate.toISOString().split("T")[0],
+      minDateCZ: formatDateCZ(minDate),
     });
   } catch (err) {
     console.error("Capacity API error:", err);
-    res.status(500).json({ error: err.message || String(err) });
+    return res.status(500).json({ error: err.message || String(err) });
   }
 }
