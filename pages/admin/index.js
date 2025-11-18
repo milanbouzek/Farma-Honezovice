@@ -1,39 +1,57 @@
+// pages/admin/index.js
 import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import AdminLayout from "../../components/AdminLayout";
 import StockBox from "../../components/StockBox";
-import OrdersTable from "../../components/OrdersTable";
 
 export default function AdminDashboard() {
+  // data
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [preorders, setPreorders] = useState([]);
 
-  // -------------------------------------
-  // 🥚 Denní produkce
-  // -------------------------------------
+  // daily production
   const [dailyProduction, setDailyProduction] = useState("");
-  const [loadingProd, setLoadingProd] = useState(true);
-  const [savingProd, setSavingProd] = useState(false);
+  const [loadingProduction, setLoadingProduction] = useState(false);
 
-  // Načtení denní produkce
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/admin/eggs-settings");
-        const data = await res.json();
-        setDailyProduction(data.daily_production ?? 5);
-      } catch (err) {
-        toast.error("Chyba při načítání denní produkce");
-      }
-      setLoadingProd(false);
+  // ========== FETCH ORDERS ==========
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch("/api/admin/orders");
+      const data = await res.json();
+      setOrders(data.orders || []);
+    } catch (err) {
+      toast.error("Chyba při načítání objednávek: " + err.message);
     }
-    load();
-  }, []);
+  };
 
-  // Uložení denní produkce
-  async function saveDailyProduction() {
-    setSavingProd(true);
+  // ========== FETCH PREORDERS ==========
+  const fetchPreorders = async () => {
+    try {
+      const res = await fetch("/api/preorders");
+      const data = await res.json();
+      setPreorders(data.preorders || data || []);
+    } catch (err) {
+      toast.error("Chyba při načítání předobjednávek: " + err.message);
+    }
+  };
+
+  // ========== FETCH DAILY PRODUCTION ==========
+  const fetchDailyProduction = async () => {
+    try {
+      const res = await fetch("/api/admin/eggs-settings");
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Chyba načítání");
+
+      setDailyProduction(data?.daily_production || "");
+    } catch (err) {
+      toast.error("Chyba při načítání denní produkce");
+    }
+  };
+
+  // save production
+  const handleSaveProduction = async () => {
+    setLoadingProduction(true);
     try {
       const res = await fetch("/api/admin/eggs-settings", {
         method: "POST",
@@ -42,215 +60,112 @@ export default function AdminDashboard() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Chyba při ukládání");
-      } else {
-        toast.success("Denní produkce uložena");
-      }
-    } catch {
-      toast.error("Chyba komunikace se serverem");
-    }
-    setSavingProd(false);
-  }
+      if (!res.ok) throw new Error(data.error);
 
-  // -------------------------------------
-  // 📦 Objednávky
-  // -------------------------------------
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/orders");
-      const data = await res.json();
-      setOrders(data.orders || []);
+      toast.success("Denní produkce uložena ✓");
     } catch (err) {
-      toast.error("Chyba při načítání objednávek: " + err.message);
+      toast.error("Chyba při ukládání produkce");
     } finally {
-      setLoading(false);
+      setLoadingProduction(false);
     }
   };
 
+  // load all on mount
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000);
-    return () => clearInterval(interval);
+    fetchPreorders();
+    fetchDailyProduction();
   }, []);
 
-  // --------------------------
-  // 📌 Změna statusu objednávky
-  // --------------------------
-  const handleStatusChange = async (orderId) => {
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Chyba při změně statusu");
-      }
-
-      toast.success("Status objednávky byl změněn ✅");
-      fetchOrders();
-    } catch (err) {
-      toast.error("Chyba při změně statusu: " + err.message);
-    }
+  // ========== COMPUTE ORDER STATS ==========
+  const orderStats = {
+    new: orders.filter((o) => o.status === "nová objednávka").length,
+    processing: orders.filter((o) => o.status === "zpracovává se").length,
+    done: orders.filter((o) => o.status === "vyřízená").length,
+    cancelled: orders.filter((o) => o.status === "zrušená").length,
   };
 
-  // --------------------------
-  // 📌 Změna zaplacení objednávky
-  // --------------------------
-  const handlePaymentChange = async (orderId, paid) => {
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Chyba při změně platby");
-      }
-
-      toast.success("Platba byla úspěšně změněna ✅");
-      fetchOrders();
-    } catch (err) {
-      toast.error("Chyba při změně platby: " + err.message);
-    }
+  // ========== COMPUTE PREORDER STATS ==========
+  const preorderStats = {
+    waiting: preorders.filter((p) => p.status === "čeká").length,
+    confirmed: preorders.filter((p) => p.status === "potvrzená").length,
+    cancelled: preorders.filter((p) => p.status === "zrušená").length,
   };
-
-  // --------------------------
-  // 📌 Vynulování ceny objednávky
-  // --------------------------
-  const handleResetPrice = async (orderId) => {
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/reset-price`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Chyba při vynulování ceny");
-      }
-
-      toast.success("Cena byla úspěšně vynulována 💰");
-      fetchOrders();
-    } catch (err) {
-      toast.error("Chyba při vynulování ceny: " + err.message);
-    }
-  };
-
-  // --------------------------
-  // 📌 Rozdělení objednávek podle statusu
-  // --------------------------
-  const newOrders = orders.filter((o) => o.status === "nová objednávka");
-  const processingOrders = orders.filter((o) => o.status === "zpracovává se");
-  const completedOrders = orders.filter(
-    (o) => o.status === "vyřízená" || o.status === "zrušená"
-  );
 
   return (
     <AdminLayout>
       <Toaster position="top-center" />
 
-      <h1 className="text-3xl font-bold mb-6">📊 Přehled objednávek</h1>
+      <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
 
-      {/* 🥚 Denní produkce */}
-      <div className="bg-white p-6 rounded-xl shadow mb-6">
-        <h2 className="text-2xl font-semibold mb-4">🥚 Denní produkce</h2>
+      {/* =============================== */}
+      {/*  DENNÍ PRODUKCE                */}
+      {/* =============================== */}
+      <div className="bg-white shadow p-5 rounded-xl mb-6 max-w-md">
+        <h2 className="text-xl font-bold mb-3">🥚 Denní produkce</h2>
 
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-1">
-            <label className="block mb-1 text-gray-700 font-medium">
-              Počet vajec za den
-            </label>
-            <input
-              type="number"
-              value={dailyProduction}
-              onChange={(e) => setDailyProduction(e.target.value)}
-              className="w-full border rounded-xl p-2"
-            />
-            <p className="text-gray-500 text-sm mt-1">
-              Průměrná denní snáška všech slepic.
-            </p>
-          </div>
+        <input
+          type="number"
+          className="input input-bordered w-full mb-3"
+          value={dailyProduction}
+          onChange={(e) => setDailyProduction(e.target.value)}
+          placeholder="Počet vajec za den"
+        />
 
-          <button
-            onClick={saveDailyProduction}
-            disabled={savingProd}
-            className="bg-green-600 text-white px-6 py-3 rounded-xl hover:bg-green-700 shadow min-w-[150px]"
-          >
-            {savingProd ? "Ukládám…" : "Uložit"}
-          </button>
+        <button
+          onClick={handleSaveProduction}
+          className="btn btn-success w-full"
+          disabled={loadingProduction}
+        >
+          {loadingProduction ? "Ukládám…" : "Uložit"}
+        </button>
+
+        <p className="text-sm text-gray-500 mt-2">
+          Průměrná denní snáška všech slepic.
+        </p>
+      </div>
+
+      {/* =============================== */}
+      {/*  STAV SKLADU & CENY            */}
+      {/* =============================== */}
+      <StockBox editable={true} />
+
+      {/* =============================== */}
+      {/*  STATISTIKY OBJEDNÁVEK         */}
+      {/* =============================== */}
+      <div className="bg-white shadow p-5 rounded-xl mt-6 mb-6">
+        <h2 className="text-xl font-bold mb-3">📦 Objednávky (rychlý přehled)</h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatBox label="Nové" count={orderStats.new} color="text-red-600" />
+          <StatBox label="Zpracovává se" count={orderStats.processing} color="text-yellow-600" />
+          <StatBox label="Vyřízené" count={orderStats.done} color="text-green-600" />
+          <StatBox label="Zrušené" count={orderStats.cancelled} color="text-gray-500" />
         </div>
       </div>
 
-      {/* 🧺 Sklad */}
-      <StockBox editable={true} />
+      {/* =============================== */}
+      {/*  STATISTIKY PŘEDOBJEDNÁVEK     */}
+      {/* =============================== */}
+      <div className="bg-white shadow p-5 rounded-xl mb-6">
+        <h2 className="text-xl font-bold mb-3">🥚 Předobjednávky (rychlý přehled)</h2>
 
-      {/* 📦 Objednávky */}
-      {loading ? (
-        <div className="bg-white shadow rounded-xl p-4 mt-4">
-          <p>Načítám objednávky…</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <StatBox label="Čeká" count={preorderStats.waiting} color="text-yellow-600" />
+          <StatBox label="Potvrzené" count={preorderStats.confirmed} color="text-green-600" />
+          <StatBox label="Zrušené" count={preorderStats.cancelled} color="text-gray-500" />
         </div>
-      ) : (
-        <>
-          {newOrders.length > 0 && (
-            <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-              <h2 className="text-xl font-bold mb-2 text-red-600">NOVÉ</h2>
-              <OrdersTable
-                orders={newOrders}
-                refreshOrders={fetchOrders}
-                onStatusChange={handleStatusChange}
-                onPaymentChange={handlePaymentChange}
-                onResetPrice={handleResetPrice}
-              />
-            </div>
-          )}
-
-          {processingOrders.length > 0 && (
-            <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-              <h2 className="text-xl font-bold mb-2 text-yellow-600">ZPRACOVÁVÁ SE</h2>
-              <OrdersTable
-                orders={processingOrders}
-                refreshOrders={fetchOrders}
-                onStatusChange={handleStatusChange}
-                onPaymentChange={handlePaymentChange}
-                onResetPrice={handleResetPrice}
-              />
-            </div>
-          )}
-
-          <div className="mb-6 border rounded-xl p-4 bg-white shadow">
-            <button
-              onClick={() => setShowCompleted(!showCompleted)}
-              className="text-left w-full font-bold text-green-700"
-            >
-              {showCompleted
-                ? "▼ Dokončené a zrušené objednávky"
-                : "► Dokončené a zrušené objednávky"}
-            </button>
-
-            {showCompleted && completedOrders.length > 0 && (
-              <div className="mt-2">
-                <OrdersTable
-                  orders={completedOrders}
-                  refreshOrders={fetchOrders}
-                  onStatusChange={handleStatusChange}
-                  onPaymentChange={handlePaymentChange}
-                  onResetPrice={handleResetPrice}
-                />
-              </div>
-            )}
-
-            {showCompleted && completedOrders.length === 0 && (
-              <p className="italic text-gray-500 mt-2">Žádné objednávky</p>
-            )}
-          </div>
-        </>
-      )}
+      </div>
     </AdminLayout>
+  );
+}
+
+// ========== SMALL REUSABLE STAT BOX COMPONENT ==========
+function StatBox({ label, count, color }) {
+  return (
+    <div className="border rounded-xl p-4 text-center shadow-sm bg-gray-50">
+      <p className={`text-sm font-semibold ${color}`}>{label}</p>
+      <p className="text-2xl font-bold mt-1">{count}</p>
+    </div>
   );
 }
