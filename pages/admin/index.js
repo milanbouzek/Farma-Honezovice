@@ -5,15 +5,14 @@ import AdminLayout from "../../components/AdminLayout";
 import StockBox from "../../components/StockBox";
 
 export default function AdminDashboard() {
-  // data
   const [orders, setOrders] = useState([]);
   const [preorders, setPreorders] = useState([]);
 
-  // daily production
+  // === Denní produkce ===
   const [dailyProduction, setDailyProduction] = useState("");
   const [loadingProduction, setLoadingProduction] = useState(false);
 
-  // ========== FETCH ORDERS ==========
+  // --- ORDERS ---
   const fetchOrders = async () => {
     try {
       const res = await fetch("/api/admin/orders");
@@ -24,7 +23,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========== FETCH PREORDERS ==========
+  // --- PREORDERS ---
   const fetchPreorders = async () => {
     try {
       const res = await fetch("/api/preorders");
@@ -35,23 +34,23 @@ export default function AdminDashboard() {
     }
   };
 
-  // ========== FETCH DAILY PRODUCTION ==========
+  // --- EGGS SETTINGS ---
   const fetchDailyProduction = async () => {
     try {
       const res = await fetch("/api/admin/eggs-settings");
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Chyba načítání");
+      if (!res.ok) throw new Error(data.error || "Nepodařilo se načíst hodnotu");
 
-      setDailyProduction(data?.daily_production || "");
+      setDailyProduction(data.daily_production || "");
     } catch (err) {
       toast.error("Chyba při načítání denní produkce");
     }
   };
 
-  // save production
   const handleSaveProduction = async () => {
     setLoadingProduction(true);
+
     try {
       const res = await fetch("/api/admin/eggs-settings", {
         method: "POST",
@@ -64,20 +63,20 @@ export default function AdminDashboard() {
 
       toast.success("Denní produkce uložena ✓");
     } catch (err) {
-      toast.error("Chyba při ukládání produkce");
+      toast.error("Chyba při ukládání denní produkce");
     } finally {
       setLoadingProduction(false);
     }
   };
 
-  // load all on mount
+  // mount
   useEffect(() => {
     fetchOrders();
     fetchPreorders();
     fetchDailyProduction();
   }, []);
 
-  // ========== COMPUTE ORDER STATS ==========
+  // --- ORDER STATS ---
   const orderStats = {
     new: orders.filter((o) => o.status === "nová objednávka").length,
     processing: orders.filter((o) => o.status === "zpracovává se").length,
@@ -85,7 +84,7 @@ export default function AdminDashboard() {
     cancelled: orders.filter((o) => o.status === "zrušená").length,
   };
 
-  // ========== COMPUTE PREORDER STATS ==========
+  // --- PREORDER STATS ---
   const preorderStats = {
     waiting: preorders.filter((p) => p.status === "čeká").length,
     confirmed: preorders.filter((p) => p.status === "potvrzená").length,
@@ -98,9 +97,7 @@ export default function AdminDashboard() {
 
       <h1 className="text-3xl font-bold mb-6">📊 Dashboard</h1>
 
-      {/* =============================== */}
-      {/*  DENNÍ PRODUKCE                */}
-      {/* =============================== */}
+      {/* === DENNÍ PRODUKCE === */}
       <div className="bg-white shadow p-5 rounded-xl mb-6 max-w-md">
         <h2 className="text-xl font-bold mb-3">🥚 Denní produkce</h2>
 
@@ -125,14 +122,10 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* =============================== */}
-      {/*  STAV SKLADU & CENY            */}
-      {/* =============================== */}
+      {/* === SKLAD & CENY === */}
       <StockBox editable={true} />
 
-      {/* =============================== */}
-      {/*  STATISTIKY OBJEDNÁVEK         */}
-      {/* =============================== */}
+      {/* === STATISTIKY OBJEDNÁVEK === */}
       <div className="bg-white shadow p-5 rounded-xl mt-6 mb-6">
         <h2 className="text-xl font-bold mb-3">📦 Objednávky (rychlý přehled)</h2>
 
@@ -144,9 +137,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* =============================== */}
-      {/*  STATISTIKY PŘEDOBJEDNÁVEK     */}
-      {/* =============================== */}
+      {/* === STATISTIKY PŘEDOBJEDNÁVEK === */}
       <div className="bg-white shadow p-5 rounded-xl mb-6">
         <h2 className="text-xl font-bold mb-3">🥚 Předobjednávky (rychlý přehled)</h2>
 
@@ -160,7 +151,6 @@ export default function AdminDashboard() {
   );
 }
 
-// ========== SMALL REUSABLE STAT BOX COMPONENT ==========
 function StatBox({ label, count, color }) {
   return (
     <div className="border rounded-xl p-4 text-center shadow-sm bg-gray-50">
