@@ -1,3 +1,4 @@
+// pages/admin/predobjednavky.js
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import AdminLayout from "@/components/AdminLayout";
@@ -7,20 +8,28 @@ export default function PreordersAdmin() {
   const [preorders, setPreorders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("čeká");   // ⬅ DEFAULT = pouze čekající
+  const [statusFilter, setStatusFilter] = useState("čeká"); // ⬅ DEFAULT = pouze čekající
   const [sortBy, setSortBy] = useState("created_at_desc");
 
   const [editing, setEditing] = useState(null);
 
-  // ⬅⬅⬅ načtení uloženého filtru z localStorage
+  // načtení uloženého filtru z localStorage (pokud existuje)
   useEffect(() => {
-    const saved = localStorage.getItem("adminPreordersStatus");
-    if (saved !== null) setStatusFilter(saved);
+    try {
+      const saved = localStorage.getItem("adminPreordersStatus");
+      if (saved !== null && saved !== "") setStatusFilter(saved);
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
-  // ⬅⬅⬅ uložení filtru do localStorage
+  // uložení filtru do localStorage při změně
   useEffect(() => {
-    localStorage.setItem("adminPreordersStatus", statusFilter);
+    try {
+      localStorage.setItem("adminPreordersStatus", statusFilter);
+    } catch (e) {
+      // ignore
+    }
   }, [statusFilter]);
 
   useEffect(() => {
@@ -87,6 +96,19 @@ export default function PreordersAdmin() {
     else fetchPreorders();
   }
 
+  // formátování pickupdate do českého tvaru DD.MM.YYYY
+  const formatPickupdate = (val) => {
+    if (!val) return "-";
+    try {
+      // pickupdate může být 'YYYY-MM-DD' nebo ISO string nebo Date
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return "-";
+      return d.toLocaleDateString("cs-CZ");
+    } catch (e) {
+      return "-";
+    }
+  };
+
   return (
     <AdminLayout title="🥚 Předobjednávky">
       <div className="p-4 max-w-6xl mx-auto">
@@ -138,7 +160,7 @@ export default function PreordersAdmin() {
                   <th className="p-2 text-left">Email</th>
                   <th className="p-2 text-right">Standard</th>
                   <th className="p-2 text-right">LowChol</th>
-                  <th className="p-2 text-left">Odběr</th>
+                  <th className="p-2 text-left">Odběr (termín)</th>
                   <th className="p-2 text-left">Stav</th>
                   <th className="p-2 text-left">Vytvořeno</th>
                   <th className="p-2 text-center">Akce</th>
@@ -159,7 +181,7 @@ export default function PreordersAdmin() {
                       <td className="p-2">{p.email}</td>
                       <td className="p-2 text-right">{p.standardQty}</td>
                       <td className="p-2 text-right">{p.lowcholQty}</td>
-                      <td className="p-2">{p.pickuplocation}</td>
+                      <td className="p-2">{formatPickupdate(p.pickupdate)}</td>
                       <td className="p-2">
                         <span
                           className={`px-2 py-1 rounded-full text-xs ${
@@ -174,7 +196,7 @@ export default function PreordersAdmin() {
                         </span>
                       </td>
                       <td className="p-2 text-gray-500">
-                        {new Date(p.created_at).toLocaleString("cs-CZ")}
+                        {p.created_at ? new Date(p.created_at).toLocaleString("cs-CZ") : "-"}
                       </td>
 
                       <td className="p-2 text-center space-x-2">
