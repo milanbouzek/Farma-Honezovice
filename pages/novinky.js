@@ -6,7 +6,14 @@ export default function Novinky() {
       <h1 className="text-3xl font-bold text-green-700 mb-6">Novinky</h1>
 
       <div className="space-y-6 text-gray-700">
-        {/* 3.9.2025 – nejnovější */}
+          {/* 12.12.2025 */}
+        <div>
+          <h2 className="text-xl font-semibold">23.8.2025 – Spuštěna nová sekce předobjednávky </h2>
+          <p>
+            V případě, kdy nejsou vejce skladem, je možné nově vytvořit předobjednávku. Při vytvoření předobjednávky vám tu ukáže nejpozdější možný datum, kdy budou vejce připravena k odběru.
+          </p>
+        </div>
+            {/* 3.9.2025 – nejnovější */}
         <div>
           <h2 className="text-xl font-semibold">3.9.2025 – Spuštění webu a on-line objednávek</h2>
           <p>
