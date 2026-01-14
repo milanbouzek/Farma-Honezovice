@@ -10,7 +10,7 @@ export default function Novinky() {
         <div>
           <h2 className="text-xl font-semibold">23.8.2025 – Spuštěna nová sekce předobjednávky </h2>
           <p>
-            V případě, kdy nejsou vejce skladem, je možné nově vytvořit předobjednávku. Při vytvoření předobjednávky vám tu ukáže nejpozdější možný datum, kdy budou vejce připravena k odběru.
+            Pokud nejsou žádná vejce skladem, je možno vytvořit předobjednávku. V rámci předobjednávky se zobrazí datum, kdy nejpozději budou vejce připravena k odběru.
           </p>
         </div>
             {/* 3.9.2025 – nejnovější */}
