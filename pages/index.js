@@ -21,7 +21,12 @@ export default function Home() {
 
       {/* Tady se vykreslí komponenta se stavem skladu */}
       <StockBox />
-
+        
+ <div className="mb-4 text-gray-700">
+        <h2 className="font-bold">Spuštěna nová sekce předobjednávky</h2>
+        <p>Pokud nejsou žádná vejce skladem, je možno vytvořit předobjednávku. V rámci předobjednávky se zobrazí datum, kdy nejpozději budou vejce připravena k odběru. </p>
+      </div>
+        
       <div className="mb-4 text-gray-700">
         <h2 className="font-bold">Minimální objednávka</h2>
         <p>10 ks, vždy pouze v násobcích 10 (součet standardních a low cholesterol vajec).</p>
@@ -49,5 +54,6 @@ export default function Home() {
     </Layout>
   );
 }
+
 
 
