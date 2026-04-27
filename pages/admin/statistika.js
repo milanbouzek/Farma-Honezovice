@@ -222,7 +222,10 @@ export default function StatistikaPage() {
       if (!d) return;
       let key;
       if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
+     else if (period === "měsíc") {
+  if (d.getFullYear() !== selectedYear) return;
+  key = d.getMonth() + 1;
+}
       else if (period === "týden") {
         if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
         key = d.getDate();
@@ -253,7 +256,10 @@ export default function StatistikaPage() {
       if (!d) return;
       let key;
       if (period === "rok") key = d.getFullYear();
-      else if (period === "měsíc") key = d.getMonth() + 1;
+      else if (period === "měsíc") {
+  if (d.getFullYear() !== selectedYear) return;
+  key = d.getMonth() + 1;
+}
       else if (period === "týden") {
         if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
         key = d.getDate();
@@ -278,7 +284,10 @@ export default function StatistikaPage() {
     const expenseGrouped = {};
     const getKey = (d) => {
       if (period === "rok") return d.getFullYear();
-      if (period === "měsíc") return d.getMonth() + 1;
+     if (period === "měsíc") {
+  if (d.getFullYear() !== selectedYear) return undefined;
+  return d.getMonth() + 1;
+}
       if (period === "týden") {
         if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return undefined;
         return d.getDate();
@@ -326,7 +335,10 @@ const getEggsData = () => {
     if (!d) return;
     let key;
     if (period === "rok") key = d.getFullYear();
-    else if (period === "měsíc") key = d.getMonth() + 1;
+    else if (period === "měsíc") {
+  if (d.getFullYear() !== selectedYear) return;
+  key = d.getMonth() + 1;
+}
     else if (period === "týden") {
       if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
       key = d.getDate();
@@ -343,7 +355,10 @@ const getEggsData = () => {
     if (!d) return;
     let key;
     if (period === "rok") key = d.getFullYear();
-    else if (period === "měsíc") key = d.getMonth() + 1;
+    else if (period === "měsíc") {
+  if (d.getFullYear() !== selectedYear) return;
+  key = d.getMonth() + 1;
+}
     else if (period === "týden") {
       if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return;
       key = d.getDate();
