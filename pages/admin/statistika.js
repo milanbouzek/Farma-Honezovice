@@ -583,7 +583,12 @@ const getEggsData = () => {
                 ) : !hasData ? (
                   <p className="italic text-gray-500">Žádná data pro zobrazené období</p>
                 ) : (
-                  <Bar data={chartData} options={chartOptions} plugins={[DataLabelsPlugin]} />
+                  <Bar
+  key={`${period}-${selectedYear}-${selectedMonth}-${chartId}`}
+  data={chartData}
+  options={chartOptions}
+  plugins={[DataLabelsPlugin]}
+/>
                 )}
               </div>
             </div>
