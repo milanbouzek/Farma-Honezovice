@@ -58,6 +58,10 @@ export default function OrderForm() {
   });
 
   const [stock, setStock] = useState({ standardQuantity: 0, lowCholQuantity: 0 });
+  const [prices, setPrices] = useState({
+  standard_price: 0,
+  low_chol_price: 0,
+});
   const [loading, setLoading] = useState(false);
   const [dateError, setDateError] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
@@ -65,11 +69,36 @@ export default function OrderForm() {
   const [lastOrder, setLastOrder] = useState(null);
 
   const calendarRef = useRef(null);
+  
+useEffect(() => {
+  const loadStockAndPrices = async () => {
+    try {
+      const res = await fetch("/api/stock");
+      const data = await res.json();
 
+      setStock({
+        standardQuantity: data.stock?.standard_quantity || 0,
+        lowCholQuantity: data.stock?.low_chol_quantity || 0,
+      });
+
+      setPrices({
+        standard_price: Number(data.prices?.standard_price || 0),
+        low_chol_price: Number(data.prices?.low_chol_price || 0),
+      });
+    } catch (err) {
+      console.error("Chyba při načítání cen:", err);
+    }
+  };
+
+  loadStockAndPrices();
+}, []);
+  
   // cena
   const totalPrice =
-    (parseInt(formData.standardQuantity || 0, 10) * 5 || 0) +
-    (parseInt(formData.lowCholQuantity || 0, 10) * 7 || 0);
+  (parseInt(formData.standardQuantity || 0, 10) *
+    prices.standard_price || 0) +
+  (parseInt(formData.lowCholQuantity || 0, 10) *
+    prices.low_chol_price || 0);
 
   // dnešek (00:00)
   const today = new Date();
