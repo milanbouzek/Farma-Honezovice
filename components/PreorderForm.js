@@ -23,9 +23,18 @@ export default function PreorderForm() {
 
   const [minDate, setMinDate] = useState(null);
   const [minDateCZ, setMinDateCZ] = useState("");
+  const [prices, setPrices] = useState({
+  standardPrice: 0,
+  lowCholPrice: 0,
+});
 
   const calendarRef = useRef(null);
-
+const totalPrice =
+  (parseInt(formData.standardQuantity || 0, 10) *
+    prices.standardPrice || 0) +
+  (parseInt(formData.lowCholQuantity || 0, 10) *
+    prices.lowCholPrice || 0);
+  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -56,7 +65,24 @@ export default function PreorderForm() {
 
     return true;
   };
+// === load prices ===
+useEffect(() => {
+  const loadPrices = async () => {
+    try {
+      const res = await fetch("/api/stock");
+      const data = await res.json();
 
+      setPrices({
+        standardPrice: Number(data?.prices?.standard_price || 0),
+        lowCholPrice: Number(data?.prices?.low_chol_price || 0),
+      });
+    } catch (err) {
+      console.error("Price load error:", err);
+    }
+  };
+
+  loadPrices();
+}, []);
   // === dynamic minDate loader ===
   useEffect(() => {
     const qty =
@@ -213,7 +239,25 @@ export default function PreorderForm() {
       <Toaster position="top-center" />
 
       <PreorderCapacity />
+<div className="bg-white shadow rounded-xl p-4 mb-4">
+  <h2 className="text-lg font-bold mb-2 text-red-600">
+    📦 Aktuální ceny
+  </h2>
 
+  <p>
+    🥚 Standardní vejce:{" "}
+    <strong className="text-green-700">
+      {prices.standardPrice} Kč/ks
+    </strong>
+  </p>
+
+  <p>
+    🥚 Vejce se sníženým cholesterolem:{" "}
+    <strong className="text-green-700">
+      {prices.lowCholPrice} Kč/ks
+    </strong>
+  </p>
+</div>
       {minDateCZ && (
         <div className="bg-blue-100 text-blue-700 p-3 rounded-xl mb-3 text-sm">
           Nejbližší možný termín vyzvednutí: <strong>{minDateCZ}</strong>
@@ -316,6 +360,13 @@ export default function PreorderForm() {
             </button>
           </div>
         </div>
+{/* Total Price */}
+<div className="text-gray-800 font-semibold text-lg">
+  Celková cena:{" "}
+  <span className="text-green-700">
+    {totalPrice} Kč
+  </span>
+</div>
 
         {/* Location */}
         <div>
