@@ -87,7 +87,7 @@ export default async function handler(req, res) {
       // 🥚 Načtení skladu
       const { data: stockData, error: stockError } = await supabaseServer
         .from("eggs_stock")
-        .select("id, standard_quantity, low_chol_quantity")
+        .select("id, standard_quantity, low_chol_quantity, standard_price, low_chol_price")
         .limit(1)
         .maybeSingle();
 
@@ -105,22 +105,9 @@ export default async function handler(req, res) {
           .status(400)
           .json({ success: false, error: "Nedostatek vajec ve skladu." });
       }
-
-      // 💰 Načtení aktuálních cen
-      const { data: priceData, error: priceError } = await supabaseServer
-        .from("eggs_prices")
-        .select("standard_price, low_chol_price")
-        .order("id", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (priceError) throw priceError;
-      if (!priceData)
-        return res
-          .status(400)
-          .json({ success: false, error: "Ceník nenalezen." });
-
-      const { standard_price, low_chol_price } = priceData;
+const standard_price = Number(stockData.standard_price || 0);
+const low_chol_price = Number(stockData.low_chol_price || 0);
+     
       const totalPrice = standardQty * standard_price + lowCholQty * low_chol_price;
 
       const newStandard = stockData.standard_quantity - standardQty;
