@@ -84,13 +84,13 @@ export default async function handler(req, res) {
       const standardQty = Number(standardQuantity);
       const lowCholQty = Number(lowCholQuantity);
 
-      // 🥚 Načtení skladu
-      const { data: stockData, error: stockError } = await supabaseServer
-        .from("eggs_stock")
-        .select("id, standard_quantity, low_chol_quantity, standard_price, low_chol_price")
-        .limit(1)
-        .maybeSingle();
-
+     // 🥚 Načtení skladu
+const { data: stockData, error: stockError } = await supabaseServer
+  .from("eggs_stock")
+  .select("id, standard_quantity, low_chol_quantity")
+  .limit(1)
+  .maybeSingle();
+      
       if (stockError) throw stockError;
       if (!stockData)
         return res
@@ -105,8 +105,24 @@ export default async function handler(req, res) {
           .status(400)
           .json({ success: false, error: "Nedostatek vajec ve skladu." });
       }
-const standard_price = Number(stockData.standard_price || 0);
-const low_chol_price = Number(stockData.low_chol_price || 0);
+// 💰 Načtení aktuálních cen
+const { data: priceData, error: priceError } = await supabaseServer
+  .from("eggs_prices")
+  .select("standard_price, low_chol_price")
+  .eq("id", 1)
+  .maybeSingle();
+
+if (priceError) throw priceError;
+
+if (!priceData) {
+  return res.status(400).json({
+    success: false,
+    error: "Ceník nenalezen.",
+  });
+}
+
+const standard_price = Number(priceData.standard_price || 0);
+const low_chol_price = Number(priceData.low_chol_price || 0);
      
       const totalPrice = standardQty * standard_price + lowCholQty * low_chol_price;
 
