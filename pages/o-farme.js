@@ -31,7 +31,7 @@ export default function OFarme() {
       </p>
 
       <ul className="list-disc list-inside mb-6 text-gray-700">
-        <li>DOMINANT ČERVENÝ D853</li>
+        <li>Dominant Červený D853</li>
         <li>Dominant Leghorn Černobílý D601</li>
         <li>Dominant Leghorn D229</li>
         <li>2× Dominant Modrý D107</li>
