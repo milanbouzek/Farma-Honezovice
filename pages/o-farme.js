@@ -18,7 +18,7 @@ export default function OFarme() {
       </h1>
 
       <p className="mb-4 text-lg leading-relaxed text-gray-700">
-        Naše malá farma je domovem <strong>18 slepic</strong>, které bydlí v
+        Naše malá farma je domovem <strong>17 slepic</strong> a 1 kohouta, kteří bydlí v
         zatepleném kurníku s venkovním výběhem. Slepičky mají každý den přístup
         na čerstvý vzduch a zelenou trávu, což se odráží i na kvalitě vajíček.
         Krmíme je <strong>kvalitními granulemi</strong>, doplňkově{" "}
@@ -42,7 +42,8 @@ export default function OFarme() {
         <li>3x Dominant Blueshell</li>
         <li>Dominant Darkshell</li>
         <li>Dominant Darkgreen</li>
-        <li>Dominant Lila</li>
+        <li>2x Dominant Lila</li>
+        <li>Australka černá - kohout</li>
       </ul>
 
       <h2 className="text-2xl font-semibold mb-4 text-yellow-700">📸 Fotogalerie</h2>
