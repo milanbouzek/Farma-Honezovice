@@ -18,7 +18,7 @@ export default function OFarme() {
       </h1>
 
       <p className="mb-4 text-lg leading-relaxed text-gray-700">
-        Naše malá farma je domovem <strong>13 slepic</strong>, které bydlí v
+        Naše malá farma je domovem <strong>18 slepic</strong>, které bydlí v
         zatepleném kurníku s venkovním výběhem. Slepičky mají každý den přístup
         na čerstvý vzduch a zelenou trávu, což se odráží i na kvalitě vajíček.
         Krmíme je <strong>kvalitními granulemi</strong>, doplňkově{" "}
