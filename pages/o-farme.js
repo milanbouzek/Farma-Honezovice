@@ -38,11 +38,11 @@ export default function OFarme() {
         <li>Dominant Žíhaný D959</li>
         <li>2× Dominant Vlaška koroptví D300</li>
         <li>Dominant Černý D109</li>
-        <li>DOMINANT GREENSHELL</li>
-        <li>DOMINANT BLUESHELL</li>
-        <li>DOMINANT DARKSHELL</li>
-        <li>DOMINANT DARKGREEN</li>
-        <li>DOMINANT LILA</li>
+        <li>Dominant Greenshell</li>
+        <li>3x Dominant Blueshell</li>
+        <li>Dominant Darkshell</li>
+        <li>Dominant Darkgreen</li>
+        <li>Dominant Lila</li>
       </ul>
 
       <h2 className="text-2xl font-semibold mb-4 text-yellow-700">📸 Fotogalerie</h2>
